@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pytest
 from dfttoolkit.output import AimsOutput
@@ -11,7 +9,7 @@ class TestAimsOutput:
     def _aims_fixture_no(self) -> int:
         return int(self.ao.path.split("/")[-2])
 
-    @pytest.fixture(params=range(1, 11), autouse=True)
+    @pytest.fixture(params=range(1, 13), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir):
 
         self.ao = AimsOutput(
@@ -19,7 +17,7 @@ class TestAimsOutput:
         )
 
     def test_get_number_of_atoms(self):
-        if self._aims_fixture_no in [4, 6, 8, 10]:
+        if self._aims_fixture_no in [4, 6, 8, 10, 11, 12]:
             assert self.ao.get_number_of_atoms() == 2
         else:
             assert self.ao.get_number_of_atoms() == 3
@@ -67,6 +65,8 @@ class TestAimsOutput:
                 -0.0001144,
                 6.018e-06,
                 7.119e-06,
+                1.96e-06,
+                3.743e-09,
             ]
         )
 
@@ -103,6 +103,8 @@ class TestAimsOutput:
             0.871,
             -5.561,
             -0.07087,
+            -0.1222,
+            -0.387,
         ]
 
         assert (
@@ -130,15 +132,14 @@ class TestAimsOutput:
     # the previous 4 tests
 
     def test_get_change_of_forces(self):
-        forces = [0.4728, 8.772e-09, 6.684e-12]
+        forces = [0.4728, 8.772e-09, 6.684e-12, 1.248e-08]
+        aims_forces_fixtures = [5, 6, 7, 12]
 
-        if self._aims_fixture_no in [5, 6, 7]:
-            assert (
-                abs(self.ao.get_change_of_forces() - forces[self._aims_fixture_no - 5])
-                < 1e-8
-            )
+        for i in range(len(forces)):
+            if self._aims_fixture_no == aims_forces_fixtures[i]:
+                assert abs(self.ao.get_change_of_forces() - forces[i]) < 1e-8
 
-        else:
+        if self._aims_fixture_no not in aims_forces_fixtures:
             with pytest.raises(ValueError):
                 self.ao.get_change_of_forces()
 
@@ -146,7 +147,7 @@ class TestAimsOutput:
     # def get_change_of_sum_of_eigenvalues(self):
 
     def test_check_spin_polarised(self):
-        if self._aims_fixture_no in [2, 3]:
+        if self._aims_fixture_no in [2, 3, 11, 12]:
             assert self.ao.check_spin_polarised() is True
         else:
             assert self.ao.check_spin_polarised() is False
@@ -169,6 +170,8 @@ class TestAimsOutput:
             None,
             -2081.000809207,
             -15804.824029071,
+            -15783.7132844,
+            -15802.654211961,
         ]
 
         final_energy = self.ao.get_final_energy()
@@ -179,8 +182,51 @@ class TestAimsOutput:
         else:
             assert abs(final_energy - final_energies[self._aims_fixture_no - 1]) < 1e-8
 
+    def test_get_final_spin_moment(self):
+        final_spin_moments = [
+            None,
+            (0.0, 0.0, 1.00),
+            (0.0, 0.0, 1.00),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            (6.0, 3.0, 7.00),
+            (0, 0),
+        ]
+
+        final_spin_moment = self.ao.get_final_spin_moment()
+
+        if self._aims_fixture_no in [2, 3, 11]:
+            assert final_spin_moment is not None
+
+            for i in range(3):
+                assert (
+                    abs(
+                        final_spin_moment[i]
+                        - final_spin_moments[self._aims_fixture_no - 1][i]
+                    )
+                    < 1e-8
+                )
+
+        elif self._aims_fixture_no == 12:
+            for i in range(2):
+                assert (
+                    abs(
+                        final_spin_moment[i]
+                        - final_spin_moments[self._aims_fixture_no - 1][i]
+                    )
+                    < 1e-8
+                )
+
+        else:
+            assert final_spin_moment is None
+
     def get_n_relaxation_steps_test(self):
-        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1]
+        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1, 1, 2]
         assert (
             self.ao.get_n_relaxation_steps()
             == n_relaxation_steps[self._aims_fixture_no - 1]
@@ -194,7 +240,7 @@ class TestAimsOutput:
     # def get_i_scf_conv_acc_test(self):
 
     def test_get_n_initial_ks_states(self):
-        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20]
+        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20, 40, 20]
 
         if self._aims_fixture_no in [2, 3]:
             assert (
@@ -239,7 +285,6 @@ class TestAimsOutput:
 
     def _compare_final_ks_evals(self, ref_data: dict, ref: int, spin_case: str) -> None:
         for key in ref_data[f"{spin_case}_final_eigenvalues"][ref].keys():
-
             if spin_case == "sn":
                 test = self.ao.get_final_ks_eigenvalues()[key]
             elif spin_case == "su":
@@ -259,7 +304,7 @@ class TestAimsOutput:
 
     def test_get_final_ks_eigenvalues(self, ref_data):
         sn_refs = [1, 4, 5, 6, 7, 8, 9]
-        sc_refs = [2, 3]
+        sc_refs = [2, 3, 11, 12]
 
         if self._aims_fixture_no in sn_refs:
             ref = sn_refs.index(self._aims_fixture_no)

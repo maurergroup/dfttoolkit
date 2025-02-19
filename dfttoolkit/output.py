@@ -1,20 +1,20 @@
+from functools import wraps
 import warnings
-from typing import List, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse as sp
 
-import dfttoolkit.utils.file_utils as fu
-from dfttoolkit.base_parser import BaseParser
+from dfttoolkit.base import Parser
 from dfttoolkit.geometry import AimsGeometry
 from dfttoolkit.parameters import AimsControl
 from dfttoolkit.utils.exceptions import ItemNotFoundError
 
 
-class Output(BaseParser):
+class Output(Parser):
     """
-    Base class for parsing output files from electronic structure calculations.
+    Parse output files from electronic structure calculations.
 
     If contributing a new parser, please subclass this class, add the new supported file
     type to _supported_files, call the super().__init__ method, include the new file
@@ -25,30 +25,32 @@ class Output(BaseParser):
 
     Attributes
     ----------
-    supported_files : List[str]
+    _supported_files : dict
         List of supported file types.
-
-    Examples
-    --------
-    class AimsOutput(Output):
-        def __init__(self, aims_out: str = "aims.out"):
-            super().__init__(aims_out=aims_out)
-            self.lines = self._file_contents["aims_out"]
     """
 
-    def __init__(self, **kwargs: str):
-        # FHI-aims, ELSI, ...
-        self._supported_files = ["aims_out", "elsi_out"]
+    def __init__(self, **kwargs):
+        # Parse file information and perform checks
+        super().__init__(self._supported_files.keys(), **kwargs)
 
-        # Check that only supported files were provided
-        for val in kwargs.keys():
-            fu.check_required_files(self._supported_files, val)
+        # Check that the files are in the correct format
+        match self._format:
+            case "aims_out":
+                self._check_output_file_extension(self._supported_files["aims_out"])
+                self._check_binary(self._binary, False)
 
-        super().__init__(self._supported_files, **kwargs)
+            case "elsi_csc":
+                self._check_output_file_extension(self._supported_files["elsi_csc"])
+                self._check_binary(self._binary, True)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._format}={self._path})"
 
     @property
-    def supported_files(self) -> List[str]:
-        return self._supported_files
+    @wraps(Parser._supported_files)
+    def _supported_files(self) -> dict:
+        # FHI-aims, ELSI, ...
+        return {"aims_out": ".out", "elsi_csc": ".csc"}
 
 
 class AimsOutput(Output):
@@ -59,23 +61,18 @@ class AimsOutput(Output):
 
     Attributes
     ----------
-    lines : List[str]
-        The contents of the aims.out file.
-    path : str
-        The path to the aims.out file.
+    path: str
+        path to the aims.out file
+    lines: List[str]
+        contents of the aims.out file
 
     Examples
     --------
     >>> ao = AimsOutput(aims_out="./aims.out")
     """
 
-    def __init__(self, aims_out: str = "aims.out"):
-        super().__init__(aims_out=aims_out)
-        self.lines = self.file_contents["aims_out"]
-        self.path = self.file_paths["aims_out"]
-
-        # Check if the aims.out file was provided
-        fu.check_required_files(self._supported_files, "aims_out")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def get_number_of_atoms(self) -> int:
         """
@@ -811,6 +808,37 @@ class AimsOutput(Output):
             if "s.c.f. calculation      :" in line:
                 return float(line.split()[-2])
 
+    def get_final_spin_moment(self) -> Union[tuple, None]:
+        """
+        Get the final spin moment from a FHI-aims calculation.
+
+        Returns
+        -------
+        Union[tuple, None]
+            The final spin moment of the calculation, if it exists
+        """
+
+        N, S, J = None, None, None
+
+        # Iterate through the lines in reverse order to find the final spin moment
+        for i, line in enumerate(reversed(self.lines)):
+            if "Current spin moment of the entire structure :" in line:
+                if len(self.lines[-1 - i + 3].split()) > 0:
+                    N = float(self.lines[-1 - i + 1].split()[-1])
+                    S = float(self.lines[-1 - i + 2].split()[-1])
+                    J = float(self.lines[-1 - i + 3].split()[-1])
+
+                    return N, S, J
+
+                else:  # Non-gamma point periodic calculation
+                    N = float(self.lines[-1 - i + 1].split()[-1])
+                    S = float(self.lines[-1 - i + 2].split()[-1])
+
+                    return N, S
+
+        if N is None or S is None:
+            return None
+
     def get_n_relaxation_steps(self) -> int:
         """
         Get the number of relaxation steps from the aims.out file.
@@ -1355,6 +1383,8 @@ class ELSIOutput(Output):
         """
 
         header = self.get_elsi_csc_header()
+
+        print(np.strings.decode(self.lines))
 
         # Get the column pointer
         end = 128 + self.n_basis * 8
