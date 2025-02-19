@@ -1,10 +1,10 @@
+from functools import wraps
 from typing import List, Literal, Union
 
-import dfttoolkit.utils.file_utils as fu
-from dfttoolkit.base_parser import BaseParser
+from dfttoolkit.base import Parser
 
 
-class Parameters(BaseParser):
+class Parameters(Parser):
     """
     Handle files that control parameters for electronic structure calculations.
 
@@ -17,23 +17,27 @@ class Parameters(BaseParser):
 
     Attributes
     ----------
-    _supported_files : list
+    _supported_files : dict
         List of supported file types.
     """
 
-    def __init__(self, **kwargs: str):
-        # FHI-aims, ...
-        self._supported_files = ["control_in"]
+    def __init__(self, **kwargs):
+        # Parse file information and perform checks
+        super().__init__(self._supported_files.keys(), **kwargs)
 
-        # Check that only supported files were provided
-        for val in kwargs.keys():
-            fu.check_required_files(self._supported_files, val)
+        # Check that the files are in the correct format
+        match self._format:
+            case "control_in":
+                self._check_output_file_extension(self._supported_files["control_in"])
 
-        super().__init__(self._supported_files, **kwargs)
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._format}={self._name})"
 
     @property
-    def supported_files(self) -> List[str]:
-        return self._supported_files
+    @wraps(Parser._supported_files)
+    def _supported_files(self) -> dict:
+        # FHI-aims, ...
+        return {"control_in": ".in"}
 
 
 class AimsControl(Parameters):
@@ -44,20 +48,18 @@ class AimsControl(Parameters):
 
     Attributes
     ----------
-    lines : List[str]
-        The contents of the control.in file.
-    path : str
-        The path to the control.in file.
+    path: str
+        path to the aims.out file
+    lines: List[str]
+        contents of the aims.out file
+
+    Examples
+    --------
+    >>> ac = AimsControl(control_in="./control.in")
     """
 
-    def __init__(self, control_in: str = "control.in", parse_file: bool = True):
-        if parse_file:
-            super().__init__(control_in=control_in)
-            self.lines = self.file_contents["control_in"]
-            self.path = self.file_paths["control_in"]
-
-            # Check if the control.in file was provided
-            fu.check_required_files(self._supported_files, "control_in")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def add_keywords(self, **kwargs: dict) -> None:
         """
