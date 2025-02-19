@@ -11,10 +11,16 @@ class TestAimsOutput:
 
     @pytest.fixture(params=range(1, 13), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir):
-
         self.ao = AimsOutput(
             aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/aims.out"
         )
+
+    @pytest.fixture
+    def control_in(self, cwd, aims_calc_dir):
+        with open(
+            f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in", "r"
+        ) as f:
+            yield [line.strip() for line in f.readlines()]
 
     def test_get_number_of_atoms(self):
         if self._aims_fixture_no in [4, 6, 8, 10, 11, 12]:
@@ -32,8 +38,14 @@ class TestAimsOutput:
             assert len(geom) == 2
             assert geom.get_is_periodic() is True
 
-    # TODO
-    # def test_get_parameters(self):
+    def test_get_control_file(self, control_in):
+        assert self.ao.get_control_file() == control_in
+
+    def test_get_parameters(self, ref_data):
+        assert (
+            self.ao.get_parameters()
+            == ref_data["control_params"][self._aims_fixture_no - 1]
+        )
 
     def test_check_exit_normal(self):
         if self._aims_fixture_no in [7, 8]:
@@ -233,7 +245,7 @@ class TestAimsOutput:
         )
 
     def test_get_n_scf_iters(self):
-        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11]
+        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29]
         assert self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
 
     # TODO
@@ -242,7 +254,7 @@ class TestAimsOutput:
     def test_get_n_initial_ks_states(self):
         n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20, 40, 20]
 
-        if self._aims_fixture_no in [2, 3]:
+        if self._aims_fixture_no in [2, 3, 11]:
             assert (
                 self.ao.get_n_initial_ks_states()
                 == n_initial_ks_states[self._aims_fixture_no - 1]
@@ -325,7 +337,7 @@ class TestAimsOutput:
                     atol=1e-8,
                 )
 
-        elif self._aims_fixture_no == 2:
+        elif self._aims_fixture_no in [2, 11]:
             with pytest.raises(ValueError):
                 self.ao.get_pert_soc_ks_eigenvalues()
 

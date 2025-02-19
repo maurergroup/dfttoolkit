@@ -1,6 +1,6 @@
 from functools import wraps
 import warnings
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -154,7 +154,7 @@ class AimsOutput(Output):
         # 2... in lattice section of geometry file
         # 3... in atoms section of geometry file
 
-        geometry_lines = None
+        geometry_lines = []
         for l in self.lines:
             if (
                 "Updated atomic structure:" in l
@@ -162,7 +162,6 @@ class AimsOutput(Output):
                 in l
             ):
                 state = 1
-                geometry_lines = []
 
             if state > 0 and "atom " in l:
                 state = 3
@@ -172,7 +171,7 @@ class AimsOutput(Output):
             if state > 0:
                 geometry_lines.append(l)
 
-            if state == 3 and not "atom " in l:
+            if state == 3 and "atom " not in l:
                 state = 0
                 geometry_text = "".join(geometry_lines[2:-1])
                 g = AimsGeometry()
@@ -180,19 +179,18 @@ class AimsOutput(Output):
                 geometry_files.append(g)
 
         if n_occurrence is not None:
-            geometry_files = geometry_files[geometry_files]
+            geometry_files = geometry_files[n_occurrence]
 
         return geometry_files
 
-    def get_parameters(self) -> AimsControl:
+    def get_control_file(self) -> List[str]:
         """
-        Extract the control file from the aims output and return it as an AimsControl
-        object
+        Extract the control file from the aims output
 
         Returns
         -------
-        AimsControl
-            AimsControl object
+        List[str]
+            Lines from the control file found in the aims output
         """
 
         control_lines = []
@@ -205,16 +203,44 @@ class AimsOutput(Output):
                 control_file_reached = True
 
             if control_file_reached:
-                control_lines.append(l)
+                control_lines.append(l.strip())
 
             if "Completed first pass over input file control.in ." in l:
                 break
 
-        ac = AimsControl(parse_file=False)
-        ac.lines = control_lines[6:-3]
-        ac.path = ""
+        return control_lines[6:-3]
 
-        return ac
+    def get_parameters(self) -> dict:
+        """
+        Parse the parameters of the FHI-aims control file from the aims output
+
+        Returns
+        -------
+        dict
+            The parameters of the FHI-aims control file found in the aims output
+        """
+
+        # Find where the parameters start
+        for i, line in enumerate(self.lines):
+            if (
+                "Parsing control.in (first pass over file, find array dimensions only)."
+                in line
+            ):
+                break
+
+        parameters = {}
+
+        for line in self.lines[i + 6 :]:
+            # End of parameters and start of basis sets
+            if "#" * 80 in line:
+                break
+
+            spl = line.split()
+            parameters[spl[0]] = " ".join(spl[1:])
+
+        return parameters
+
+    def get_basis_sets(self): ...
 
     def check_exit_normal(self) -> bool:
         """
@@ -1125,7 +1151,7 @@ class AimsOutput(Output):
 
         # Check if output_level full was specified in the calculation
         required_item = ("output_level", "full")
-        if required_item not in self.get_parameters().get_keywords().items():
+        if required_item not in self.get_parameters().items():
             raise ItemNotFoundError(required_item)
 
         # Get the number of KS states and scf iterations

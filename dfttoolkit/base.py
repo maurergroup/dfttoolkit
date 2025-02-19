@@ -81,7 +81,7 @@ class Parser(File, ABC):
             raise TypeError(f"Ensure only one of {supported_files} is specified.")
 
         if not provided_keys.issubset(supported_files):
-            raise UnsupportedFileError(provided_keys, supported_files)
+            raise UnsupportedFileError(provided_keys, supported_files[0])
 
         super().__init__(*reversed(next(iter(kwargs.items()))))
 
