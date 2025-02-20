@@ -1,4 +1,3 @@
-from functools import wraps
 import warnings
 from typing import List, Tuple, Union
 
@@ -8,7 +7,6 @@ import scipy.sparse as sp
 
 from dfttoolkit.base import Parser
 from dfttoolkit.geometry import AimsGeometry
-from dfttoolkit.parameters import AimsControl
 from dfttoolkit.utils.exceptions import ItemNotFoundError
 
 
@@ -36,21 +34,24 @@ class Output(Parser):
         # Check that the files are in the correct format
         match self._format:
             case "aims_out":
-                self._check_output_file_extension(self._supported_files["aims_out"])
-                self._check_binary(self._binary, False)
-
+                self._check_output_file_extension("aims_out")
+                self._check_binary(False)
             case "elsi_csc":
-                self._check_output_file_extension(self._supported_files["elsi_csc"])
-                self._check_binary(self._binary, True)
+                self._check_output_file_extension("elsi_csc")
+                self._check_binary(True)
+
+    @property
+    def _supported_files(self) -> dict:
+        # FHI-aims, ELSI, ...
+        return {"aims_out": ".out", "elsi_csc": ".csc"}
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._format}={self._path})"
 
-    @property
-    @wraps(Parser._supported_files)
-    def _supported_files(self) -> dict:
-        # FHI-aims, ELSI, ...
-        return {"aims_out": ".out", "elsi_csc": ".csc"}
+    def __init_subclass__(cls, **kwargs):
+        # Revert back to the original __init_subclass__ method to avoid checking for
+        # required methods in child class of this class too
+        return super(Parser, cls).__init_subclass__(**kwargs)
 
 
 class AimsOutput(Output):
@@ -230,7 +231,7 @@ class AimsOutput(Output):
 
         parameters = {}
 
-        for line in self.lines[i + 6 :]:
+        for line in self.lines[i + 6 :]:  # pyright: ignore
             # End of parameters and start of basis sets
             if "#" * 80 in line:
                 break
@@ -1359,17 +1360,18 @@ class ELSIOutput(Output):
 
     Attributes
     ----------
-    lines :
-        Contents of ELSI output file.
+    data : bytes
+        The binary data from the ELSI csc file
+    path : str
+        Path to ELSI csc file.
     n_basis : int
         Number of basis functions
     n_non_zero : int
         Number of non-zero elements in the matrix
     """
 
-    def __init__(self, elsi_out: str):
-        super().__init__(elsi_out=elsi_out)
-        self.lines = self.file_contents["elsi_out"]
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def get_elsi_csc_header(self) -> npt.NDArray[np.int64]:
         """
@@ -1381,7 +1383,7 @@ class ELSIOutput(Output):
             The contents of the ELSI csc file header
         """
 
-        return np.frombuffer(self.lines[0:128], dtype=np.int64)
+        return np.frombuffer(self.data[0:128], dtype=np.int64)
 
     @property
     def n_basis(self) -> int:
@@ -1410,37 +1412,33 @@ class ELSIOutput(Output):
 
         header = self.get_elsi_csc_header()
 
-        print(np.strings.decode(self.lines))
-
         # Get the column pointer
         end = 128 + self.n_basis * 8
-        col_i = np.frombuffer(self.lines[128:end], dtype=np.int64)
+        col_i = np.frombuffer(self.data[128:end], dtype=np.int64)
         col_i = np.append(col_i, self.n_non_zero + 1)
         col_i -= 1
 
         # Get the row index
         start = end + self.n_non_zero * 4
-        row_i = np.array(np.frombuffer(self.lines[end:start], dtype=np.int32))
+        row_i = np.array(np.frombuffer(self.data[end:start], dtype=np.int32))
         row_i -= 1
 
         if header[2] == 0:  # real
             nnz = np.frombuffer(
-                self.lines[start : start + self.n_non_zero * 8],
+                self.data[start : start + self.n_non_zero * 8],
                 dtype=np.float64,
             )
 
         else:  # complex
             nnz = np.frombuffer(
-                self.lines[start : start + self.n_non_zero * 16],
+                self.data[start : start + self.n_non_zero * 16],
                 dtype=np.complex128,
             )
 
         if csc_format:
-            return sp.csc_matrix(
-                (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
-            )
+            return sp.csc_array((nnz, row_i, col_i), shape=(self.n_basis, self.n_basis))
 
         else:
-            return sp.csc_matrix(
+            return sp.csc_array(
                 (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
             ).toarray()

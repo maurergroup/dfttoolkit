@@ -1,3 +1,4 @@
+import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -91,19 +92,47 @@ class Parser(File, ABC):
         """Currently supported output file types and extensions"""
         pass
 
-    @abstractmethod
-    def __repr__(self) -> str:
-        pass
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # Get the cls's __init__
+        cls_init = cls.__dict__.get("__init__")
+
+        if cls_init is None:
+            raise TypeError(f"{cls.__name__} must implement __init__")
+
+        src = inspect.getsource(cls_init)
+
+        # Check if the required methods are implemented
+        required_methods = ["_check_output_file_extension", "_check_binary"]
+        if not all(method in src for method in required_methods):
+            raise TypeError(
+                f"{cls.__name__} must implement {*required_methods,} methods"
+            )
 
     def _check_output_file_extension(self, extension: str) -> None:
-        if not self._extension == extension:
-            raise ValueError(f"{self._name} is not an {self._format} file")
+        """
+        Check that the file has the correct extension for the output file type
 
-    def _check_binary(self, binary: bool, expected: bool) -> None:
-        if expected:
-            expected_str = "should not be in a binary format"
-        else:
-            expected_str = "should be in a binary format"
+        Parameters
+        ----------
+        extension : str
+            The expected extension of the file
+        """
 
-        if not binary == expected:
-            raise ValueError(f"{self._name} {expected_str}")
+        if not self._extension == self._supported_files[extension]:
+            raise ValueError(f"{self._name} is not {self._format} file")
+
+    def _check_binary(self, binary: bool) -> None:
+        """
+        Check if the file is supposed to be a binary of text format
+
+        Parameters
+        ----------
+        binary : bool
+            Whether the file is expected to be a binary or not
+        """
+
+        if self._binary is not binary:
+            expected_str = "binary" if binary else "text"
+            raise ValueError(f"{self._name} should be {expected_str} format")

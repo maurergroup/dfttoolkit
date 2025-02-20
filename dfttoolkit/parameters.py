@@ -1,4 +1,4 @@
-from functools import wraps
+import inspect
 from typing import List, Literal, Union
 
 from dfttoolkit.base import Parser
@@ -9,7 +9,7 @@ class Parameters(Parser):
     Handle files that control parameters for electronic structure calculations.
 
     If contributing a new parser, please subclass this class, add the new supported file
-    type to _supported_files, call the super().__init__ method, include the new file
+    type to _supported_files and match statement in this class' __init__, and call the super().__init__ method, include the new file
     type as a kwarg in the super().__init__ call. Optionally include the self.lines line
     in examples.
 
@@ -25,19 +25,23 @@ class Parameters(Parser):
         # Parse file information and perform checks
         super().__init__(self._supported_files.keys(), **kwargs)
 
-        # Check that the files are in the correct format
         match self._format:
             case "control_in":
-                self._check_output_file_extension(self._supported_files["control_in"])
+                self._check_output_file_extension("control_in")
+                self._check_binary(False)
+
+    @property
+    def _supported_files(self) -> dict:
+        # FHI-aims, ...
+        return {"control_in": ".in"}
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._format}={self._name})"
 
-    @property
-    @wraps(Parser._supported_files)
-    def _supported_files(self) -> dict:
-        # FHI-aims, ...
-        return {"control_in": ".in"}
+    def __init_subclass__(cls, **kwargs):
+        # Revert back to the original __init_subclass__ method to avoid checking for
+        # required methods in child class of this class too
+        return super(Parser, cls).__init_subclass__(**kwargs)
 
 
 class AimsControl(Parameters):
@@ -61,21 +65,16 @@ class AimsControl(Parameters):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def add_keywords(self, **kwargs: dict) -> None:
-        """
-        Add keywords to the control.in file.
+    def add_keywords(self, **kwargs: dict) -> None: ...
 
-        Parameters
-        ----------
-        **kwargs : dict
-            Keywords to be added to the control.in file.
-        """
+    # """
+    # Add keywords to the control.in file.
 
-        for keyword in kwargs:
-            self.lines.append(keyword + "\n")
-
-        # TODO finish this
-        raise NotImplementedError
+    # Parameters
+    # ----------
+    # **kwargs : dict
+    #     Keywords to be added to the control.in file.
+    # """
 
     def remove_keywords(
         self, *args: str, output: Literal["overwrite", "print", "return"] = "return"

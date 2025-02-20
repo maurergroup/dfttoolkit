@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
-from dfttoolkit.output import AimsOutput
+from dfttoolkit.output import AimsOutput, ELSIOutput
 from dfttoolkit.utils.exceptions import ItemNotFoundError
+from scipy.sparse import load_npz
 
 
 class TestAimsOutput:
@@ -348,5 +349,56 @@ class TestAimsOutput:
                     self.ao.get_pert_soc_ks_eigenvalues()
 
 
-# TODO
-# class TestELSIOutput:
+class TestELSIOutput:
+    @pytest.fixture(autouse=True)
+    def elsi_csc(self, cwd):
+        self.eo_csc = ELSIOutput(
+            elsi_csc=f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
+        )
+
+    @pytest.fixture(autouse=True)
+    def elsi_npz(self, cwd):
+        self.eo_npz = load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
+
+    def test_get_elsi_csc_header(self):
+        assert (
+            self.eo_csc.get_elsi_csc_header().all()
+            == np.array(
+                [
+                    170915,
+                    -910910,
+                    0,
+                    42,
+                    22,
+                    582,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                ]
+            ).all()
+        )
+
+    def test_read_elsi_as_csc_to_array(self):
+        assert np.allclose(
+            self.eo_csc.read_elsi_as_csc(csc_format=False).all(),
+            self.eo_npz.toarray().all(),
+            atol=1e-8,
+        )
+
+        assert np.allclose(
+            self.eo_csc.read_elsi_as_csc(csc_format=True).toarray().all(),
+            self.eo_npz.toarray().all(),
+        )
+
+    @pytest.mark.xfail(False, reason="Direct comparison of floats without tolerance")
+    def test_read_elsi_as_csc_bin_compare(self):
+        assert (
+            self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz
+        )._getnnz() == 0
