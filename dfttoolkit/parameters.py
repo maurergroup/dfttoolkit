@@ -1,5 +1,4 @@
-import inspect
-from typing import Dict, List, Literal, Union
+from typing import Dict, List, Union
 
 from dfttoolkit.base import Parser
 
@@ -65,20 +64,52 @@ class AimsControl(Parameters):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def add_keywords(self, **kwargs: dict) -> None: ...
+    def add_keywords(self, **kwargs: Dict[str, str]) -> None:
+        """
+        Add keywords to the control.in file.
 
-    # """
-    # Add keywords to the control.in file.
+        Note that files written by ASE or in a format where the keywords are at the top
+        of the file followed by the basis sets are the only formats that are supported
+        by this function.
 
-    # Parameters
-    # ----------
-    # **kwargs : dict
-    #     Keywords to be added to the control.in file.
-    # """
+        Parameters
+        ----------
+        **kwargs : dict
+            Keywords to be added to the control.in file.
+        """
 
-    def remove_keywords(
-        self, *args: str, output: Literal["overwrite", "print", "return"] = "return"
-    ) -> Union[None, List[str]]:
+        aims_keywords = {}
+
+        # Get current keywords
+        for i, line in enumerate(self.lines):
+            if "#" * 80 in line:
+                # Reached the basis set definitions
+                break
+
+            spl = line.split()
+
+            if len(spl) > 0 and spl[0] != "#":
+                self.lines.pop(i)
+                aims_keywords[spl[0]] = spl[1:]
+
+        # Update with new keywords
+        aims_keywords.update(kwargs)
+
+        # Write the new keywords
+        for i, line in enumerate(self.lines):
+            if "#" * 80 in line:
+                # Reached basis set definitions
+                # Add new keywords here
+                for key, val in aims_keywords:
+                    self.lines.insert(i, f"{key:<34} {val}\n")
+
+                break
+
+        # Write the file
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
+
+    def remove_keywords(self, *args: str) -> None:
         """
         Remove keywords from the control.in file.
 
@@ -89,12 +120,6 @@ class AimsControl(Parameters):
         output : Literal["overwrite", "print", "return"], default="overwrite"
             Overwrite the original file, print the modified file to STDOUT, or return
             the modified file as a list of '\\n' separated strings.
-
-        Returns
-        -------
-        Union[None, List[str]]
-            If output is "return", the modified file is returned as a list of '\\n'
-            separated strings.
         """
 
         for keyword in args:
@@ -102,18 +127,10 @@ class AimsControl(Parameters):
                 if keyword in line:
                     self.lines.pop(i)
 
-        match output:
-            case "overwrite":
-                with open(self.path, "w") as f:
-                    f.writelines(self.lines)
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
 
-            case "print":
-                print(*self.lines, sep="")
-
-            case "return":
-                return self.lines
-
-    def get_keywords(self) -> dict:
+    def get_keywords(self) -> Dict[str, str]:
         """
         Get the keywords from the control.in file.
 
@@ -126,10 +143,10 @@ class AimsControl(Parameters):
         keywords = {}
 
         for line in self.lines:
-            spl = line.split()
-
             if "#" * 80 in line:
                 break
+
+            spl = line.split()
 
             if len(spl) > 0 and spl[0] != "#":
                 if len(spl) == 1:
