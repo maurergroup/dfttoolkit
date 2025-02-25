@@ -46,3 +46,9 @@ class TestAimsControl:
     def test_get_keywords(self, ref_data):
         keywords = self.ac.get_keywords()
         assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
+
+    def test_get_species(self):
+        cluster_species = ["H", "O"]
+        periodic_species = ["Si"]
+
+        # if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
