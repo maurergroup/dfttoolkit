@@ -1,5 +1,5 @@
 import inspect
-from typing import List, Literal, Union
+from typing import Dict, List, Literal, Union
 
 from dfttoolkit.base import Parser
 
@@ -138,3 +138,62 @@ class AimsControl(Parameters):
                     keywords[spl[0]] = " ".join(spl[1:])
 
         return keywords
+
+    def get_species(self) -> List[str]:
+        """
+        Get the species from a control.in file.
+
+        Returns
+        -------
+        List[str]
+            A list of the species in the control.in file.
+        """
+
+        species = []
+        for line in self.lines:
+            if "species" in line:
+                species.append(line.split()[1])
+
+        return species
+
+    def get_default_basis_funcs(
+        self, elements: Union[List[str], None] = None
+    ) -> Dict[str, str]:
+        """
+        Get the basis functions from the control.in file.
+
+        Parameters
+        ----------
+        elements : List[str], optional, default=None
+            The elements to parse the basis functions for.
+
+        Returns
+        -------
+        Dict[str, str]
+            A dictionary of the basis functions for the specified elements.
+        """
+
+        basis_funcs = {}
+
+        for i, line_1 in enumerate(self.lines):
+            spl_1 = line_1.split()
+            if "species" in spl_1[0]:
+                species = spl_1[1]
+
+                if elements is not None and species not in elements:
+                    continue
+
+                for line_2 in self.lines[i:]:
+                    spl = line_2.split()
+                    if "species" in spl[0]:
+                        break
+
+                    if "#" in spl[0]:
+                        continue
+
+                    if "hydro" in line_2:
+                        basis_funcs[species] = line_2.strip()
+
+        return basis_funcs
+
+    def check_periodic(self): ...
