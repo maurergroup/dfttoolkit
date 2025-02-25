@@ -64,7 +64,7 @@ class AimsControl(Parameters):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def add_keywords(self, **kwargs: Dict[str, str]) -> None:
+    def add_keywords(self, **kwargs: str) -> None:
         """
         Add keywords to the control.in file.
 
@@ -79,6 +79,7 @@ class AimsControl(Parameters):
         """
 
         aims_keywords = {}
+        pop_eyes = []
 
         # Get current keywords
         for i, line in enumerate(self.lines):
@@ -89,8 +90,18 @@ class AimsControl(Parameters):
             spl = line.split()
 
             if len(spl) > 0 and spl[0] != "#":
-                self.lines.pop(i)
-                aims_keywords[spl[0]] = spl[1:]
+                aims_keywords[spl[0]] = " ".join(spl[1:])
+                pop_eyes.append(i)
+
+        # Check to make sure basis sets were found
+        if i + 1 == len(self.lines):
+            raise IndexError(f"Unable to find species defaults in {self.path}")
+
+        # Remove the lines with the keywords
+        n_pops = 0
+        for i in pop_eyes:
+            self.lines.pop(i - n_pops)
+            n_pops += 1
 
         # Update with new keywords
         aims_keywords.update(kwargs)
@@ -100,7 +111,7 @@ class AimsControl(Parameters):
             if "#" * 80 in line:
                 # Reached basis set definitions
                 # Add new keywords here
-                for key, val in aims_keywords:
+                for key, val in reversed(aims_keywords.items()):
                     self.lines.insert(i, f"{key:<34} {val}\n")
 
                 break

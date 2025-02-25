@@ -24,31 +24,23 @@ class TestAimsControl:
         ) as f:
             yield f.readlines()
 
-    def test_remove_keywords_overwrite(self, tmp_dir, ref_files):
+    def test_add_keywords(self, tmp_dir, ref_files): ...
+
+    def test_remove_keywords(self, tmp_dir, ref_files):
         control_path = tmp_dir / "control.in"
         shutil.copy(self.ac.path, control_path)
         ac = AimsControl(control_in=str(control_path))
-        ac.remove_keywords("xc", "relax_geometry", "k_grid", output="overwrite")
+        ac.remove_keywords("xc", "relax_geometry", "k_grid")
 
         assert "".join(ref_files) == control_path.read_text()
-
-    def test_remove_keywords_print(self, capsys, ref_files):
-        self.ac.remove_keywords("xc", "relax_geometry", "k_grid", output="print")
-        out, err = capsys.readouterr()
-
-        assert out == "".join(ref_files) + "\n"
-        assert err == ""
-
-    def test_remove_keywords_return(self, ref_files):
-        control = self.ac.remove_keywords("xc", "relax_geometry", "k_grid")
-        assert control == ref_files
 
     def test_get_keywords(self, ref_data):
         keywords = self.ac.get_keywords()
         assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
 
-    def test_get_species(self):
-        cluster_species = ["H", "O"]
-        periodic_species = ["Si"]
+    def test_get_species(self): ...
 
-        # if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
+    # cluster_species = ["H", "O"]
+    # periodic_species = ["Si"]
+
+    # if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
