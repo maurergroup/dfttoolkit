@@ -1,5 +1,5 @@
-spin                         collinear 
-default_initial_moment       1 
+spin                         collinear
+default_initial_moment       1
 relax_unit_cell              full
 ################################################################################
 #
