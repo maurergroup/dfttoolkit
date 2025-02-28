@@ -45,9 +45,6 @@ class Output(Parser):
         # FHI-aims, ELSI, ...
         return {"aims_out": ".out", "elsi_csc": ".csc"}
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self._format}={self._path})"
-
     def __init_subclass__(cls, **kwargs):
         # Revert back to the original __init_subclass__ method to avoid checking for
         # required methods in child class of this class too

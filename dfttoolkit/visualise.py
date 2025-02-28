@@ -1,8 +1,12 @@
+from abc import ABC
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import axes, figure
 from matplotlib.ticker import MaxNLocator
+from weas_widget import WeasWidget
 
+from dfttoolkit.cube import Cube
 from dfttoolkit.output import AimsOutput
 
 
@@ -339,3 +343,51 @@ class VisualiseAims(AimsOutput):
             self._plot_ks_states_convergence(ax[i_subplot], ks_eigenvals, title)
 
         return fig
+
+
+class VisualiseCube(Cube):
+    """
+    Cube visualisation tools.
+
+    ...
+
+    Attributes
+    ----------
+    path : str
+        path to the .cube file
+    lines : List[str]
+        contents of the .cube file
+    atoms : Union[Atom, Atoms]
+        ASE atom or atoms object
+    volume : npt.NDArray[np.float64]
+        volumetric data of the cube file
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def core_hole(self) -> WeasWidget:
+        """
+        Visualise the core hole as an isosurface.
+
+        Returns
+        -------
+        WeasWidget
+
+        """
+
+        # TODO
+        if self.jupyter is not True:
+            raise NotImplementedError(
+                "The core_hole method is only available in a Jupyter notebook."
+            )
+
+        viewer = WeasWidget()
+        viewer.from_ase(self.atoms)
+        viewer.avr.iso.volumetric_data = {"values": self.volume}
+        viewer.avr.iso.settings = {
+            "positive": {"isovalue": -0.03, "color": "red"},
+            "negative": {"isovalue": 0.03, "color": "blue"},
+        }
+
+        viewer
