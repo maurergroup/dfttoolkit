@@ -64,6 +64,32 @@ class AimsControl(Parameters):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    # Use normal methods instead of properties for these methods as we want to specify
+    # the setter method using kwargs instead of assigning the value as a dictionary.
+    # Then, for consistency, keep get_keywords as a normal function.
+    def get_keywords(self) -> Dict[str, str]:
+        """
+        Get the keywords from the control.in file.
+
+        Returns
+        -------
+        dict
+            A dictionary of the keywords in the control.in file.
+        """
+
+        keywords = {}
+
+        for line in self.lines:
+            if "#" * 80 in line:
+                break
+
+            spl = line.split()
+
+            if len(spl) > 0 and spl[0] != "#":
+                keywords[spl[0]] = " ".join(spl[1:])
+
+        return keywords
+
     def add_keywords(self, **kwargs: str) -> None:
         """
         Add keywords to the control.in file.
@@ -141,32 +167,6 @@ class AimsControl(Parameters):
         with open(self.path, "w") as f:
             f.writelines(self.lines)
 
-    def get_keywords(self) -> Dict[str, str]:
-        """
-        Get the keywords from the control.in file.
-
-        Returns
-        -------
-        dict
-            A dictionary of the keywords in the control.in file.
-        """
-
-        keywords = {}
-
-        for line in self.lines:
-            if "#" * 80 in line:
-                break
-
-            spl = line.split()
-
-            if len(spl) > 0 and spl[0] != "#":
-                if len(spl) == 1:
-                    keywords[spl[0]] = None
-                else:
-                    keywords[spl[0]] = " ".join(spl[1:])
-
-        return keywords
-
     def get_species(self) -> List[str]:
         """
         Get the species from a control.in file.
@@ -188,7 +188,7 @@ class AimsControl(Parameters):
         self, elements: Union[List[str], None] = None
     ) -> Dict[str, str]:
         """
-        Get the basis functions from the control.in file.
+        Get the basis functions
 
         Parameters
         ----------
@@ -223,5 +223,18 @@ class AimsControl(Parameters):
                         basis_funcs[species] = line_2.strip()
 
         return basis_funcs
+
+    def add_initial_charge(self, target_atom: str, charge: float = 0.1) -> None:
+        """
+        Add an initial charge to an atom
+        """
+
+        for i, line in enumerate(self.lines):
+            # Add initial charge in the aims format
+            if len(line) > 0 and line.split()[-1] == f"{target_atom}1":
+                self.lines.insert(i + 1, f"    initial_charge         {charge}\n")
+
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
 
     def check_periodic(self): ...

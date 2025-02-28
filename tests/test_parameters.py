@@ -24,6 +24,10 @@ class TestAimsControl:
         ) as f:
             yield f.readlines()
 
+    def test_get_keywords(self, ref_data):
+        keywords = self.ac.get_keywords()
+        assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
+
     def test_add_keywords(self, tmp_dir, ref_files): ...
 
     def test_remove_keywords(self, tmp_dir, ref_files):
@@ -34,13 +38,15 @@ class TestAimsControl:
 
         assert "".join(ref_files) == control_path.read_text()
 
-    def test_get_keywords(self, ref_data):
-        keywords = self.ac.get_keywords()
-        assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
-
     def test_get_species(self): ...
 
     # cluster_species = ["H", "O"]
     # periodic_species = ["Si"]
 
     # if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
+
+    def test_get_default_basis_funcs(self): ...
+
+    def test_add_initial_charge(self): ...
+
+    def test_check_periodic(self): ...
