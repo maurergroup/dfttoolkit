@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Union
 from IPython import get_ipython
 
 import matplotlib.pyplot as plt
@@ -367,7 +368,7 @@ class VisualiseCube(Cube):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def core_hole(self, **kwargs) -> WeasWidget:
+    def core_hole(self, viewer: Union[WeasWidget, None] = None, **kwargs) -> WeasWidget:
         """
         Visualise the core hole as an isosurface.
 
@@ -388,17 +389,18 @@ class VisualiseCube(Cube):
                 "The core_hole method is only available in a Jupyter session."
             )
 
-        # Move the atoms to the centre of the cell
-        self.atoms.translate(self.atoms.cell.lengths() / 2)
-
         # Create the viewer
-        viewer = WeasWidget(**kwargs)
-        viewer.from_ase(self.atoms)
-        viewer.avr.model_style = 1  # Ball and stick
-        viewer.avr.iso.volumetric_data = {"values": self.volume}
-        viewer.avr.iso.settings = {
+        if viewer is None:
+            ch_viewer = WeasWidget(**kwargs)
+        else:
+            ch_viewer = viewer
+
+        ch_viewer.from_ase(self.atoms)
+        ch_viewer.avr.model_style = 1  # Ball and stick
+        ch_viewer.avr.iso.volumetric_data = {"values": self.volume}
+        ch_viewer.avr.iso.settings = {
             "positive": {"isovalue": -0.03, "color": "red"},
             "negative": {"isovalue": 0.03, "color": "blue"},
         }
 
-        return viewer
+        return ch_viewer
