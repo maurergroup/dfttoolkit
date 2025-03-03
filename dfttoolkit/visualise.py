@@ -1,4 +1,5 @@
 from abc import ABC
+from IPython import get_ipython
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -366,28 +367,38 @@ class VisualiseCube(Cube):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def core_hole(self) -> WeasWidget:
+    def core_hole(self, **kwargs) -> WeasWidget:
         """
         Visualise the core hole as an isosurface.
+
+        Parameters
+        ----------
+        **kwargs
+            viewer settings keyword arguments
 
         Returns
         -------
         WeasWidget
-
+            viewer instance
         """
 
-        # TODO
-        if self.jupyter is not True:
+        # Check if running in Jupyter
+        if get_ipython().__class__.__name__ != "ZMQInteractiveShell":
             raise NotImplementedError(
-                "The core_hole method is only available in a Jupyter notebook."
+                "The core_hole method is only available in a Jupyter session."
             )
 
-        viewer = WeasWidget()
+        # Move the atoms to the centre of the cell
+        self.atoms.translate(self.atoms.cell.lengths() / 2)
+
+        # Create the viewer
+        viewer = WeasWidget(**kwargs)
         viewer.from_ase(self.atoms)
+        viewer.avr.model_style = 1  # Ball and stick
         viewer.avr.iso.volumetric_data = {"values": self.volume}
         viewer.avr.iso.settings = {
             "positive": {"isovalue": -0.03, "color": "red"},
             "negative": {"isovalue": 0.03, "color": "blue"},
         }
 
-        viewer
+        return viewer
