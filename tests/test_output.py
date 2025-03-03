@@ -1,9 +1,8 @@
-import os
-
 import numpy as np
 import pytest
-from dfttoolkit.output import AimsOutput
+from dfttoolkit.output import AimsOutput, ELSIOutput
 from dfttoolkit.utils.exceptions import ItemNotFoundError
+from scipy.sparse import load_npz
 
 
 class TestAimsOutput:
@@ -11,15 +10,21 @@ class TestAimsOutput:
     def _aims_fixture_no(self) -> int:
         return int(self.ao.path.split("/")[-2])
 
-    @pytest.fixture(params=range(1, 11), autouse=True)
+    @pytest.fixture(params=range(1, 13), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir):
-
         self.ao = AimsOutput(
             aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/aims.out"
         )
 
+    @pytest.fixture
+    def control_in(self, cwd, aims_calc_dir):
+        with open(
+            f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in", "r"
+        ) as f:
+            yield [line.strip() for line in f.readlines()]
+
     def test_get_number_of_atoms(self):
-        if self._aims_fixture_no in [4, 6, 8, 10]:
+        if self._aims_fixture_no in [4, 6, 8, 10, 11, 12]:
             assert self.ao.get_number_of_atoms() == 2
         else:
             assert self.ao.get_number_of_atoms() == 3
@@ -34,8 +39,14 @@ class TestAimsOutput:
             assert len(geom) == 2
             assert geom.get_is_periodic() is True
 
-    # TODO
-    # def test_get_parameters(self):
+    def test_get_control_file(self, control_in):
+        assert self.ao.get_control_file() == control_in
+
+    def test_get_parameters(self, ref_data):
+        assert (
+            self.ao.get_parameters()
+            == ref_data["control_params"][self._aims_fixture_no - 1]
+        )
 
     def test_check_exit_normal(self):
         if self._aims_fixture_no in [7, 8]:
@@ -67,6 +78,8 @@ class TestAimsOutput:
                 -0.0001144,
                 6.018e-06,
                 7.119e-06,
+                1.96e-06,
+                3.743e-09,
             ]
         )
 
@@ -103,6 +116,8 @@ class TestAimsOutput:
             0.871,
             -5.561,
             -0.07087,
+            -0.1222,
+            -0.387,
         ]
 
         assert (
@@ -130,15 +145,14 @@ class TestAimsOutput:
     # the previous 4 tests
 
     def test_get_change_of_forces(self):
-        forces = [0.4728, 8.772e-09, 6.684e-12]
+        forces = [0.4728, 8.772e-09, 6.684e-12, 1.248e-08]
+        aims_forces_fixtures = [5, 6, 7, 12]
 
-        if self._aims_fixture_no in [5, 6, 7]:
-            assert (
-                abs(self.ao.get_change_of_forces() - forces[self._aims_fixture_no - 5])
-                < 1e-8
-            )
+        for i in range(len(forces)):
+            if self._aims_fixture_no == aims_forces_fixtures[i]:
+                assert abs(self.ao.get_change_of_forces() - forces[i]) < 1e-8
 
-        else:
+        if self._aims_fixture_no not in aims_forces_fixtures:
             with pytest.raises(ValueError):
                 self.ao.get_change_of_forces()
 
@@ -146,7 +160,7 @@ class TestAimsOutput:
     # def get_change_of_sum_of_eigenvalues(self):
 
     def test_check_spin_polarised(self):
-        if self._aims_fixture_no in [2, 3]:
+        if self._aims_fixture_no in [2, 3, 11, 12]:
             assert self.ao.check_spin_polarised() is True
         else:
             assert self.ao.check_spin_polarised() is False
@@ -169,6 +183,8 @@ class TestAimsOutput:
             None,
             -2081.000809207,
             -15804.824029071,
+            -15783.7132844,
+            -15802.654211961,
         ]
 
         final_energy = self.ao.get_final_energy()
@@ -179,24 +195,67 @@ class TestAimsOutput:
         else:
             assert abs(final_energy - final_energies[self._aims_fixture_no - 1]) < 1e-8
 
+    def test_get_final_spin_moment(self):
+        final_spin_moments = [
+            None,
+            (0.0, 0.0, 1.00),
+            (0.0, 0.0, 1.00),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            (6.0, 3.0, 7.00),
+            (0, 0),
+        ]
+
+        final_spin_moment = self.ao.get_final_spin_moment()
+
+        if self._aims_fixture_no in [2, 3, 11]:
+            assert final_spin_moment is not None
+
+            for i in range(3):
+                assert (
+                    abs(
+                        final_spin_moment[i]
+                        - final_spin_moments[self._aims_fixture_no - 1][i]
+                    )
+                    < 1e-8
+                )
+
+        elif self._aims_fixture_no == 12:
+            for i in range(2):
+                assert (
+                    abs(
+                        final_spin_moment[i]
+                        - final_spin_moments[self._aims_fixture_no - 1][i]
+                    )
+                    < 1e-8
+                )
+
+        else:
+            assert final_spin_moment is None
+
     def get_n_relaxation_steps_test(self):
-        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1]
+        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1, 1, 2]
         assert (
             self.ao.get_n_relaxation_steps()
             == n_relaxation_steps[self._aims_fixture_no - 1]
         )
 
     def test_get_n_scf_iters(self):
-        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11]
+        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29]
         assert self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
 
     # TODO
     # def get_i_scf_conv_acc_test(self):
 
     def test_get_n_initial_ks_states(self):
-        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20]
+        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20, 40, 20]
 
-        if self._aims_fixture_no in [2, 3]:
+        if self._aims_fixture_no in [2, 3, 11]:
             assert (
                 self.ao.get_n_initial_ks_states()
                 == n_initial_ks_states[self._aims_fixture_no - 1]
@@ -239,7 +298,6 @@ class TestAimsOutput:
 
     def _compare_final_ks_evals(self, ref_data: dict, ref: int, spin_case: str) -> None:
         for key in ref_data[f"{spin_case}_final_eigenvalues"][ref].keys():
-
             if spin_case == "sn":
                 test = self.ao.get_final_ks_eigenvalues()[key]
             elif spin_case == "su":
@@ -259,7 +317,7 @@ class TestAimsOutput:
 
     def test_get_final_ks_eigenvalues(self, ref_data):
         sn_refs = [1, 4, 5, 6, 7, 8, 9]
-        sc_refs = [2, 3]
+        sc_refs = [2, 3, 11, 12]
 
         if self._aims_fixture_no in sn_refs:
             ref = sn_refs.index(self._aims_fixture_no)
@@ -280,7 +338,7 @@ class TestAimsOutput:
                     atol=1e-8,
                 )
 
-        elif self._aims_fixture_no == 2:
+        elif self._aims_fixture_no in [2, 11]:
             with pytest.raises(ValueError):
                 self.ao.get_pert_soc_ks_eigenvalues()
 
@@ -291,5 +349,56 @@ class TestAimsOutput:
                     self.ao.get_pert_soc_ks_eigenvalues()
 
 
-# TODO
-# class TestELSIOutput:
+class TestELSIOutput:
+    @pytest.fixture(autouse=True)
+    def elsi_csc(self, cwd):
+        self.eo_csc = ELSIOutput(
+            elsi_csc=f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
+        )
+
+    @pytest.fixture(autouse=True)
+    def elsi_npz(self, cwd):
+        self.eo_npz = load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
+
+    def test_get_elsi_csc_header(self):
+        assert (
+            self.eo_csc.get_elsi_csc_header().all()
+            == np.array(
+                [
+                    170915,
+                    -910910,
+                    0,
+                    42,
+                    22,
+                    582,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                    -910910,
+                ]
+            ).all()
+        )
+
+    def test_read_elsi_as_csc_to_array(self):
+        assert np.allclose(
+            self.eo_csc.read_elsi_as_csc(csc_format=False).all(),
+            self.eo_npz.toarray().all(),
+            atol=1e-8,
+        )
+
+        assert np.allclose(
+            self.eo_csc.read_elsi_as_csc(csc_format=True).toarray().all(),
+            self.eo_npz.toarray().all(),
+        )
+
+    @pytest.mark.xfail(False, reason="Direct comparison of floats without tolerance")
+    def test_read_elsi_as_csc_bin_compare(self):
+        assert (
+            self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz
+        )._getnnz() == 0

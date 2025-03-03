@@ -5,16 +5,14 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse as sp
 
-import dfttoolkit.utils.file_utils as fu
-from dfttoolkit.base_parser import BaseParser
+from dfttoolkit.base import Parser
 from dfttoolkit.geometry import AimsGeometry
-from dfttoolkit.parameters import AimsControl
 from dfttoolkit.utils.exceptions import ItemNotFoundError
 
 
-class Output(BaseParser):
+class Output(Parser):
     """
-    Base class for parsing output files from electronic structure calculations.
+    Parse output files from electronic structure calculations.
 
     If contributing a new parser, please subclass this class, add the new supported file
     type to _supported_files, call the super().__init__ method, include the new file
@@ -25,30 +23,35 @@ class Output(BaseParser):
 
     Attributes
     ----------
-    supported_files : List[str]
+    _supported_files : dict
         List of supported file types.
-
-    Examples
-    --------
-    class AimsOutput(Output):
-        def __init__(self, aims_out: str = "aims.out"):
-            super().__init__(aims_out=aims_out)
-            self.lines = self._file_contents["aims_out"]
     """
 
-    def __init__(self, **kwargs: str):
-        # FHI-aims, ELSI, ...
-        self._supported_files = ["aims_out", "elsi_out"]
+    def __init__(self, **kwargs):
+        # Parse file information and perform checks
+        super().__init__(self._supported_files.keys(), **kwargs)
 
-        # Check that only supported files were provided
-        for val in kwargs.keys():
-            fu.check_required_files(self._supported_files, val)
-
-        super().__init__(self._supported_files, **kwargs)
+        # Check that the files are in the correct format
+        match self._format:
+            case "aims_out":
+                self._check_output_file_extension("aims_out")
+                self._check_binary(False)
+            case "elsi_csc":
+                self._check_output_file_extension("elsi_csc")
+                self._check_binary(True)
 
     @property
-    def supported_files(self) -> List[str]:
-        return self._supported_files
+    def _supported_files(self) -> dict:
+        # FHI-aims, ELSI, ...
+        return {"aims_out": ".out", "elsi_csc": ".csc"}
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._format}={self._path})"
+
+    def __init_subclass__(cls, **kwargs):
+        # Revert back to the original __init_subclass__ method to avoid checking for
+        # required methods in child class of this class too
+        return super(Parser, cls).__init_subclass__(**kwargs)
 
 
 class AimsOutput(Output):
@@ -59,23 +62,18 @@ class AimsOutput(Output):
 
     Attributes
     ----------
-    lines : List[str]
-        The contents of the aims.out file.
-    path : str
-        The path to the aims.out file.
+    path: str
+        path to the aims.out file
+    lines: List[str]
+        contents of the aims.out file
 
     Examples
     --------
     >>> ao = AimsOutput(aims_out="./aims.out")
     """
 
-    def __init__(self, aims_out: str = "aims.out"):
-        super().__init__(aims_out=aims_out)
-        self.lines = self.file_contents["aims_out"]
-        self.path = self.file_paths["aims_out"]
-
-        # Check if the aims.out file was provided
-        fu.check_required_files(self._supported_files, "aims_out")
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def get_number_of_atoms(self) -> int:
         """
@@ -157,7 +155,7 @@ class AimsOutput(Output):
         # 2... in lattice section of geometry file
         # 3... in atoms section of geometry file
 
-        geometry_lines = None
+        geometry_lines = []
         for l in self.lines:
             if (
                 "Updated atomic structure:" in l
@@ -165,7 +163,6 @@ class AimsOutput(Output):
                 in l
             ):
                 state = 1
-                geometry_lines = []
 
             if state > 0 and "atom " in l:
                 state = 3
@@ -175,7 +172,7 @@ class AimsOutput(Output):
             if state > 0:
                 geometry_lines.append(l)
 
-            if state == 3 and not "atom " in l:
+            if state == 3 and "atom " not in l:
                 state = 0
                 geometry_text = "".join(geometry_lines[2:-1])
                 g = AimsGeometry()
@@ -183,19 +180,18 @@ class AimsOutput(Output):
                 geometry_files.append(g)
 
         if n_occurrence is not None:
-            geometry_files = geometry_files[geometry_files]
+            geometry_files = geometry_files[n_occurrence]
 
         return geometry_files
 
-    def get_parameters(self) -> AimsControl:
+    def get_control_file(self) -> List[str]:
         """
-        Extract the control file from the aims output and return it as an AimsControl
-        object
+        Extract the control file from the aims output
 
         Returns
         -------
-        AimsControl
-            AimsControl object
+        List[str]
+            Lines from the control file found in the aims output
         """
 
         control_lines = []
@@ -208,16 +204,44 @@ class AimsOutput(Output):
                 control_file_reached = True
 
             if control_file_reached:
-                control_lines.append(l)
+                control_lines.append(l.strip())
 
             if "Completed first pass over input file control.in ." in l:
                 break
 
-        ac = AimsControl(parse_file=False)
-        ac.lines = control_lines[6:-3]
-        ac.path = ""
+        return control_lines[6:-3]
 
-        return ac
+    def get_parameters(self) -> dict:
+        """
+        Parse the parameters of the FHI-aims control file from the aims output
+
+        Returns
+        -------
+        dict
+            The parameters of the FHI-aims control file found in the aims output
+        """
+
+        # Find where the parameters start
+        for i, line in enumerate(self.lines):
+            if (
+                "Parsing control.in (first pass over file, find array dimensions only)."
+                in line
+            ):
+                break
+
+        parameters = {}
+
+        for line in self.lines[i + 6 :]:  # pyright: ignore
+            # End of parameters and start of basis sets
+            if "#" * 80 in line:
+                break
+
+            spl = line.split()
+            parameters[spl[0]] = " ".join(spl[1:])
+
+        return parameters
+
+    def get_basis_sets(self): ...
 
     def check_exit_normal(self) -> bool:
         """
@@ -811,6 +835,37 @@ class AimsOutput(Output):
             if "s.c.f. calculation      :" in line:
                 return float(line.split()[-2])
 
+    def get_final_spin_moment(self) -> Union[tuple, None]:
+        """
+        Get the final spin moment from a FHI-aims calculation.
+
+        Returns
+        -------
+        Union[tuple, None]
+            The final spin moment of the calculation, if it exists
+        """
+
+        N, S, J = None, None, None
+
+        # Iterate through the lines in reverse order to find the final spin moment
+        for i, line in enumerate(reversed(self.lines)):
+            if "Current spin moment of the entire structure :" in line:
+                if len(self.lines[-1 - i + 3].split()) > 0:
+                    N = float(self.lines[-1 - i + 1].split()[-1])
+                    S = float(self.lines[-1 - i + 2].split()[-1])
+                    J = float(self.lines[-1 - i + 3].split()[-1])
+
+                    return N, S, J
+
+                else:  # Non-gamma point periodic calculation
+                    N = float(self.lines[-1 - i + 1].split()[-1])
+                    S = float(self.lines[-1 - i + 2].split()[-1])
+
+                    return N, S
+
+        if N is None or S is None:
+            return None
+
     def get_n_relaxation_steps(self) -> int:
         """
         Get the number of relaxation steps from the aims.out file.
@@ -1097,7 +1152,7 @@ class AimsOutput(Output):
 
         # Check if output_level full was specified in the calculation
         required_item = ("output_level", "full")
-        if required_item not in self.get_parameters().get_keywords().items():
+        if required_item not in self.get_parameters().items():
             raise ItemNotFoundError(required_item)
 
         # Get the number of KS states and scf iterations
@@ -1305,17 +1360,18 @@ class ELSIOutput(Output):
 
     Attributes
     ----------
-    lines :
-        Contents of ELSI output file.
+    data : bytes
+        The binary data from the ELSI csc file
+    path : str
+        Path to ELSI csc file.
     n_basis : int
         Number of basis functions
     n_non_zero : int
         Number of non-zero elements in the matrix
     """
 
-    def __init__(self, elsi_out: str):
-        super().__init__(elsi_out=elsi_out)
-        self.lines = self.file_contents["elsi_out"]
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def get_elsi_csc_header(self) -> npt.NDArray[np.int64]:
         """
@@ -1327,7 +1383,7 @@ class ELSIOutput(Output):
             The contents of the ELSI csc file header
         """
 
-        return np.frombuffer(self.lines[0:128], dtype=np.int64)
+        return np.frombuffer(self.data[0:128], dtype=np.int64)
 
     @property
     def n_basis(self) -> int:
@@ -1358,33 +1414,31 @@ class ELSIOutput(Output):
 
         # Get the column pointer
         end = 128 + self.n_basis * 8
-        col_i = np.frombuffer(self.lines[128:end], dtype=np.int64)
+        col_i = np.frombuffer(self.data[128:end], dtype=np.int64)
         col_i = np.append(col_i, self.n_non_zero + 1)
         col_i -= 1
 
         # Get the row index
         start = end + self.n_non_zero * 4
-        row_i = np.array(np.frombuffer(self.lines[end:start], dtype=np.int32))
+        row_i = np.array(np.frombuffer(self.data[end:start], dtype=np.int32))
         row_i -= 1
 
         if header[2] == 0:  # real
             nnz = np.frombuffer(
-                self.lines[start : start + self.n_non_zero * 8],
+                self.data[start : start + self.n_non_zero * 8],
                 dtype=np.float64,
             )
 
         else:  # complex
             nnz = np.frombuffer(
-                self.lines[start : start + self.n_non_zero * 16],
+                self.data[start : start + self.n_non_zero * 16],
                 dtype=np.complex128,
             )
 
         if csc_format:
-            return sp.csc_matrix(
-                (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
-            )
+            return sp.csc_array((nnz, row_i, col_i), shape=(self.n_basis, self.n_basis))
 
         else:
-            return sp.csc_matrix(
+            return sp.csc_array(
                 (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
             ).toarray()
