@@ -18,7 +18,6 @@ class Cube(Parser):
         super().__init__(self._supported_files.keys(), **kwargs)
 
         # check that the file is a cube file and in the correct format
-        self._check_output_file_extension("cube")
         self._check_binary(False)
 
         # Parse the cube data here rather than in base.File.__post_init__ so we can call
