@@ -84,7 +84,7 @@ class Geometry:
         else:
             self.read_from_file(filename)
 
-        self.periodic_table = PeriodicTable()
+        self.periodic_table = PeriodicTable
 
     def __eq__(self, other):
         if len(self) != len(other):

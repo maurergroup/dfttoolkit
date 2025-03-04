@@ -1,10 +1,12 @@
-import pytest
 import os
-from dfttoolkit.utils import utils
+
+import pytest
+from dfttoolkit.utils.periodic_table import PeriodicTable
+from dfttoolkit.utils.run_utils import no_repeat
 
 
 def test_specified_dir_not_found():
-    @utils.no_repeat(calc_dir="bogus")
+    @no_repeat(calc_dir="bogus")
     def to_be_decorated():
         return True
 
@@ -26,7 +28,7 @@ def test_specified_dir_not_found():
     ],
 )
 def test_default_dir_no_args(default_calc_dir, force, expected):
-    @utils.no_repeat(calc_dir=default_calc_dir, force=force)
+    @no_repeat(calc_dir=default_calc_dir, force=force)
     def to_be_decorated():
         return True
 
@@ -34,7 +36,7 @@ def test_default_dir_no_args(default_calc_dir, force, expected):
 
 
 def test_no_repeat(capfd, default_calc_dir):
-    @utils.no_repeat(calc_dir=default_calc_dir)
+    @no_repeat(calc_dir=default_calc_dir)
     def to_be_decorated():
         return True
 
