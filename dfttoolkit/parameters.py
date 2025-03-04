@@ -22,12 +22,9 @@ class Parameters(Parser):
 
     def __init__(self, **kwargs):
         # Parse file information and perform checks
-        super().__init__(self._supported_files.keys(), **kwargs)
+        super().__init__(self._supported_files, **kwargs)
 
-        match self._format:
-            case "control_in":
-                self._check_output_file_extension("control_in")
-                self._check_binary(False)
+        self._check_binary(False)
 
     @property
     def _supported_files(self) -> dict:
@@ -179,7 +176,7 @@ class AimsControl(Parameters):
 
         species = []
         for line in self.lines:
-            if "species" in line:
+            if "species" == line.split()[0]:
                 species.append(line.split()[1])
 
         return species
