@@ -65,7 +65,8 @@ class PeriodicTable:
     _elements = {}
     for name in _order:
         del _raw_table[name]["name"]
-        _elements[name] = Element(name, **_raw_table[name])
+        # _elements[s] = Element(name, **_raw_table[name])
+        _elements[_raw_table[name]["symbol"]] = Element(name, **_raw_table[name])
 
     def __new__(cls):
         raise TypeError("This class cannot be instantiated.")
@@ -76,11 +77,11 @@ class PeriodicTable:
 
     @classproperty
     def element_names(cls) -> List[str]:
-        return list(cls.elements.keys())
+        return [e.name for e in cls.elements.values()]
 
     @classproperty
     def element_symbols(cls) -> List[str]:
-        return [e.symbol for e in cls.elements.values()]
+        return list(cls.elements.keys())
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:
