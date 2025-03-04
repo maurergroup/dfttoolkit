@@ -55,7 +55,7 @@ class File:
                 self.lines = []
                 self._binary = True
 
-        else:
+        elif self._extension != ".cube":
             with open(self.path, "r") as f:
                 self.lines = f.readlines()
                 self.data = b""
@@ -95,7 +95,7 @@ class Parser(File, ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # Get the cls's __init__
+        # Get the cls __init__
         cls_init = cls.__dict__.get("__init__")
 
         if cls_init is None:

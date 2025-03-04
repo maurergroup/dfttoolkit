@@ -1,4 +1,3 @@
-import inspect
 from typing import List, Literal, Union
 
 from dfttoolkit.base import Parser
@@ -34,9 +33,6 @@ class Parameters(Parser):
     def _supported_files(self) -> dict:
         # FHI-aims, ...
         return {"control_in": ".in"}
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self._format}={self._name})"
 
     def __init_subclass__(cls, **kwargs):
         # Revert back to the original __init_subclass__ method to avoid checking for
