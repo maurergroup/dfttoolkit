@@ -17,9 +17,19 @@ class TestAimsControl:
         )
 
     @pytest.fixture
-    def ref_files(self, cwd):
+    def added_keywords_ref_files(self, cwd):
         with open(
-            f"{cwd}/fixtures/manipulated_aims_files/{self.aims_fixture_no}/control.in",
+            f"{cwd}/fixtures/manipulated_aims_files/add_keywords/"
+            f"{self.aims_fixture_no}/control.in",
+            "r",
+        ) as f:
+            yield f.readlines()
+
+    @pytest.fixture
+    def removed_keywords_ref_files(self, cwd):
+        with open(
+            f"{cwd}/fixtures/manipulated_aims_files/remove_keywords/"
+            f"{self.aims_fixture_no}/control.in",
             "r",
         ) as f:
             yield f.readlines()
@@ -28,22 +38,30 @@ class TestAimsControl:
         keywords = self.ac.get_keywords()
         assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
 
-    def test_add_keywords(self, tmp_dir, ref_files): ...
+    def test_add_keywords(self, tmp_dir, added_keywords_ref_files):
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        ac.add_keywords(xc="dfauto scan", output="cube spin_density")
 
-    def test_remove_keywords(self, tmp_dir, ref_files):
+        assert "".join(added_keywords_ref_files) == control_path.read_text()
+
+    def test_remove_keywords(self, tmp_dir, removed_keywords_ref_files):
         control_path = tmp_dir / "control.in"
         shutil.copy(self.ac.path, control_path)
         ac = AimsControl(control_in=str(control_path))
         ac.remove_keywords("xc", "relax_geometry", "k_grid")
 
-        assert "".join(ref_files) == control_path.read_text()
+        assert "".join(removed_keywords_ref_files) == control_path.read_text()
 
-    def test_get_species(self): ...
+    def test_get_species(self):
+        cluster_species = ["O", "H"]
+        periodic_species = ["Si"]
 
-    # cluster_species = ["H", "O"]
-    # periodic_species = ["Si"]
-
-    # if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
+        if self.aims_fixture_no in [1, 2, 3, 5, 7, 9]:
+            assert self.ac.get_species() == cluster_species
+        else:
+            assert self.ac.get_species() == periodic_species
 
     def test_get_default_basis_funcs(self): ...
 
