@@ -183,7 +183,7 @@ class AimsOutput(Output):
                 geometry_files.append(g)
 
         if n_occurrence is not None:
-            geometry_files = geometry_files[geometry_files]
+            geometry_files = geometry_files[n_occurrence]
 
         return geometry_files
 
@@ -761,6 +761,72 @@ class AimsOutput(Output):
             return np.array(all_force_values)
         else:
             return all_force_values[n_occurrence]
+
+    def get_vdw_forces(self, nr_of_occurrence=-1):
+
+        components_of_gradients = self.get_force_components()
+
+        if nr_of_occurrence is None:
+            return components_of_gradients["van_der_waals"]
+        else:
+            return components_of_gradients["van_der_waals"][nr_of_occurrence]
+
+    def get_forces_without_vdw(self, nr_of_occurrence=-1):
+
+        components_of_gradients = self.get_force_components(nr_of_occurrence)
+
+        gradients_without_vdW = (
+            components_of_gradients["total"]
+            - components_of_gradients["van_der_waals"]
+        )
+
+        if nr_of_occurrence is None:
+            return gradients_without_vdW
+        else:
+            return gradients_without_vdW[nr_of_occurrence]
+
+    def get_force_components(self, nr_of_occurrence):
+        """
+        Return the force component specified in "component"
+        for all atoms.
+        (Hellmann-Feynman, Ionic forces, Multipole, Pulay + GGA, Van der Waals, Total forces)
+        """
+        number_of_atoms = self.get_number_of_atoms()
+        all_force_values = []
+
+        force_key_list = [
+            "Hellmann-Feynman              :",
+            "Ionic forces                  :",
+            "Multipole                     :",
+            "Pulay + GGA                   :",
+            "Van der Waals                 :",
+            "Total forces",
+        ]
+        force_key_list_2 = [
+            "hellmann_feynman",
+            "ionic",
+            "multipole",
+            "pulay_gga",
+            "van_der_waals",
+            "total",
+        ]
+        force_values = {}
+
+        for ind_0, force_key in enumerate(force_key_list):
+            force_key_2 = force_key_list_2[ind_0]
+            force_values[force_key_2] = np.ones([number_of_atoms, 3]) * np.nan
+
+            for ind_1 in range(3):
+                force = self._get_energy(
+                    nr_of_occurrence,
+                    force_key,
+                    token_nr=ind_1 - 3,
+                    energy_invalid_indicator=None,
+                )
+
+                force_values[force_key_2][:, ind_1] = force[-number_of_atoms:]
+
+        return force_values
 
     def check_spin_polarised(self) -> bool:
         """

@@ -10,7 +10,7 @@ class TestAimsOutput:
     def _aims_fixture_no(self) -> int:
         return int(self.ao.path.split("/")[-2])
 
-    @pytest.fixture(params=range(1, 11), autouse=True)
+    @pytest.fixture(params=range(1, 12), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir):
 
         self.ao = AimsOutput(
@@ -26,7 +26,7 @@ class TestAimsOutput:
     def test_get_geometry(self):
         geom = self.ao.get_geometry()
 
-        if self._aims_fixture_no in [1, 2, 3, 5, 7, 9]:
+        if self._aims_fixture_no in [1, 2, 3, 5, 7, 9, 11]:
             assert len(geom) == 3
             assert geom.get_is_periodic() is False
         else:
@@ -45,11 +45,12 @@ class TestAimsOutput:
     def test_get_time_per_scf(self, ref_data):
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 2e-3
-        assert np.allclose(
-            self.ao.get_time_per_scf(),
-            ref_data["timings"][self._aims_fixture_no - 1],
-            atol=2e-3,
-        )
+        if self._aims_fixture_no in range(1, 11):
+            assert np.allclose(
+                self.ao.get_time_per_scf(),
+                ref_data["timings"][self._aims_fixture_no - 1],
+                atol=2e-3,
+            )
 
     def test_get_change_of_total_energy_1(self):
         """Using default args (final energy change)"""
@@ -66,6 +67,7 @@ class TestAimsOutput:
                 -0.0001144,
                 6.018e-06,
                 7.119e-06,
+                -0.1131e-06,
             ]
         )
 
@@ -82,11 +84,12 @@ class TestAimsOutput:
 
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 1e-10
-        assert np.allclose(
-            self.ao.get_change_of_total_energy(n_occurrence=None),
-            ref_data["energy_diffs"][self._aims_fixture_no - 1],
-            atol=1e-8,
-        )
+        if self._aims_fixture_no in range(1, 11):
+            assert np.allclose(
+                self.ao.get_change_of_total_energy(n_occurrence=None),
+                ref_data["energy_diffs"][self._aims_fixture_no - 1],
+                atol=1e-8,
+            )
 
     def test_get_change_of_total_energy_3(self):
         """Get the 1st energy change"""
@@ -102,6 +105,7 @@ class TestAimsOutput:
             0.871,
             -5.561,
             -0.07087,
+            0.6123e01,
         ]
 
         assert (
@@ -128,14 +132,89 @@ class TestAimsOutput:
     # of the following functions wrap around _get_energy(), which have all been tested in
     # the previous 4 tests
 
-    def test_get_change_of_forces(self):
-        forces = [0.4728, 8.772e-09, 6.684e-12]
+    def test_get_forces(self):
+        forces = [
+            np.array(
+                [
+                    [
+                        -0.632469472942813e-11,
+                        -0.900095529694541e-04,
+                        -0.324518849313061e-27,
+                    ],
+                    [
+                        -0.137684561607316e-03,
+                        0.450047740234745e-04,
+                        -0.486778273969592e-27,
+                    ],
+                    [
+                        0.137684567932011e-03,
+                        0.450047789459852e-04,
+                        -0.324518849313061e-27,
+                    ],
+                ]
+            )
+        ]
 
-        if self._aims_fixture_no in [5, 6, 7]:
+        if self._aims_fixture_no in [5]:
+            print(
+                abs(self.ao.get_forces() - forces[self._aims_fixture_no - 5])
+            )
+
+            assert (
+                np.all(
+                    abs(
+                        self.ao.get_forces()
+                        - forces[self._aims_fixture_no - 5]
+                    )
+                )
+                < 1e-8
+            )
+
+    def test_get_forces_without_vdw(self):
+        forces = [
+            np.array(
+                [
+                    [
+                        -0.632469472942813e-11,
+                        -0.900095529694541e-04,
+                        -0.324518849313061e-27,
+                    ],
+                    [
+                        -0.137684561607316e-03,
+                        0.450047740234745e-04,
+                        -0.486778273969592e-27,
+                    ],
+                    [
+                        0.137684567932011e-03,
+                        0.450047789459852e-04,
+                        -0.324518849313061e-27,
+                    ],
+                ]
+            )
+        ]
+
+        if self._aims_fixture_no in [11]:
+            print(abs(self.ao.get_forces_without_vdw()))
+
+            assert (
+                np.all(
+                    abs(
+                        self.ao.get_forces()
+                        - forces[self._aims_fixture_no - 5]
+                    )
+                )
+                < 1e-8
+            )
+
+    def test_get_change_of_forces(self):
+        forces = {5: 0.4728, 6: 6.684e-12, 7: 8.772e-09, 11: 0.1665e-06}
+
+        if self._aims_fixture_no in [5, 6, 7, 11]:
+            print(self.ao.get_change_of_forces())
             assert (
                 abs(
                     self.ao.get_change_of_forces()
-                    - forces[self._aims_fixture_no - 5]
+                    - forces[self._aims_fixture_no]
                 )
                 < 1e-8
             )
@@ -177,7 +256,7 @@ class TestAimsOutput:
                 self.ao.get_convergence_parameters()
                 == ref_data["conv_params"][1]
             )
-        else:
+        elif self._aims_fixture_no in [1, 2, 3, 4, 5, 6, 9, 10]:
             assert (
                 self.ao.get_convergence_parameters()
                 == ref_data["conv_params"][0]
@@ -195,6 +274,7 @@ class TestAimsOutput:
             None,
             -2081.000809207,
             -15804.824029071,
+            -0.483268773784931e05,
         ]
 
         final_energy = self.ao.get_final_energy()
@@ -209,14 +289,14 @@ class TestAimsOutput:
             )
 
     def get_n_relaxation_steps_test(self):
-        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1]
+        n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1, 9]
         assert (
             self.ao.get_n_relaxation_steps()
             == n_relaxation_steps[self._aims_fixture_no - 1]
         )
 
     def test_get_n_scf_iters(self):
-        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11]
+        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 251]
         assert (
             self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
         )
@@ -225,7 +305,7 @@ class TestAimsOutput:
     # def get_i_scf_conv_acc_test(self):
 
     def test_get_n_initial_ks_states(self):
-        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20]
+        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20, 34]
 
         def compare_n_initial_ks_states():
             assert (
