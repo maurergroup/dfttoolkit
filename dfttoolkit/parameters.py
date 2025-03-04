@@ -1,6 +1,8 @@
 from typing import Dict, List, Union
+from warnings import warn
 
 from dfttoolkit.base import Parser
+from dfttoolkit.utils.periodic_table import PeriodicTable
 
 
 class Parameters(Parser):
@@ -190,13 +192,23 @@ class AimsControl(Parameters):
         Parameters
         ----------
         elements : List[str], optional, default=None
-            The elements to parse the basis functions for.
+            The elements to parse the basis functions for as chemical symbols.
 
         Returns
         -------
         Dict[str, str]
             A dictionary of the basis functions for the specified elements.
         """
+
+        # Check that the given elements are valid
+        if elements is not None and not set(elements).issubset(
+            set(PeriodicTable.element_symbols)
+        ):
+            raise ValueError("Invalid element(s) given")
+
+        # Warn if the requested elements aren't found in control.in
+        if elements is not None and not set(elements).issubset(self.get_species()):
+            warn("Could not find all requested elements in control.in")
 
         basis_funcs = {}
 
@@ -208,7 +220,7 @@ class AimsControl(Parameters):
                 if elements is not None and species not in elements:
                     continue
 
-                for line_2 in self.lines[i:]:
+                for line_2 in self.lines[i + 1 :]:
                     spl = line_2.split()
                     if "species" in spl[0]:
                         break
@@ -217,7 +229,10 @@ class AimsControl(Parameters):
                         continue
 
                     if "hydro" in line_2:
-                        basis_funcs[species] = line_2.strip()
+                        if species in basis_funcs:
+                            basis_funcs[species].append(line_2.strip())
+                        else:
+                            basis_funcs[species] = [line_2.strip()]
 
         return basis_funcs
 

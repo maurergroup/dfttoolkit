@@ -1,10 +1,10 @@
 import pytest
 import os
-from dfttoolkit.utils.run_utils import no_repeat
+from dfttoolkit.utils import utils
 
 
 def test_specified_dir_not_found():
-    @no_repeat(calc_dir="bogus")
+    @utils.no_repeat(calc_dir="bogus")
     def to_be_decorated():
         return True
 
@@ -26,7 +26,7 @@ def test_specified_dir_not_found():
     ],
 )
 def test_default_dir_no_args(default_calc_dir, force, expected):
-    @no_repeat(calc_dir=default_calc_dir, force=force)
+    @utils.no_repeat(calc_dir=default_calc_dir, force=force)
     def to_be_decorated():
         return True
 
@@ -34,7 +34,7 @@ def test_default_dir_no_args(default_calc_dir, force, expected):
 
 
 def test_no_repeat(capfd, default_calc_dir):
-    @no_repeat(calc_dir=default_calc_dir)
+    @utils.no_repeat(calc_dir=default_calc_dir)
     def to_be_decorated():
         return True
 
@@ -45,3 +45,6 @@ def test_no_repeat(capfd, default_calc_dir):
         out == f"aims.out already exists in {default_calc_dir}. Skipping calculation.\n"
     )
     assert err == ""
+
+
+class TestPeriodicTable: ...
