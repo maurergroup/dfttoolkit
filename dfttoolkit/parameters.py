@@ -236,17 +236,12 @@ class AimsControl(Parameters):
 
         return basis_funcs
 
-    def add_initial_charge(self, target_atom: str, charge: float = 0.1) -> None:
+    def check_periodic(self) -> bool:
         """
-        Add an initial charge to an atom
+        Check if the system is periodic.
         """
 
-        for i, line in enumerate(self.lines):
-            # Add initial charge in the aims format
-            if len(line) > 0 and line.split()[-1] == f"{target_atom}1":
-                self.lines.insert(i + 1, f"    initial_charge         {charge}\n")
-
-        with open(self.path, "w") as f:
-            f.writelines(self.lines)
-
-    def check_periodic(self): ...
+        if "k_grid" in self.get_keywords():
+            return True
+        else:
+            return False
