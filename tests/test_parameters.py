@@ -63,8 +63,22 @@ class TestAimsControl:
         else:
             assert self.ac.get_species() == periodic_species
 
-    def test_get_default_basis_funcs(self): ...
+    def test_get_default_basis_funcs(self):
+        basis_funcs = [
+            {
+                "O": ["hydro 2 p 1.8", "hydro 3 d 7.6", "hydro 3 s 6.4"],
+                "H": ["hydro 2 s 2.1", "hydro 2 p 3.5"],
+            },
+            {"Si": ["hydro 3 d 4.2", "hydro 2 p 1.4", "hydro 4 f 6.2"]},
+        ]
 
-    def test_add_initial_charge(self): ...
+        if self.aims_fixture_no == 1:
+            assert self.ac.get_default_basis_funcs() == basis_funcs[0]
+        if self.aims_fixture_no == 4:
+            assert self.ac.get_default_basis_funcs() == basis_funcs[1]
 
-    def test_check_periodic(self): ...
+    def test_check_periodic(self):
+        if self.aims_fixture_no in [4, 6, 8, 10, 11, 12]:
+            assert self.ac.check_periodic() is True
+        else:
+            assert self.ac.check_periodic() is False
