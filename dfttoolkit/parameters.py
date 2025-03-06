@@ -1,5 +1,8 @@
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from warnings import warn
+
+from numpy.typing import NDArray
+import numpy as np
 
 from dfttoolkit.base import Parser
 from dfttoolkit.utils.periodic_table import PeriodicTable
@@ -144,6 +147,50 @@ class AimsControl(Parameters):
         # Write the file
         with open(self.path, "w") as f:
             f.writelines(self.lines)
+
+    def add_cube_cell(self, cell_matrix: NDArray[Any], resolution: int = 100) -> None:
+        """
+        Add cube output settings to control.in to cover the unit cell specified in `cell_matrix`.
+
+        Since the default behaviour of FHI-AIMS for generating CUBE files for periodic structures with vacuum
+        gives confusing results, this function ensures the cube output quantity is calculated for the full unit cell.
+
+        Parameters
+        ----------
+        cell_matrix : ArrayLike
+            2D array defining the unit cell.
+
+        resolution : int
+            Number of cube voxels to use for the shortest side of the unit cell.
+
+        """
+        if not self.check_periodic():  # Fail for non-periodic structures
+            raise TypeError("add_cube_cell doesn't support non-periodic structures")
+
+        shortest_side = min(np.sum(cell_matrix, axis=1))
+        resolution = shortest_side / 100.0
+
+        cube_x = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[0, :]) / resolution)) + 1
+        )  # Number of cubes along x axis
+        x_vector = cell_matrix[0, :] / np.linalg.norm(cell_matrix[0, :]) * resolution
+        cube_y = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[1, :]) / resolution)) + 1
+        )
+        y_vector = cell_matrix[1, :] / np.linalg.norm(cell_matrix[1, :]) * resolution
+        cube_z = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
+        )
+        z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
+        self.add_keywords(  # Add cube options to control.in
+            cube="origin {} {} {}\n".format(
+                *(np.transpose(cell_matrix @ [0.5, 0.5, 0.5]))
+            )
+            + "cube edge {} {} {} {}\n".format(cube_x, *x_vector)
+            + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
+            + "cube edge {} {} {} {}\n".format(cube_z, *z_vector)
+        )
+        print("\tCube voxel resolution is {} Å".format(resolution))
 
     def remove_keywords(self, *args: str) -> None:
         """
