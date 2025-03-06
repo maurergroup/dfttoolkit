@@ -63,14 +63,7 @@ class TestAimsControl:
             ac.add_keywords(output="cube total_density")
             ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
         except TypeError:
-            assert int(control_path.parts[-2]) in [
-                1,
-                2,
-                3,
-                5,
-                7,
-                9,
-            ]  # Correctly error for non-periodic
+            assert ac.check_periodic() == False
         else:
             assert (
                 "".join(cube_cell_ref_files) == control_path.read_text()
