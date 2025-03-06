@@ -37,7 +37,7 @@ class TestAimsControl:
     @pytest.fixture
     def cube_cell_ref_files(self, cwd):
         with open(
-            f"{cwd}/fixtures/manipulated_aims_files/remove_keywords/"
+            f"{cwd}/fixtures/manipulated_aims_files/cube_cell/"
             f"{self.aims_fixture_no}/control.in",
             "r",
         ) as f:
