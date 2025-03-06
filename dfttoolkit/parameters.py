@@ -190,7 +190,7 @@ class AimsControl(Parameters):
             + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
             + "cube edge {} {} {} {}\n".format(cube_z, *z_vector)
         )
-        print("\tCube voxel resolution is {} Å".format(resolution))
+        # print("\tCube voxel resolution is {} Å".format(resolution))
 
     def remove_keywords(self, *args: str) -> None:
         """
