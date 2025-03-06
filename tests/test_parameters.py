@@ -1,6 +1,7 @@
 import shutil
 
 import pytest
+import numpy as np
 from dfttoolkit.parameters import AimsControl
 
 
@@ -12,8 +13,7 @@ class TestAimsControl:
     @pytest.fixture(params=range(1, 13), autouse=True)
     def aims_control(self, cwd, request, aims_calc_dir):
         self.ac = AimsControl(
-            control_in=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}"
-            "/control.in"
+            control_in=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/control.in"
         )
 
     @pytest.fixture
@@ -34,6 +34,15 @@ class TestAimsControl:
         ) as f:
             yield f.readlines()
 
+    @pytest.fixture
+    def cube_cell_ref_files(self, cwd):
+        with open(
+            f"{cwd}/fixtures/manipulated_aims_files/remove_keywords/"
+            f"{self.aims_fixture_no}/control.in",
+            "r",
+        ) as f:
+            yield f.readlines()
+
     def test_get_keywords(self, ref_data):
         keywords = self.ac.get_keywords()
         assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
@@ -45,6 +54,27 @@ class TestAimsControl:
         ac.add_keywords(xc="dfauto scan", output="cube spin_density")
 
         assert "".join(added_keywords_ref_files) == control_path.read_text()
+
+    def test_add_cube_cell(self, tmp_dir, cube_cell_ref_files):
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        try:
+            ac.add_keywords(output="cube total_density")
+            ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
+        except TypeError:
+            assert int(control_path.parts[-2]) in [
+                1,
+                2,
+                3,
+                5,
+                7,
+                9,
+            ]  # Correctly error for non-periodic
+        else:
+            assert (
+                "".join(cube_cell_ref_files) == control_path.read_text()
+            )  # Check correct for periodic
 
     def test_remove_keywords(self, tmp_dir, removed_keywords_ref_files):
         control_path = tmp_dir / "control.in"
