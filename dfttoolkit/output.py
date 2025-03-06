@@ -29,15 +29,13 @@ class Output(Parser):
 
     def __init__(self, **kwargs):
         # Parse file information and perform checks
-        super().__init__(self._supported_files.keys(), **kwargs)
+        super().__init__(self._supported_files, **kwargs)
 
         # Check that the files are in the correct format
         match self._format:
             case "aims_out":
-                self._check_output_file_extension("aims_out")
                 self._check_binary(False)
             case "elsi_csc":
-                self._check_output_file_extension("elsi_csc")
                 self._check_binary(True)
 
     @property

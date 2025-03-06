@@ -1,4 +1,4 @@
-xc                           pbe 
+xc                           pbe
 k_grid                       8 8 8
 relax_geometry               bfgs 5e-3
 relax_unit_cell              full
