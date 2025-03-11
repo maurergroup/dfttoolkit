@@ -1,7 +1,60 @@
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Union
+from typing import Any, Tuple, Union
 
 from click import edit
+
+
+class MultiDict(MutableMapping):
+    """
+    Dictionary that can assign 'multiple values' to a single key.
+
+    Very basic implementation that works by having each value as a list, and appending
+    new values to the list
+    """
+
+    def __init__(self, *args: Tuple[str, Any]):
+        self._dict = {}
+
+        for key, val in args:
+            if key in self._dict:
+                self._dict[key].append(val)
+
+            else:
+                self._dict[key] = val
+
+    def __setitem__(self, key: Any, val: Any):
+        if key in self._dict:
+            self._dict[key].append(val)
+        else:
+            self._dict[key] = [val]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._dict})"
+
+    def __str__(self):
+        return str(self._dict)
+
+    def __getitem__(self, key: Any):
+        return self._dict[key]
+
+    def __delitem__(self, key: Any):
+        del self._dict[key]
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        return len(self._dict.keys())
+
+    def reversed_items(self):
+        """
+        Yields (key, value) pairs in reverse key order and reversed values
+        """
+
+        for key in reversed(list(self._dict.keys())):
+            for val in reversed(self._dict[key]):
+                yield key, val
 
 
 class ClassPropertyDescriptor(object):

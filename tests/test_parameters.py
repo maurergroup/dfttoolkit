@@ -1,7 +1,7 @@
 import shutil
 
-import pytest
 import numpy as np
+import pytest
 from dfttoolkit.parameters import AimsControl
 
 
@@ -43,9 +43,16 @@ class TestAimsControl:
         ) as f:
             yield f.readlines()
 
-    def test_get_keywords(self, ref_data):
+    def test_get_keywords(self, ref_data, tmp_dir, cube_cell_ref_files):
         keywords = self.ac.get_keywords()
         assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
+
+        # Check it works for the cube files as these have multiple keywords that are the
+        # same with different values
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        ac.get_keywords()
 
     def test_add_keywords(self, tmp_dir, added_keywords_ref_files):
         control_path = tmp_dir / "control.in"
@@ -63,7 +70,7 @@ class TestAimsControl:
             ac.add_keywords(output="cube total_density")
             ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
         except TypeError:
-            assert ac.check_periodic() == False
+            assert not ac.check_periodic()
         else:
             assert (
                 "".join(cube_cell_ref_files) == control_path.read_text()

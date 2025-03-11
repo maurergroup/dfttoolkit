@@ -1,11 +1,12 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 from warnings import warn
 
 from numpy.typing import NDArray
 import numpy as np
 
-from dfttoolkit.base import Parser
-from dfttoolkit.utils.periodic_table import PeriodicTable
+from .base import Parser
+from .utils.periodic_table import PeriodicTable
+from .utils.file_utils import MultiDict
 
 
 class Parameters(Parser):
@@ -69,20 +70,21 @@ class AimsControl(Parameters):
     # Use normal methods instead of properties for these methods as we want to specify
     # the setter method using kwargs instead of assigning the value as a dictionary.
     # Then, for consistency, keep get_keywords as a normal function.
-    def get_keywords(self) -> Dict[str, str]:
+    def get_keywords(self) -> MultiDict:
         """
         Get the keywords from the control.in file.
 
         Returns
         -------
-        dict
-            A dictionary of the keywords in the control.in file.
+        MultiDict
+            Keywords in the control.in file.
         """
 
-        keywords = {}
+        keywords = MultiDict()
 
         for line in self.lines:
-            if "#" * 80 in line:
+            if "#" * 80 in line.strip():
+                # Reached the basis set definitions
                 break
 
             spl = line.split()
@@ -91,127 +93,6 @@ class AimsControl(Parameters):
                 keywords[spl[0]] = " ".join(spl[1:])
 
         return keywords
-
-    def add_keywords(self, **kwargs: str) -> None:
-        """
-        Add keywords to the control.in file.
-
-        Note that files written by ASE or in a format where the keywords are at the top
-        of the file followed by the basis sets are the only formats that are supported
-        by this function.
-
-        Parameters
-        ----------
-        **kwargs : dict
-            Keywords to be added to the control.in file.
-        """
-
-        aims_keywords = {}
-        pop_eyes = []
-
-        # Get current keywords
-        for i, line in enumerate(self.lines):
-            if "#" * 80 in line:
-                # Reached the basis set definitions
-                break
-
-            spl = line.split()
-
-            if len(spl) > 0 and spl[0] != "#":
-                aims_keywords[spl[0]] = " ".join(spl[1:])
-                pop_eyes.append(i)
-
-        # Check to make sure basis sets were found
-        if i + 1 == len(self.lines):
-            raise IndexError(f"Unable to find species defaults in {self.path}")
-
-        # Remove the lines with the keywords
-        n_pops = 0
-        for i in pop_eyes:
-            self.lines.pop(i - n_pops)
-            n_pops += 1
-
-        # Update with new keywords
-        aims_keywords.update(kwargs)
-
-        # Write the new keywords
-        for i, line in enumerate(self.lines):
-            if "#" * 80 in line:
-                # Reached basis set definitions
-                # Add new keywords here
-                for key, val in reversed(aims_keywords.items()):
-                    self.lines.insert(i, f"{key:<34} {val}\n")
-
-                break
-
-        # Write the file
-        with open(self.path, "w") as f:
-            f.writelines(self.lines)
-
-    def add_cube_cell(self, cell_matrix: NDArray[Any], resolution: int = 100) -> None:
-        """
-        Add cube output settings to control.in to cover the unit cell specified in `cell_matrix`.
-
-        Since the default behaviour of FHI-AIMS for generating CUBE files for periodic structures with vacuum
-        gives confusing results, this function ensures the cube output quantity is calculated for the full unit cell.
-
-        Parameters
-        ----------
-        cell_matrix : ArrayLike
-            2D array defining the unit cell.
-
-        resolution : int
-            Number of cube voxels to use for the shortest side of the unit cell.
-
-        """
-        if not self.check_periodic():  # Fail for non-periodic structures
-            raise TypeError("add_cube_cell doesn't support non-periodic structures")
-
-        shortest_side = min(np.sum(cell_matrix, axis=1))
-        resolution = shortest_side / 100.0
-
-        cube_x = (
-            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[0, :]) / resolution)) + 1
-        )  # Number of cubes along x axis
-        x_vector = cell_matrix[0, :] / np.linalg.norm(cell_matrix[0, :]) * resolution
-        cube_y = (
-            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[1, :]) / resolution)) + 1
-        )
-        y_vector = cell_matrix[1, :] / np.linalg.norm(cell_matrix[1, :]) * resolution
-        cube_z = (
-            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
-        )
-        z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
-        self.add_keywords(  # Add cube options to control.in
-            cube="origin {} {} {}\n".format(
-                *(np.transpose(cell_matrix @ [0.5, 0.5, 0.5]))
-            )
-            + "cube edge {} {} {} {}\n".format(cube_x, *x_vector)
-            + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
-            + "cube edge {} {} {} {}\n".format(cube_z, *z_vector)
-        )
-        # print("\tCube voxel resolution is {} Å".format(resolution))
-
-    def remove_keywords(self, *args: str) -> None:
-        """
-        Remove keywords from the control.in file.
-
-        Parameters
-        ----------
-        *args : str
-            Keywords to be removed from the control.in file.
-        output : Literal["overwrite", "print", "return"], default="overwrite"
-            Overwrite the original file, print the modified file to STDOUT, or return
-            the modified file as a list of '\\n' separated strings.
-        """
-
-        for keyword in args:
-            for i, line in enumerate(self.lines):
-                if keyword in line:
-                    self.lines.pop(i)
-
-        with open(self.path, "w") as f:
-            f.writelines(self.lines)
 
     def get_species(self) -> List[str]:
         """
@@ -282,6 +163,108 @@ class AimsControl(Parameters):
                             basis_funcs[species] = [line_2.strip()]
 
         return basis_funcs
+
+    def add_keywords(self, *args: Tuple[str, Any]) -> None:
+        """
+        Add keywords to the control.in file.
+
+        Note that files written by ASE or in a format where the keywords are at the top
+        of the file followed by the basis sets are the only formats that are supported
+        by this function. The keywords need to be added in a Tuple format rather than as
+        **kwargs because we need to be able to add multiple of the same keyword.
+
+        Parameters
+        ----------
+        *args : Tuple[str, Any]
+            Keywords to be added to the control.in file.
+        """
+
+        # Get the location of the start of the basis sets
+        basis_set_start = False
+
+        for i, line in enumerate(self.lines):
+            if line.strip() == "#" * 80:
+                basis_set_start = i
+                break
+
+        # Check to make sure basis sets were found
+        if not basis_set_start:
+            raise IndexError("Could not detect basis sets in control.in")
+
+        # Add the new keywords above the basis sets
+        for arg in reversed(args):
+            self.lines.insert(basis_set_start, f"{arg[0]:<34} {arg[1]}\n")
+
+        # Write the file
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
+
+    def add_cube_cell(self, cell_matrix: NDArray[Any], resolution: int = 100) -> None:
+        """
+        Add cube output settings to control.in to cover the unit cell specified in
+        `cell_matrix`.
+
+        Since the default behaviour of FHI-AIMS for generating CUBE files for periodic
+        structures with vacuum gives confusing results, this function ensures the cube
+        output quantity is calculated for the full unit cell.
+
+        Parameters
+        ----------
+        cell_matrix : ArrayLike
+            2D array defining the unit cell.
+
+        resolution : int
+            Number of cube voxels to use for the shortest side of the unit cell.
+
+        """
+        if not self.check_periodic():  # Fail for non-periodic structures
+            raise TypeError("add_cube_cell doesn't support non-periodic structures")
+
+        shortest_side = min(np.sum(cell_matrix, axis=1))
+        resolution = shortest_side / 100.0
+
+        cube_x = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[0, :]) / resolution)) + 1
+        )  # Number of cubes along x axis
+        x_vector = cell_matrix[0, :] / np.linalg.norm(cell_matrix[0, :]) * resolution
+        cube_y = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[1, :]) / resolution)) + 1
+        )
+        y_vector = cell_matrix[1, :] / np.linalg.norm(cell_matrix[1, :]) * resolution
+        cube_z = (
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
+        )
+        z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
+        self.add_keywords(  # Add cube options to control.in
+            cube="origin {} {} {}\n".format(
+                *(np.transpose(cell_matrix @ [0.5, 0.5, 0.5]))
+            )
+            + "cube edge {} {} {} {}\n".format(cube_x, *x_vector)
+            + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
+            + "cube edge {} {} {} {}\n".format(cube_z, *z_vector)
+        )
+        # print("\tCube voxel resolution is {} Å".format(resolution))
+
+    def remove_keywords(self, *args: str) -> None:
+        """
+        Remove keywords from the control.in file.
+
+        Parameters
+        ----------
+        *args : str
+            Keywords to be removed from the control.in file.
+        output : Literal["overwrite", "print", "return"], default="overwrite"
+            Overwrite the original file, print the modified file to STDOUT, or return
+            the modified file as a list of '\\n' separated strings.
+        """
+
+        for keyword in args:
+            for i, line in enumerate(self.lines):
+                if keyword in line:
+                    self.lines.pop(i)
+
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
 
     def check_periodic(self) -> bool:
         """
