@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 import yaml
-from dfttoolkit.utils.file_utils import aims_bin_path_prompt
+from dfttoolkit.utils.file_utils import MultiDict, aims_bin_path_prompt
 
 
 def pytest_addoption(parser):
@@ -21,6 +21,15 @@ def pytest_addoption(parser):
         " subsequent runs, they can use the 'change_bin' option, which will"
         " automatically call the binary path prompt again.",
     )
+
+
+def multidict_constructor(loader, node):
+    """PyYaml constructor to read MultiDict objects"""
+    return MultiDict(*loader.construct_sequence(node))
+
+
+# Enable PyYaml to read MultiDict objects
+yaml.FullLoader.add_constructor("!MultiDict", multidict_constructor)
 
 
 @pytest.fixture(scope="session")
@@ -61,8 +70,10 @@ def tmp_dir(tmp_path_factory):
 @pytest.fixture(scope="session")
 def ref_data():
     cwd = os.path.dirname(os.path.realpath(__file__))
+
     with open(f"{cwd}/test_references.yaml", "r") as references:
-        yield yaml.safe_load(references)
+        # FullLoader necessary for parsing tuples
+        yield yaml.load(references, Loader=yaml.FullLoader)
 
 
 @pytest.fixture(scope="session")
