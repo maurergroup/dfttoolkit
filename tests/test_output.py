@@ -26,7 +26,7 @@ class TestAimsOutput:
     def test_get_geometry(self):
         geom = self.ao.get_geometry()
 
-        if self._aims_fixture_no in [1, 2, 3, 5, 7, 9, 11]:
+        if self._aims_fixture_no in [1, 2, 3, 5, 7, 9, 12]:
             assert len(geom) == 3
             assert geom.get_is_periodic() is False
         else:
@@ -45,7 +45,7 @@ class TestAimsOutput:
     def test_get_time_per_scf(self, ref_data):
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 2e-3
-        if self._aims_fixture_no in range(1, 11):
+        if self._aims_fixture_no in range(1, 12):
             assert np.allclose(
                 self.ao.get_time_per_scf(),
                 ref_data["timings"][self._aims_fixture_no - 1],
@@ -84,7 +84,7 @@ class TestAimsOutput:
 
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 1e-10
-        if self._aims_fixture_no in range(1, 11):
+        if self._aims_fixture_no in range(1, 12):
             assert np.allclose(
                 self.ao.get_change_of_total_energy(n_occurrence=None),
                 ref_data["energy_diffs"][self._aims_fixture_no - 1],
@@ -174,42 +174,26 @@ class TestAimsOutput:
         forces = [
             np.array(
                 [
-                    [
-                        -0.632469472942813e-11,
-                        -0.900095529694541e-04,
-                        -0.324518849313061e-27,
-                    ],
-                    [
-                        -0.137684561607316e-03,
-                        0.450047740234745e-04,
-                        -0.486778273969592e-27,
-                    ],
-                    [
-                        0.137684567932011e-03,
-                        0.450047789459852e-04,
-                        -0.324518849313061e-27,
-                    ],
+                    [6.49567857e-07, 7.07725101e-06, 6.02880000e-04],
+                    [-1.76155257e-06, -1.91973462e-05, 1.07662600e-02],
+                    [1.11181871e-06, 1.21166952e-05, -3.75618200e-03],
                 ]
             )
         ]
 
-        if self._aims_fixture_no in [11]:
-            print(abs(self.ao.get_forces_without_vdw()))
+        if self._aims_fixture_no in [12]:
+            # print(self.ao.get_forces_without_vdw())
+            # print(self.ao.get_forces() - self.ao.get_vdw_forces())
 
             assert (
-                np.all(
-                    abs(
-                        self.ao.get_forces()
-                        - forces[self._aims_fixture_no - 5]
-                    )
-                )
+                np.all(abs(self.ao.get_forces_without_vdw() - forces[0]))
                 < 1e-8
             )
 
     def test_get_change_of_forces(self):
-        forces = {5: 0.4728, 6: 6.684e-12, 7: 8.772e-09, 11: 0.1665e-06}
+        forces = {5: 0.4728, 6: 6.684e-12, 7: 8.772e-09, 12: 0.1665e-06}
 
-        if self._aims_fixture_no in [5, 6, 7, 11]:
+        if self._aims_fixture_no in [5, 6, 7, 12]:
             print(self.ao.get_change_of_forces())
             assert (
                 abs(

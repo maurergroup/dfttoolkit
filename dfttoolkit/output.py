@@ -766,26 +766,45 @@ class AimsOutput(Output):
 
         components_of_gradients = self.get_force_components()
 
-        if nr_of_occurrence is None:
-            return components_of_gradients["van_der_waals"]
-        else:
-            return components_of_gradients["van_der_waals"][nr_of_occurrence]
+        return components_of_gradients["van_der_waals"]
+        # TODO: implement occurences
+        # if nr_of_occurrence is None:
+        #     return components_of_gradients["van_der_waals"]
+        # else:
+        #     return components_of_gradients["van_der_waals"][nr_of_occurrence]
 
     def get_forces_without_vdw(self, nr_of_occurrence=-1):
+        """
+        Return the uncleaned forces with the vdW component. Note that for the
+        final output, which you get when envoding self.get_forces() you get the
+        cleaned forces. Look up "final_forces_cleaned" in the AIMS manual for
+        more info.
 
-        components_of_gradients = self.get_force_components(nr_of_occurrence)
+        Parameters
+        ----------
+        nr_of_occurrence : int, optional
+            Currently not used. The default is -1.
+
+        Returns
+        -------
+        gradients_without_vdW : np.array
+
+        """
+        components_of_gradients = self.get_force_components()
 
         gradients_without_vdW = (
             components_of_gradients["total"]
             - components_of_gradients["van_der_waals"]
         )
 
-        if nr_of_occurrence is None:
-            return gradients_without_vdW
-        else:
-            return gradients_without_vdW[nr_of_occurrence]
+        return gradients_without_vdW
+        # TODO: implement occurences
+        # if nr_of_occurrence is None:
+        #     return gradients_without_vdW
+        # else:
+        #     return gradients_without_vdW[nr_of_occurrence]
 
-    def get_force_components(self, nr_of_occurrence):
+    def get_force_components(self, nr_of_occurrence=-1):
         """
         Return the force component specified in "component"
         for all atoms.
@@ -818,12 +837,11 @@ class AimsOutput(Output):
 
             for ind_1 in range(3):
                 force = self._get_energy(
-                    nr_of_occurrence,
+                    None,
                     force_key,
                     token_nr=ind_1 - 3,
                     energy_invalid_indicator=None,
                 )
-
                 force_values[force_key_2][:, ind_1] = force[-number_of_atoms:]
 
         return force_values
