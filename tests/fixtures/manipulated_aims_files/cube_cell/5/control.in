@@ -1,5 +1,5 @@
-xc                                 pbe
-relax_geometry                     bfgs 5e-3
+xc                           pbe
+relax_geometry               bfgs 5e-3
 output                             cube total_density
 ################################################################################
 #

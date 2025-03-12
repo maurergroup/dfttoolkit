@@ -1,7 +1,7 @@
-xc                                 pbe
-k_grid                             8 8 8
-relax_geometry                     bfgs 5e-3
-relax_unit_cell                    full
+xc                           pbe
+k_grid                       8 8 8
+relax_geometry               bfgs 5e-3
+relax_unit_cell              full
 output                             cube total_density
 cube                               origin 1.5 2.0 2.5
 cube edge 101 0.03 0.0 0.0
