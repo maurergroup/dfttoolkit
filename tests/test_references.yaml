@@ -439,6 +439,9 @@ cube_keywords:
   - !!python/tuple
     - hse_unit
     - - b
+  - !!python/tuple
+    - output
+    - - cube total_density
 - !MultiDict
   - !!python/tuple
     - xc
