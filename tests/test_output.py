@@ -19,7 +19,8 @@ class TestAimsOutput:
     @pytest.fixture
     def control_in(self, cwd, aims_calc_dir):
         with open(
-            f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in", "r"
+            f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in",
+            "r",
         ) as f:
             yield [line.strip() for line in f.readlines()]
 
@@ -207,9 +208,17 @@ class TestAimsOutput:
             )
 
     def test_get_change_of_forces(self):
-        forces = {5: 0.4728, 6: 6.684e-12, 7: 8.772e-09, 13: 0.1665e-06}
+        forces = {
+            5: 0.4728,
+            6: 6.684e-12,
+            7: 8.772e-09,
+            12: 0.1248e-07,
+            13: 0.1665e-06,
+        }
 
-        if self._aims_fixture_no in [5, 6, 7, 13]:
+        aims_forces_fixtures = [5, 6, 7, 12, 13]
+
+        if self._aims_fixture_no in aims_forces_fixtures:
             print(self.ao.get_change_of_forces())
             assert (
                 abs(
@@ -219,7 +228,7 @@ class TestAimsOutput:
                 < 1e-8
             )
 
-        if self._aims_fixture_no not in aims_forces_fixtures:
+        else:
             with pytest.raises(ValueError):
                 self.ao.get_change_of_forces()
 
@@ -342,7 +351,9 @@ class TestAimsOutput:
 
     def test_get_n_scf_iters(self):
         n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29]
-        assert self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
+        assert (
+            self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
+        )
 
     # TODO
     # def get_i_scf_conv_acc_test(self):
@@ -379,7 +390,9 @@ class TestAimsOutput:
             for spin_eval, spin in zip(
                 ["su_eigenvalues", "sd_eigenvalues"], [spin_up, spin_down]
             ):
-                for key in ref_data[spin_eval][self._aims_fixture_no - 2].keys():
+                for key in ref_data[spin_eval][
+                    self._aims_fixture_no - 2
+                ].keys():
                     # Check the values are within tolerance and that keys match
                     assert np.allclose(
                         spin[key],
@@ -391,7 +404,9 @@ class TestAimsOutput:
             with pytest.raises(ItemNotFoundError):
                 self.ao.get_all_ks_eigenvalues()
 
-    def _compare_final_ks_evals(self, ref_data: dict, ref: int, spin_case: str) -> None:
+    def _compare_final_ks_evals(
+        self, ref_data: dict, ref: int, spin_case: str
+    ) -> None:
         for key in ref_data[f"{spin_case}_final_eigenvalues"][ref].keys():
             if spin_case == "sn":
                 test = self.ao.get_final_ks_eigenvalues()[key]
@@ -453,7 +468,9 @@ class TestELSIOutput:
 
     @pytest.fixture(autouse=True)
     def elsi_npz(self, cwd):
-        self.eo_npz = load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
+        self.eo_npz = load_npz(
+            f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz"
+        )
 
     def test_get_elsi_csc_header(self):
         assert (
@@ -492,7 +509,9 @@ class TestELSIOutput:
             self.eo_npz.toarray().all(),
         )
 
-    @pytest.mark.xfail(False, reason="Direct comparison of floats without tolerance")
+    @pytest.mark.xfail(
+        False, reason="Direct comparison of floats without tolerance"
+    )
     def test_read_elsi_as_csc_bin_compare(self):
         assert (
             self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz
