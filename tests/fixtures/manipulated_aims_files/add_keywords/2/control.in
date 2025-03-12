@@ -1,8 +1,17 @@
+#===============================================================================
+# FHI-aims file: ./control.in
+# Created using the Atomic Simulation Environment (ASE)
+# Fri Mar 12 00:48:29 2025
+#===============================================================================
+xc                           pbe
+spin                         collinear
+default_initial_moment       1
+output_level                 full
 xc                                 dfauto scan
-spin                               collinear
-default_initial_moment             1
-output_level                       full
 output                             cube spin_density
+output                             mulliken
+#===============================================================================
+
 ################################################################################
 #
 #  FHI-aims code project
