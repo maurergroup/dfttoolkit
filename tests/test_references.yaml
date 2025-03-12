@@ -133,69 +133,161 @@ energy_diffs:
   -9.886e-06, -4.329e-05, -1.378e-05, -1.581e-07, -1.162e-07, -4.245e-08, 3.743e-09]
 keywords:
 - !MultiDict
-  - !!python/tuple [output_level, [full]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - output_level
+    - - full
 - !MultiDict
-  - !!python/tuple [default_initial_moment, ['1']]
-  - !!python/tuple [output_level, [full]]
-  - !!python/tuple [spin, [collinear]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - spin
+    - - collinear
+  - !!python/tuple
+    - default_initial_moment
+    - - '1'
+  - !!python/tuple
+    - output_level
+    - - full
 - !MultiDict
-  - !!python/tuple [default_initial_moment, ['1']]
-  - !!python/tuple [include_spin_orbit, [non_self_consistent]]
-  - !!python/tuple [output_level, [full]]
-  - !!python/tuple [spin, [collinear]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - spin
+    - - collinear
+  - !!python/tuple
+    - default_initial_moment
+    - - '1'
+  - !!python/tuple
+    - include_spin_orbit
+    - - non_self_consistent
+  - !!python/tuple
+    - output_level
+    - - full
 - !MultiDict
-  - !!python/tuple [k_grid, [1 1 1]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - k_grid
+    - - 1 1 1
 - !MultiDict
-  - !!python/tuple [relax_geometry, [bfgs 5e-3]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - relax_geometry
+    - - bfgs 5e-3
 - !MultiDict
-  - !!python/tuple [k_grid, [8 8 8]]
-  - !!python/tuple [relax_geometry, [bfgs 5e-3]]
-  - !!python/tuple [relax_unit_cell, [full]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - k_grid
+    - - 8 8 8
+  - !!python/tuple
+    - relax_geometry
+    - - bfgs 5e-3
+  - !!python/tuple
+    - relax_unit_cell
+    - - full
 - !MultiDict
-  - !!python/tuple [relax_geometry, [bfgs 5e-3]]
-  - !!python/tuple [sc_accuracy_eev, [1e-6]]
-  - !!python/tuple [sc_accuracy_etot, [1e-12]]
-  - !!python/tuple [sc_accuracy_forces, [1e-8]]
-  - !!python/tuple [sc_accuracy_rho, [1e-10]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - relax_geometry
+    - - bfgs 5e-3
+  - !!python/tuple
+    - sc_accuracy_rho
+    - - 1e-10
+  - !!python/tuple
+    - sc_accuracy_eev
+    - - 1e-6
+  - !!python/tuple
+    - sc_accuracy_etot
+    - - 1e-12
+  - !!python/tuple
+    - sc_accuracy_forces
+    - - 1e-8
 - !MultiDict
-  - !!python/tuple [k_grid, [1 1 1]]
-  - !!python/tuple [sc_accuracy_eev, [1e-6]]
-  - !!python/tuple [sc_accuracy_etot, [1e-12]]
-  - !!python/tuple [sc_accuracy_forces, [1e-8]]
-  - !!python/tuple [sc_accuracy_rho, [1e-10]]
-  - !!python/tuple [sc_iter_limit, ['10']]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - k_grid
+    - - 1 1 1
+  - !!python/tuple
+    - sc_iter_limit
+    - - '10'
+  - !!python/tuple
+    - sc_accuracy_rho
+    - - 1e-10
+  - !!python/tuple
+    - sc_accuracy_eev
+    - - 1e-6
+  - !!python/tuple
+    - sc_accuracy_etot
+    - - 1e-12
+  - !!python/tuple
+    - sc_accuracy_forces
+    - - 1e-8
 - !MultiDict
-  - !!python/tuple [hse_unit, [b]]
-  - !!python/tuple [xc, [hse06 0.11]]
+  - !!python/tuple
+    - xc
+    - - hse06 0.11
+  - !!python/tuple
+    - hse_unit
+    - - b
 - !MultiDict
-  - !!python/tuple [hse_unit, [b]]
-  - !!python/tuple [k_grid, [8 8 8]]
-  - !!python/tuple [xc, [hse06 0.11]]
+  - !!python/tuple
+    - xc
+    - - hse06 0.11
+  - !!python/tuple
+    - hse_unit
+    - - b
+  - !!python/tuple
+    - k_grid
+    - - 8 8 8
 - !MultiDict
-  - !!python/tuple [default_initial_moment, ['3']]
-  - !!python/tuple [k_grid, [1 1 1]]
-  - !!python/tuple [spin, [collinear]]
-  - !!python/tuple [xc, [pbe]]
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - k_grid
+    - - 1 1 1
+  - !!python/tuple
+    - spin
+    - - collinear
+  - !!python/tuple
+    - default_initial_moment
+    - - '3'
 - !MultiDict
-  - !!python/tuple [default_initial_moment, ['1']]
-  - !!python/tuple [k_grid, [8 8 8]]
-  - !!python/tuple [relax_geometry, [bfgs 5e-3]]
-  - !!python/tuple [relax_unit_cell, [full]]
-  - !!python/tuple [spin, [collinear]]
-  - !!python/tuple [xc, [pbe]]
-
-
-
+  - !!python/tuple
+    - xc
+    - - pbe
+  - !!python/tuple
+    - k_grid
+    - - 8 8 8
+  - !!python/tuple
+    - spin
+    - - collinear
+  - !!python/tuple
+    - default_initial_moment
+    - - '1'
+  - !!python/tuple
+    - relax_geometry
+    - - bfgs 5e-3
+  - !!python/tuple
+    - relax_unit_cell
+    - - full
 cube_keywords:
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -204,7 +296,8 @@ cube_keywords:
   - !!python/tuple
     - output
     - - cube total_density
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -219,7 +312,8 @@ cube_keywords:
   - !!python/tuple
     - output
     - - cube total_density
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -237,7 +331,8 @@ cube_keywords:
   - !!python/tuple
     - output
     - - cube total_density
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -252,7 +347,8 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -261,7 +357,8 @@ cube_keywords:
   - !!python/tuple
     - output
     - - cube total_density
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -282,7 +379,8 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -303,7 +401,8 @@ cube_keywords:
   - !!python/tuple
     - output
     - - cube total_density
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -333,13 +432,15 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - hse06 0.11
   - !!python/tuple
     - hse_unit
     - - b
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - hse06 0.11
   - !!python/tuple
@@ -357,7 +458,8 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -378,7 +480,8 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-- - !!python/tuple
+- !MultiDict
+  - !!python/tuple
     - xc
     - - pbe
   - !!python/tuple
@@ -405,10 +508,6 @@ cube_keywords:
       - edge 101 0.03 0.0 0.0
       - edge 135 0.0 0.03 0.0
       - edge 169 0.0 0.0 0.03
-
-
-
-
 pert_soc_eigenvalues:
   eigenvalue_eV: [-511.262291, -511.262291, -25.174078, -25.174077, -13.017798, -13.017797,
     -9.204901, -9.2049, -7.069313, -7.069308, 0.067805, 0.067807, 2.733286, 2.733288,

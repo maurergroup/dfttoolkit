@@ -83,13 +83,22 @@ class AimsControl(Parameters):
         keywords = MultiDict()
 
         for line in self.lines:
-            if "#" * 80 in line.strip():
-                # Reached the basis set definitions
-                break
-
+            # Stop at third keyword delimiter if ASE wrote the file
             spl = line.split()
+            if len(spl) > 0 and "(ASE)" == spl[-1]:
+                n_delims = 0
+                if "#" + ("=" * 79) == line:
+                    n_delims += 1
+                    if n_delims == 3:
+                        # Reached end of keywords
+                        break
 
-            if len(spl) > 0 and spl[0] != "#":
+            else:
+                if "#" * 80 in line.strip():
+                    # Reached the basis set definitions
+                    break
+
+            if len(spl) > 0 and line[0] != "#":
                 keywords[spl[0]] = " ".join(spl[1:])
 
         return keywords
@@ -106,7 +115,8 @@ class AimsControl(Parameters):
 
         species = []
         for line in self.lines:
-            if "species" == line.split()[0]:
+            spl = line.split()
+            if len(spl) > 0 and "species" == spl[0]:
                 species.append(line.split()[1])
 
         return species
@@ -182,10 +192,20 @@ class AimsControl(Parameters):
         # Get the location of the start of the basis sets
         basis_set_start = False
 
-        for i, line in enumerate(self.lines):
-            if line.strip() == "#" * 80:
-                basis_set_start = i
-                break
+        # if ASE wrote the file, use the 'add' point as the end of keywords delimiter
+        # otherwise, use the start of the basis sets as 'add' point
+        for i, line_1 in enumerate(self.lines):
+            if line_1.strip() == "#" * 80:
+                if "(ASE)" == self.lines[2].split()[-1]:
+                    for j, line_2 in enumerate(reversed(self.lines[:i])):
+                        if "#" + ("=" * 79) == line_2.strip():
+                            basis_set_start = i - j - 1
+                            break
+                    break
+
+                else:  # not ASE
+                    basis_set_start = i
+                    break
 
         # Check to make sure basis sets were found
         if not basis_set_start:
@@ -236,12 +256,15 @@ class AimsControl(Parameters):
         )
         z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
         self.add_keywords(  # Add cube options to control.in
-            cube="origin {} {} {}\n".format(
-                *(np.transpose(cell_matrix @ [0.5, 0.5, 0.5]))
+            (
+                "cube",
+                "origin {} {} {}\n".format(
+                    *(np.transpose(cell_matrix @ [0.5, 0.5, 0.5]))
+                )
+                + "cube edge {} {} {} {}\n".format(cube_x, *x_vector)
+                + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
+                + "cube edge {} {} {} {}\n".format(cube_z, *z_vector),
             )
-            + "cube edge {} {} {} {}\n".format(cube_x, *x_vector)
-            + "cube edge {} {} {} {}\n".format(cube_y, *y_vector)
-            + "cube edge {} {} {} {}\n".format(cube_z, *z_vector)
         )
         # print("\tCube voxel resolution is {} Å".format(resolution))
 
@@ -249,18 +272,18 @@ class AimsControl(Parameters):
         """
         Remove keywords from the control.in file.
 
+        Note that this will not remove keywords that are commented with a '#'.
+
         Parameters
         ----------
         *args : str
             Keywords to be removed from the control.in file.
-        output : Literal["overwrite", "print", "return"], default="overwrite"
-            Overwrite the original file, print the modified file to STDOUT, or return
-            the modified file as a list of '\\n' separated strings.
         """
 
         for keyword in args:
             for i, line in enumerate(self.lines):
-                if keyword in line:
+                spl = line.split()
+                if len(spl) > 0 and spl[0] != "#" and keyword in line:
                     self.lines.pop(i)
 
         with open(self.path, "w") as f:

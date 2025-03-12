@@ -229,13 +229,20 @@ class AimsOutput(Output):
 
         parameters = {}
 
-        for line in self.lines[i + 6 :]:  # pyright: ignore
+        # If the file was written with ASE, there is an extra header/keyword delimiter
+        if "(ASE)" == self.lines[i + 8].split()[-1]:  # pyright: ignore
+            extra_lines = 11
+        else:
+            extra_lines = 6
+
+        for line in self.lines[i + extra_lines :]:  # pyright: ignore
             # End of parameters and start of basis sets
-            if "#" * 80 in line:
+            if "#" * 80 == line.strip() or "#" + ("=" * 79) == line.strip():
                 break
 
             spl = line.split()
-            parameters[spl[0]] = " ".join(spl[1:])
+            if len(spl) > 0 and spl[0] != "#":
+                parameters[spl[0]] = " ".join(spl[1:])
 
         return parameters
 

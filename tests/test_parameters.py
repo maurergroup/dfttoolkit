@@ -43,46 +43,19 @@ class TestAimsControl:
         ) as f:
             yield f.readlines()
 
-    def test_get_keywords(self, ref_data, tmp_dir, cube_cell_ref_files):
-        keywords = self.ac.get_keywords()
-        assert keywords == ref_data["keywords"][self.aims_fixture_no - 1]
+    def test_get_keywords(self, ref_data, cwd):
+        assert self.ac.get_keywords() == ref_data["keywords"][self.aims_fixture_no - 1]
 
         # Check it works for the cube files as these have multiple keywords that are the
         # same with different values
-        control_path = tmp_dir / "control.in"
-        shutil.copy(self.ac.path, control_path)
-        ac = AimsControl(control_in=str(control_path))
-        ac.get_keywords()
-
-    def test_add_keywords(self, tmp_dir, added_keywords_ref_files):
-        control_path = tmp_dir / "control.in"
-        shutil.copy(self.ac.path, control_path)
-        ac = AimsControl(control_in=str(control_path))
-        ac.add_keywords(xc="dfauto scan", output="cube spin_density")
-
-        assert "".join(added_keywords_ref_files) == control_path.read_text()
-
-    def test_add_cube_cell(self, tmp_dir, cube_cell_ref_files):
-        control_path = tmp_dir / "control.in"
-        shutil.copy(self.ac.path, control_path)
-        ac = AimsControl(control_in=str(control_path))
-        try:
-            ac.add_keywords(output="cube total_density")
-            ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
-        except TypeError:
-            assert not ac.check_periodic()
-        else:
-            assert (
-                "".join(cube_cell_ref_files) == control_path.read_text()
-            )  # Check correct for periodic
-
-    def test_remove_keywords(self, tmp_dir, removed_keywords_ref_files):
-        control_path = tmp_dir / "control.in"
-        shutil.copy(self.ac.path, control_path)
-        ac = AimsControl(control_in=str(control_path))
-        ac.remove_keywords("xc", "relax_geometry", "k_grid")
-
-        assert "".join(removed_keywords_ref_files) == control_path.read_text()
+        cube_ac = AimsControl(
+            control_in=f"{cwd}/fixtures/manipulated_aims_files/cube_cell/"
+            f"{self.aims_fixture_no}/control.in"
+        )
+        assert (
+            cube_ac.get_keywords()
+            == ref_data["cube_keywords"][self.aims_fixture_no - 1]
+        )
 
     def test_get_species(self):
         cluster_species = ["O", "H"]
@@ -106,6 +79,40 @@ class TestAimsControl:
             assert self.ac.get_default_basis_funcs() == basis_funcs[0]
         if self.aims_fixture_no == 4:
             assert self.ac.get_default_basis_funcs() == basis_funcs[1]
+
+    def test_add_cube_cell(self, tmp_dir, cube_cell_ref_files):
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        try:
+            ac.add_keywords(("output", "cube total_density"))
+            ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
+        except TypeError:
+            assert not ac.check_periodic()
+        else:
+            assert (
+                "".join(cube_cell_ref_files) == control_path.read_text()
+            )  # Check correct for periodic
+
+    def test_add_keywords(self, tmp_dir, added_keywords_ref_files):
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        ac.add_keywords(
+            ("xc", "dfauto scan"),
+            ("output", "cube spin_density"),
+            ("output", "mulliken"),
+        )
+
+        assert "".join(added_keywords_ref_files) == control_path.read_text()
+
+    def test_remove_keywords(self, tmp_dir, removed_keywords_ref_files):
+        control_path = tmp_dir / "control.in"
+        shutil.copy(self.ac.path, control_path)
+        ac = AimsControl(control_in=str(control_path))
+        ac.remove_keywords("xc", "relax_geometry", "k_grid")
+
+        assert "".join(removed_keywords_ref_files) == control_path.read_text()
 
     def test_check_periodic(self):
         if self.aims_fixture_no in [4, 6, 8, 10, 11, 12]:

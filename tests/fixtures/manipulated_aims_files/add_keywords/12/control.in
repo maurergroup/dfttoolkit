@@ -1,10 +1,12 @@
+xc                           pbe
+k_grid                       8 8 8
+spin                         collinear
+default_initial_moment       1
+relax_geometry               bfgs 5e-3
+relax_unit_cell              full
 xc                                 dfauto scan
-k_grid                             8 8 8
-spin                               collinear
-default_initial_moment             1
-relax_geometry                     bfgs 5e-3
-relax_unit_cell                    full
 output                             cube spin_density
+output                             mulliken
 ################################################################################
 #
 #  FHI-aims code project
