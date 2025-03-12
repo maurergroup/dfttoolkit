@@ -1,5 +1,6 @@
 xc                           hse06 0.11
 hse_unit                     b
+output                             cube total_density
 ################################################################################
 #
 #  FHI-aims code project

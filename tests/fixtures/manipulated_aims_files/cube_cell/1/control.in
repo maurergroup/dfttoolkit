@@ -1,5 +1,5 @@
-xc                                 pbe
-output_level                       full
+xc                           pbe
+output_level                 full
 output                             cube total_density
 ################################################################################
 #

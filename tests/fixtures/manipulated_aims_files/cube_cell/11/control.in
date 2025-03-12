@@ -1,7 +1,7 @@
-xc                                 pbe
-k_grid                             1 1 1
-spin                               collinear
-default_initial_moment             3
+xc                           pbe
+k_grid                       1 1 1
+spin                         collinear
+default_initial_moment       3
 output                             cube total_density
 cube                               origin 1.5 2.0 2.5
 cube edge 101 0.03 0.0 0.0

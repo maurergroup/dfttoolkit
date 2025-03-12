@@ -1,6 +1,6 @@
-xc                                 hse06 0.11
-hse_unit                           b
-k_grid                             8 8 8
+xc                           hse06 0.11
+hse_unit                     b
+k_grid                       8 8 8
 output                             cube total_density
 cube                               origin 1.5 2.0 2.5
 cube edge 101 0.03 0.0 0.0
