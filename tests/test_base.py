@@ -1,97 +1,63 @@
-from dfttoolkit.base_parser import BaseParser
+from dfttoolkit.base import Parser, File
 import pytest
 
 
-@pytest.fixture
-def elsi_csc(cwd):
-    yield f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
+class TestFile:
+    @pytest.fixture(params=range(1, 13), scope="module")
+    def aims_out_loc(self, cwd, request, aims_calc_dir):
+        return f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/aims.out"
+
+    @pytest.fixture(scope="module")
+    def aims_out_lines(self, aims_out_loc):
+        with open(aims_out_loc, "r") as f:
+            aims_out_lines = f.readlines()
+
+        return aims_out_lines
+
+    @pytest.fixture(scope="module")
+    def aims_out_file(self, aims_out_loc):
+        return File(aims_out_loc, "aims_out")
+
+    @pytest.fixture(scope="module")
+    def elsi_csc_loc(self, cwd):
+        return f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
+
+    @pytest.fixture(scope="module")
+    def elsi_csc_file(self, elsi_csc_loc):
+        return File(elsi_csc_loc, "elsi_csc")
+
+    def test_text_file_attrs(self, aims_out_file, aims_out_loc):
+        assert aims_out_file.path == aims_out_loc
+        assert aims_out_file._format == "aims_out"
+        assert aims_out_file._name == "aims.out"
+        assert aims_out_file._extension == ".out"
+        assert aims_out_file._binary is False
+        assert aims_out_file.lines != []
+        assert aims_out_file.data == b""
+
+    def test_text_file_lines(self, aims_out_file, aims_out_lines):
+        assert aims_out_file.lines == aims_out_lines
+
+    def test_text_file_str(self, aims_out_file, aims_out_lines):
+        assert str(aims_out_file) == "".join(aims_out_lines)
+
+    def test_binary_file_attrs(self, elsi_csc_file, elsi_csc_loc):
+        assert elsi_csc_file.path == elsi_csc_loc
+        assert elsi_csc_file._format == "elsi_csc"
+        assert elsi_csc_file._name == "D_spin_01_kpt_000001.csc"
+        assert elsi_csc_file._extension == ".csc"
+        assert elsi_csc_file._binary is True
+        assert elsi_csc_file.lines == []
+        assert elsi_csc_file.data != b""
+
+    def test_binary_file_data(self, elsi_csc_file, elsi_csc_loc):
+        with open(elsi_csc_loc, "rb") as f:
+            assert elsi_csc_file.data == f.read()
+
+    def test_binary_file_str(self, elsi_csc_file):
+        with pytest.raises(OSError):
+            str(elsi_csc_file)
 
 
-@pytest.fixture(autouse=True)
-def base_parser(default_calc_dir, elsi_csc):
-    bp = BaseParser(
-        ["aims_out", "control_in", "elsi_out"],
-        aims_out=f"{default_calc_dir}/aims.out",
-        control_in=f"{default_calc_dir}/control.in",
-        elsi_out=elsi_csc,
-    )
-    yield bp
-
-
-def test_check_supported_file(default_calc_dir):
-
-    with pytest.raises(ValueError):
-        BaseParser(
-            ["aims_out", "elsi_in"],
-            aims_out=f"{default_calc_dir}/aims.out",
-            control_in=f"{default_calc_dir}/control.in",
-        )
-
-    with pytest.raises(ValueError):
-        BaseParser(
-            ["aims.out", "control.in"],
-            aims_out=f"{default_calc_dir}/aims.out",
-            control_in=f"{default_calc_dir}/control.in",
-        )
-
-
-def test_check_file_exists(default_calc_dir):
-    with pytest.raises(FileNotFoundError):
-        BaseParser(
-            ["aims_out", "control_in"],
-            aims_out=f"{default_calc_dir}/aims.out",
-            control_in="./control.in",
-        )
-
-
-def test_store_file_paths(base_parser, default_calc_dir, cwd):
-    assert base_parser.file_paths == {
-        "aims_out": f"{default_calc_dir}/aims.out",
-        "control_in": f"{default_calc_dir}/control.in",
-        "elsi_out": f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc",
-    }
-
-
-def test_read_binary_content(base_parser):
-    assert isinstance(base_parser.file_contents["elsi_out"], bytes) is True
-
-
-def test_read_txt_content(elsi_csc, base_parser, default_calc_dir):
-    with open(elsi_csc, "rb") as f:
-        assert base_parser.file_contents["elsi_out"] == f.read()
-
-    with open(f"{default_calc_dir}/aims.out", "r") as f:
-        assert base_parser.file_contents["aims_out"] == f.readlines()
-
-    with open(f"{default_calc_dir}/control.in", "r") as f:
-        assert base_parser.file_contents["control_in"] == f.readlines()
-
-
-def test__str__(base_parser, default_calc_dir):
-    base_parser.lines = base_parser.file_contents["aims_out"]
-    with open(f"{default_calc_dir}/aims.out", "r") as f:
-        ao_lines = f.readlines()
-
-    assert str(base_parser) == "".join(ao_lines)
-
-    base_parser.lines = base_parser.file_contents["control_in"]
-    with open(f"{default_calc_dir}/control.in", "r") as f:
-        ci_lines = f.readlines()
-
-    assert str(base_parser) == "".join(ci_lines)
-
-
-def test__str__error(base_parser):
-    # TODO maybe change to read the file as None or "" rather than just setting the attr
-    base_parser.lines = None
-    with pytest.raises(ValueError):
-        str(base_parser)
-
-    base_parser.lines = ""
-    with pytest.raises(ValueError):
-        str(base_parser)
-
-
-def test_properties():
-    # TODO
-    pass
+# TODO
+class TestParser: ...
