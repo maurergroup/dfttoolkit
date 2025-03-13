@@ -40,6 +40,21 @@ class TestAimsOutput:
             assert len(geom) == 2
             assert geom.get_is_periodic() is True
 
+    def test_get_geometry_steps_of_optimisation(self):
+        geom = self.ao.get_geometry()
+
+        positions = np.array(
+            [
+                [0.00000004, 0.00000045, 2.95776161],
+                [-0.00000010, -0.00000113, 1.03284091],
+                [0.00000006, 0.00000068, -0.09060251],
+            ]
+        )
+
+        if self._aims_fixture_no in [13]:
+            geom_steps = geom.get_geometry_steps_of_optimisation()
+            assert np.allclose(geom_steps[-1].coords, positions)
+
     def test_get_control_file(self, control_in):
         assert self.ao.get_control_file() == control_in
 
