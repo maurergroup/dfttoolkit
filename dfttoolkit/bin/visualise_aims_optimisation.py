@@ -163,7 +163,7 @@ def get_heights(geometries):
     heights = []
     try:
         N_layers = int(input("Number of slab layers:"))
-    except:
+    except ValueError:
         Exception("Input must be a string!")
 
     for g in geometries:
@@ -228,12 +228,12 @@ def visualise_optimisation(aims_output, args):
 
     # read geometries and forces
     aims_outputs = get_all_outputs(calc_dir, outputname)
-    try:
-        control_file = aims_outputs[-1].getControlFile()
-        trm_text = control_file.settings["relax_geometry"]
-        threshold = np.float(trm_text.split()[1])
-    except:
-        threshold = None
+    # try:
+    #     control_file = aims_outputs[-1].getControlFile()
+    #     trm_text = control_file.settings["relax_geometry"]
+    #     threshold = np.float(trm_text.split()[1])
+    # except ValueError:
+    threshold = None
     E = get_energies(aims_outputs)
     force = get_maximum_forces(aims_outputs)
     converged = aims_outputs[-1].check_geometry_optimisation_has_completed()
@@ -267,13 +267,10 @@ def visualise_optimisation(aims_output, args):
             os.makedirs(geometries_dir)
         geometries = get_geometries(aims_outputs)
         for i, g in enumerate(geometries):
-            # try:
             fig = plt.Figure()
             g.visualise()
             fig.savefig(join(geometries_dir, "{:04d}.png".format(i)), dpi=600)
 
-            # except:
-            #    print("Print with ASE failed")
             g.save_to_file(join(geometries_dir, "{:04d}.in".format(i)))
 
         if args.gif:
@@ -291,8 +288,7 @@ def visualise_optimisation(aims_output, args):
             geometries[0].visualize()
             geometries[0].visualizeAtomDisplacements(geometries[-1])
             plt.savefig(join(calc_dir, "atom_displacements.png"), dpi=600)
-        # TODO: find out which exceptions could be thrown
-        except:
+        except ValueError:
             print("visualizing atom displacements failed")
 
     # Save forces of all geometry steps of the optimisation
@@ -326,7 +322,7 @@ def visualise_optimisation(aims_output, args):
                     plt.close()
                     ind = ind + 1
 
-            except:
+            except ValueError:
                 print("Printing forces failed")
                 raise
     # Create height plot
