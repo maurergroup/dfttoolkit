@@ -72,8 +72,8 @@ class AimsOutput(Output):
     >>> ao = AimsOutput(aims_out="./aims.out")
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, aims_out: str = "aims.out", **kwargs):
+        super().__init__(aims_out=aims_out, **kwargs)
 
     def get_number_of_atoms(self) -> int:
         """
@@ -1126,7 +1126,9 @@ class AimsOutput(Output):
 
         return self.scf_conv_acc_params
 
-    def get_n_initial_ks_states(self, include_spin_polarised: bool = True) -> int:
+    def get_n_initial_ks_states(
+        self, include_spin_polarised: bool = True
+    ) -> int:
         """
         Get the number of Kohn-Sham states from the first SCF step.
 
@@ -1219,18 +1221,24 @@ class AimsOutput(Output):
                 or eigenvalues["occupation"].ndim > 1
                 or eigenvalues["eigenvalue_eV"].ndim > 1
             ):
-                raise ValueError("Something went wrong with parsing the KS states.")
+                raise ValueError(
+                    "Something went wrong with parsing the KS states."
+                )
 
             # This is the case for finding the final KS eigenvalues
             # Therefore only parse the KS states from the final SCF iteration
-            for i, line in enumerate(self.lines[ev_start : ev_start + n_ks_states]):
+            for i, line in enumerate(
+                self.lines[ev_start : ev_start + n_ks_states]
+            ):
                 values = line.split()
                 eigenvalues["state"][i] = int(values[0])
                 eigenvalues["occupation"][i] = float(values[1])
                 eigenvalues["eigenvalue_eV"][i] = float(values[3])
 
         else:
-            for i, line in enumerate(self.lines[ev_start : ev_start + n_ks_states]):
+            for i, line in enumerate(
+                self.lines[ev_start : ev_start + n_ks_states]
+            ):
                 values = line.split()
                 eigenvalues["state"][scf_iter][i] = int(values[0])
                 eigenvalues["occupation"][scf_iter][i] = float(values[1])
@@ -1578,7 +1586,9 @@ class ELSIOutput(Output):
             )
 
         if csc_format:
-            return sp.csc_array((nnz, row_i, col_i), shape=(self.n_basis, self.n_basis))
+            return sp.csc_array(
+                (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
+            )
 
         else:
             return sp.csc_array(
