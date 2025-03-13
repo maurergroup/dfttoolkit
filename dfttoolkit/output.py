@@ -155,7 +155,6 @@ class AimsOutput(Output):
         # 2... in lattice section of geometry file
         # 3... in atoms section of geometry file
 
-        geometry_lines = []
         for l in self.lines:
             if (
                 "Updated atomic structure:" in l
@@ -163,6 +162,7 @@ class AimsOutput(Output):
                 in l
             ):
                 state = 1
+                geometry_lines = []
 
             if state > 0 and "atom " in l:
                 state = 3
@@ -170,6 +170,7 @@ class AimsOutput(Output):
                 state = 2
 
             if state > 0:
+                # print(l)
                 geometry_lines.append(l)
 
             if state == 3 and "atom " not in l:
