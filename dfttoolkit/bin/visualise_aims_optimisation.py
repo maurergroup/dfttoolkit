@@ -242,7 +242,6 @@ def visualise_optimisation(aims_output, args):
     if args.both_logarithmic:
         plot_energy_logarithmic = True
         plot_forces_logarithmic = True
-        postfix = ""
     else:
         plot_energy_logarithmic = args.energy_logarithmic
         plot_forces_logarithmic = args.forces_logarithmic

@@ -836,7 +836,6 @@ class AimsOutput(Output):
         (Hellmann-Feynman, Ionic forces, Multipole, Pulay + GGA, Van der Waals, Total forces)
         """
         number_of_atoms = self.get_number_of_atoms()
-        all_force_values = []
 
         force_key_list = [
             "Hellmann-Feynman              :",

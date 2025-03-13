@@ -15,8 +15,11 @@ import os
 
 
 class Cubefile:
-    """Read (and in the future also interpolate) 3D cube file.
-    All distance units are converted to angstrom."""
+    """
+    Read (and in the future also interpolate) 3D cube file.
+    All distance units are converted to angstrom.
+
+    """
 
     def __init__(self, filename=None, sparse_limit=0.0):
         self.periodic_table = PeriodicTable()
@@ -515,7 +518,7 @@ class Cubefile:
                 values[i] = self.data[
                     pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
                 ]
-            except:
+            except (IndexError, TypeError) as e:
                 values[i] = np.nan
 
         if return_mapped_coords:
@@ -821,7 +824,6 @@ class Cubefile:
         # --- get voxel lengths and volumina ---
         dv1, dv2, dv3 = self.get_voxel_volumina()
         dv_list = [dv1, dv2, dv3]
-        dV = dv1 * dv2 * dv3
 
         vec_list = self.get_voxel_coordinates()
         # ---
@@ -1142,10 +1144,10 @@ class Cubefile:
         else:
             maxcharge = limits[1]
             mincharge = limits[0]
-        axes_end = (
-            np.dot(grid_vec, self.shape) + origin - np.sum(grid_vec, axis=1)
-        )
-        axes_start = origin - np.sum(grid_vec, axis=1)
+        # axes_end = (
+        #     np.dot(grid_vec, self.shape) + origin - np.sum(grid_vec, axis=1)
+        # )
+        # axes_start = origin - np.sum(grid_vec, axis=1)
 
         fig = plt.gcf()
 
