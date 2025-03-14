@@ -221,6 +221,11 @@ class AimsOutput(Output):
         dict
             The parameters of the FHI-aims control file found in the aims output
         """
+        warnings.warn(
+            """TODO: This function does not cover many ways control
+                       files are written! It needs to be implemented propertly
+                       and should retun the parameters calls."""
+        )
 
         # Find where the parameters start
         for i, line in enumerate(self.lines):
@@ -238,7 +243,8 @@ class AimsOutput(Output):
                 break
 
             spl = line.split()
-            parameters[spl[0]] = " ".join(spl[1:])
+            if len(spl) > 1:
+                parameters[spl[0]] = " ".join(spl[1:])
 
         return parameters
 
@@ -867,6 +873,13 @@ class AimsOutput(Output):
                     energy_invalid_indicator=None,
                 )
                 force_values[force_key_2][:, ind_1] = force[-number_of_atoms:]
+
+            centre_fo_mass_force = np.mean(force_values[force_key_2], axis=0)
+            centre_fo_mass_force = np.tile(
+                centre_fo_mass_force, (number_of_atoms, 1)
+            )
+
+            force_values[force_key_2] -= centre_fo_mass_force
 
         return force_values
 
