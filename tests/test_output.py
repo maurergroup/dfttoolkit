@@ -10,7 +10,7 @@ class TestAimsOutput:
     def _aims_fixture_no(self) -> int:
         return int(self.ao.path.split("/")[-2])
 
-    @pytest.fixture(params=range(1, 13), autouse=True)
+    @pytest.fixture(params=range(1, 14), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir):
         self.ao = AimsOutput(
             aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/aims.out"
@@ -41,8 +41,6 @@ class TestAimsOutput:
             assert geom.get_is_periodic() is True
 
     def test_get_geometry_steps_of_optimisation(self):
-        geom = self.ao.get_geometry()
-
         positions = np.array(
             [
                 [0.00000004, 0.00000045, 2.95776161],
@@ -52,7 +50,7 @@ class TestAimsOutput:
         )
 
         if self._aims_fixture_no in [13]:
-            geom_steps = geom.get_geometry_steps_of_optimisation()
+            geom_steps = self.ao.get_geometry_steps_of_optimisation()
             assert np.allclose(geom_steps[-1].coords, positions)
 
     def test_get_control_file(self, control_in):
@@ -188,10 +186,6 @@ class TestAimsOutput:
         ]
 
         if self._aims_fixture_no in [5]:
-            print(
-                abs(self.ao.get_forces() - forces[self._aims_fixture_no - 5])
-            )
-
             assert (
                 np.all(
                     abs(
@@ -202,25 +196,29 @@ class TestAimsOutput:
                 < 1e-8
             )
 
-    def test_get_forces_without_vdw(self):
-        forces = [
-            np.array(
+    def test_get_forces_without_vdw_1(self):
+        forces = {
+            13: np.array(
                 [
-                    [6.49567857e-07, 7.07725101e-06, 6.02880000e-04],
-                    [-1.76155257e-06, -1.91973462e-05, 1.07662600e-02],
-                    [1.11181871e-06, 1.21166952e-05, -3.75618200e-03],
+                    [6.49623190e-07, 7.07838434e-06, -1.93477267e-03],
+                    [-1.76149723e-06, -1.91962129e-05, 8.22860733e-03],
+                    [1.11187404e-06, 1.21178286e-05, -6.29383467e-03],
                 ]
-            )
-        ]
+            ),
+        }
 
         if self._aims_fixture_no in [13]:
-            # print(self.ao.get_forces_without_vdw())
-            # print(self.ao.get_forces() - self.ao.get_vdw_forces())
-
-            assert (
-                np.all(abs(self.ao.get_forces_without_vdw() - forces[0]))
-                < 1e-8
+            assert np.allclose(
+                self.ao.get_forces_without_vdw(), forces[self._aims_fixture_no]
             )
+
+    def test_get_forces_without_vdw_2(self):
+        if self._aims_fixture_no in [13]:
+
+            f_1 = self.ao.get_forces_without_vdw()
+            f_2 = self.ao.get_forces() - self.ao.get_vdw_forces()
+
+            assert np.allclose(f_1, f_2)
 
     def test_get_change_of_forces(self):
         forces = {
@@ -234,7 +232,6 @@ class TestAimsOutput:
         aims_forces_fixtures = [5, 6, 7, 12, 13]
 
         if self._aims_fixture_no in aims_forces_fixtures:
-            print(self.ao.get_change_of_forces())
             assert (
                 abs(
                     self.ao.get_change_of_forces()
@@ -365,7 +362,7 @@ class TestAimsOutput:
         )
 
     def test_get_n_scf_iters(self):
-        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29]
+        n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29, 251]
         assert (
             self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
         )
@@ -374,7 +371,21 @@ class TestAimsOutput:
     # def get_i_scf_conv_acc_test(self):
 
     def test_get_n_initial_ks_states(self):
-        n_initial_ks_states = [11, 22, 48, 20, 11, 20, 11, 20, 11, 20, 40, 20]
+        n_initial_ks_states = [
+            11,
+            22,
+            48,
+            20,
+            11,
+            20,
+            11,
+            20,
+            11,
+            20,
+            40,
+            20,
+            34,
+        ]
 
         if self._aims_fixture_no in [2, 3, 11]:
             assert (
