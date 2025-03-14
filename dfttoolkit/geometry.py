@@ -329,6 +329,8 @@ class Geometry:
             assert isinstance(cartesian_coords, np.ndarray)
             self.coords = cartesian_coords
         else:
+            # make sure that coords are 2D
+            cartesian_coords = np.atleast_2d(cartesian_coords)
             self.coords = np.concatenate(
                 (self.coords, cartesian_coords), axis=0
             )
