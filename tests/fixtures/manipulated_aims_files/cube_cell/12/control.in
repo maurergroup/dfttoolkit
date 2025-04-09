@@ -1,6 +1,15 @@
-spin                         collinear 
-default_initial_moment       1 
+xc                           pbe
+k_grid                       8 8 8
+spin                         collinear
+default_initial_moment       1
+relax_geometry               bfgs 5e-3
 relax_unit_cell              full
+output                             cube total_density
+cube                               origin 1.5 2.0 2.5
+cube edge 101 0.03 0.0 0.0
+cube edge 135 0.0 0.03 0.0
+cube edge 169 0.0 0.0 0.03
+
 ################################################################################
 #
 #  FHI-aims code project

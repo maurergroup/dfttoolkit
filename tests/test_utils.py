@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+from dfttoolkit.utils.periodic_table import PeriodicTable
 from dfttoolkit.utils.run_utils import no_repeat
 
 
@@ -45,3 +47,6 @@ def test_no_repeat(capfd, default_calc_dir):
         out == f"aims.out already exists in {default_calc_dir}. Skipping calculation.\n"
     )
     assert err == ""
+
+
+class TestPeriodicTable: ...

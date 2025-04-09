@@ -29,15 +29,13 @@ class Output(Parser):
 
     def __init__(self, **kwargs):
         # Parse file information and perform checks
-        super().__init__(self._supported_files.keys(), **kwargs)
+        super().__init__(self._supported_files, **kwargs)
 
         # Check that the files are in the correct format
         match self._format:
             case "aims_out":
-                self._check_output_file_extension("aims_out")
                 self._check_binary(False)
             case "elsi_csc":
-                self._check_output_file_extension("elsi_csc")
                 self._check_binary(True)
 
     @property
@@ -237,9 +235,15 @@ class AimsOutput(Output):
 
         parameters = {}
 
-        for line in self.lines[i + 6 :]:  # pyright: ignore
+        # If the file was written with ASE, there is an extra header/keyword delimiter
+        if "(ASE)" == self.lines[i + 8].split()[-1]:  # pyright: ignore
+            extra_lines = 11
+        else:
+            extra_lines = 6
+
+        for line in self.lines[i + extra_lines :]:  # pyright: ignore
             # End of parameters and start of basis sets
-            if "#" * 80 in line:
+            if "#" * 80 == line.strip() or "#" + ("=" * 79) == line.strip():
                 break
 
             spl = line.split()
@@ -345,9 +349,7 @@ class AimsOutput(Output):
         skip_next_energy = (
             False  # only relevant if energy_invalid_indicator is not None
         )
-        use_next_energy = (
-            False  # only relevant if energy_valid_indicator is not None
-        )
+        use_next_energy = False  # only relevant if energy_valid_indicator is not None
 
         assert not (skip_next_energy and use_next_energy), (
             "AIMSOutput._get_energy: usage of skip_next_energy and "
@@ -393,9 +395,7 @@ class AimsOutput(Output):
                     pass
 
         if len(energies) == 0:
-            raise ValueError(
-                f"Energy not found in aims.out file for {search_string}"
-            )
+            raise ValueError(f"Energy not found in aims.out file for {search_string}")
 
         energies = np.array(energies)
 
@@ -825,8 +825,7 @@ class AimsOutput(Output):
         components_of_gradients = self.get_force_components()
 
         gradients_without_vdW = (
-            components_of_gradients["total"]
-            - components_of_gradients["van_der_waals"]
+            components_of_gradients["total"] - components_of_gradients["van_der_waals"]
         )
 
         return gradients_without_vdW
@@ -876,9 +875,7 @@ class AimsOutput(Output):
                 force_values[force_key_2][:, ind_1] = force[-number_of_atoms:]
 
             centre_fo_mass_force = np.mean(force_values[force_key_2], axis=0)
-            centre_fo_mass_force = np.tile(
-                centre_fo_mass_force, (number_of_atoms, 1)
-            )
+            centre_fo_mass_force = np.tile(centre_fo_mass_force, (number_of_atoms, 1))
 
             force_values[force_key_2] -= centre_fo_mass_force
 
@@ -1071,8 +1068,8 @@ class AimsOutput(Output):
             if len(spl) > 1:
                 if "Begin self-consistency iteration #" in line:
                     # save the scf iteration number
-                    self.scf_conv_acc_params["scf_iter"][current_scf_iter] = (
-                        int(spl[-1])
+                    self.scf_conv_acc_params["scf_iter"][current_scf_iter] = int(
+                        spl[-1]
                     )
                     # use a counter rather than reading the SCF iteration number as it
                     # resets upon re-initialisation and for each geometry opt step
@@ -1140,9 +1137,7 @@ class AimsOutput(Output):
 
         return self.scf_conv_acc_params
 
-    def get_n_initial_ks_states(
-        self, include_spin_polarised: bool = True
-    ) -> int:
+    def get_n_initial_ks_states(self, include_spin_polarised: bool = True) -> int:
         """
         Get the number of Kohn-Sham states from the first SCF step.
 
@@ -1163,9 +1158,7 @@ class AimsOutput(Output):
             No KS states found in aims.out file
         """
 
-        target_line = (
-            "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
-        )
+        target_line = "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
 
         init_ev_start = 0
         n_ks_states = 0
@@ -1235,24 +1228,18 @@ class AimsOutput(Output):
                 or eigenvalues["occupation"].ndim > 1
                 or eigenvalues["eigenvalue_eV"].ndim > 1
             ):
-                raise ValueError(
-                    "Something went wrong with parsing the KS states."
-                )
+                raise ValueError("Something went wrong with parsing the KS states.")
 
             # This is the case for finding the final KS eigenvalues
             # Therefore only parse the KS states from the final SCF iteration
-            for i, line in enumerate(
-                self.lines[ev_start : ev_start + n_ks_states]
-            ):
+            for i, line in enumerate(self.lines[ev_start : ev_start + n_ks_states]):
                 values = line.split()
                 eigenvalues["state"][i] = int(values[0])
                 eigenvalues["occupation"][i] = float(values[1])
                 eigenvalues["eigenvalue_eV"][i] = float(values[3])
 
         else:
-            for i, line in enumerate(
-                self.lines[ev_start : ev_start + n_ks_states]
-            ):
+            for i, line in enumerate(self.lines[ev_start : ev_start + n_ks_states]):
                 values = line.split()
                 eigenvalues["state"][scf_iter][i] = int(values[0])
                 eigenvalues["occupation"][scf_iter][i] = float(values[1])
@@ -1293,24 +1280,16 @@ class AimsOutput(Output):
         # Add 2 to SCF iters as if output_level full is specified, FHI-aims prints the
         # KS states once before the SCF starts and once after it finishes
         n_scf_iters = self.get_n_scf_iters() + 2
-        n_ks_states = self.get_n_initial_ks_states(
-            include_spin_polarised=False
-        )
+        n_ks_states = self.get_n_initial_ks_states(include_spin_polarised=False)
 
         # Parse line to find the start of the KS eigenvalues
-        target_line = (
-            "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
-        )
+        target_line = "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
 
         if not spin_polarised:
             eigenvalues = {
                 "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
-                "occupation": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
-                "eigenvalue_eV": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
+                "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
+                "eigenvalue_eV": np.zeros((n_scf_iters, n_ks_states), dtype=float),
             }
 
             n = 0  # Count the current SCF iteration
@@ -1325,21 +1304,13 @@ class AimsOutput(Output):
         elif spin_polarised:
             su_eigenvalues = {
                 "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
-                "occupation": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
-                "eigenvalue_eV": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
+                "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
+                "eigenvalue_eV": np.zeros((n_scf_iters, n_ks_states), dtype=float),
             }
             sd_eigenvalues = {
                 "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
-                "occupation": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
-                "eigenvalue_eV": np.zeros(
-                    (n_scf_iters, n_ks_states), dtype=float
-                ),
+                "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
+                "eigenvalue_eV": np.zeros((n_scf_iters, n_ks_states), dtype=float),
             }
 
             # Count the number of SCF iterations for each spin channel
@@ -1356,25 +1327,19 @@ class AimsOutput(Output):
                     # The spin-up line is two lines above the target line
                     if self.lines[i - 2].strip() == "Spin-up eigenvalues:":
                         # Get the KS states from this line until the next empty line
-                        self._get_ks_states(
-                            i + 1, su_eigenvalues, up_n, n_ks_states
-                        )
+                        self._get_ks_states(i + 1, su_eigenvalues, up_n, n_ks_states)
                         up_n += 1
 
                     # The spin-down line is two lines above the target line
                     if self.lines[i - 2].strip() == "Spin-down eigenvalues:":
                         # Get the KS states from this line until the next empty line
-                        self._get_ks_states(
-                            i + 1, sd_eigenvalues, down_n, n_ks_states
-                        )
+                        self._get_ks_states(i + 1, sd_eigenvalues, down_n, n_ks_states)
                         down_n += 1
 
             return su_eigenvalues, sd_eigenvalues
 
         else:
-            raise ValueError(
-                "Could not determine if calculation was spin polarised."
-            )
+            raise ValueError("Could not determine if calculation was spin polarised.")
 
     def get_final_ks_eigenvalues(self) -> Union[dict, Tuple[dict, dict]]:
         """Get the final Kohn-Sham eigenvalues from a calculation.
@@ -1402,14 +1367,10 @@ class AimsOutput(Output):
         spin_polarised = self.check_spin_polarised()
 
         # Get the number of KS states
-        n_ks_states = self.get_n_initial_ks_states(
-            include_spin_polarised=False
-        )
+        n_ks_states = self.get_n_initial_ks_states(include_spin_polarised=False)
 
         # Parse line to find the start of the KS eigenvalues
-        target_line = (
-            "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
-        )
+        target_line = "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
 
         # Iterate backwards from end of aims.out to find the final KS eigenvalues
         final_ev_start = None
@@ -1444,9 +1405,7 @@ class AimsOutput(Output):
             self._get_ks_states(final_ev_start, sd_eigenvalues, 0, n_ks_states)
 
             # Go back one more target line to get the spin-up states
-            for i, line in enumerate(
-                reversed(self.lines[: final_ev_start - 1])
-            ):
+            for i, line in enumerate(reversed(self.lines[: final_ev_start - 1])):
                 if target_line == line.strip():
                     final_ev_start += -i - 1
                     break
@@ -1456,9 +1415,7 @@ class AimsOutput(Output):
             return su_eigenvalues, sd_eigenvalues
 
         else:
-            raise ValueError(
-                "Could not determine if calculation was spin polarised."
-            )
+            raise ValueError("Could not determine if calculation was spin polarised.")
 
     def get_pert_soc_ks_eigenvalues(self) -> dict:
         """
@@ -1600,9 +1557,7 @@ class ELSIOutput(Output):
             )
 
         if csc_format:
-            return sp.csc_array(
-                (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
-            )
+            return sp.csc_array((nnz, row_i, col_i), shape=(self.n_basis, self.n_basis))
 
         else:
             return sp.csc_array(

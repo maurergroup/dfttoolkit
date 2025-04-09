@@ -1,7 +1,7 @@
-xc                           pbe 
+xc                           pbe
 k_grid                       8 8 8
-spin                         collinear 
-default_initial_moment       1 
+spin                         collinear
+default_initial_moment       1
 relax_geometry               bfgs 5e-3
 relax_unit_cell              full
 ################################################################################
