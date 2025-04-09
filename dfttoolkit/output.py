@@ -260,10 +260,11 @@ class AimsOutput(Output):
             whether the calculation exited normally or not
         """
 
-        if "Have a nice day." == self.lines[-2].strip():
-            exit_normal = True
-        else:
-            exit_normal = False
+        exit_normal = False
+        for i in range(1, 10):  # only read last few lines
+            if "Have a nice day." == self.lines[-i].strip():
+                exit_normal = True
+                break
 
         return exit_normal
 

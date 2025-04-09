@@ -698,24 +698,47 @@ def get_significance(x, t):
     return Df
 
 
-def squared_exponenital_kernel(x1_vec_0, x2_vec_0, tau):
-    x1_vec = np.atleast_3d(x1_vec_0)
-    x2_vec = np.atleast_3d(x2_vec_0)
+# def squared_exponential_kernel(x1_vec_0, x2_vec_0, tau):
+#     x1_vec = np.atleast_3d(x1_vec_0)
+#     x2_vec = np.atleast_3d(x2_vec_0)
 
-    x1 = np.tile(x1_vec, len(x2_vec))
-    x2 = np.tile(x2_vec, len(x1_vec))
+#     x1 = np.tile(x1_vec, len(x2_vec))
+#     x2 = np.tile(x2_vec, len(x1_vec))
 
-    x1 = np.moveaxis(x1, 2, 1)
-    x2 = x2.T
-    x2 = np.moveaxis(x2, 2, 1)
+#     print(x1_vec.shape, x2_vec.shape, x1.shape, x2.shape)
 
-    x_diff = x1 - x2
+#     x1 = np.moveaxis(x1, 2, 1)
+#     x2 = x2.T
+#     x2 = np.moveaxis(x2, 2, 1)
 
-    a = np.sum(x_diff**2, axis=2)
+#     x_diff = x1 - x2
 
-    M = np.exp(-0.5 / tau**2 * a)
+#     a = np.sum(x_diff**2, axis=2)
 
-    return M
+#     M = np.exp(-0.5 / tau**2 * a)
+
+#     return M
+
+
+def squared_exponential_kernel(x1_vec, x2_vec, tau):
+    # Ensure inputs are at least 2D (n_samples, n_features)
+    x1 = np.atleast_2d(x1_vec)
+    x2 = np.atleast_2d(x2_vec)
+
+    # If they are 1D row-vectors, convert to column vectors
+    if x1.shape[0] == 1 or x1.shape[1] == 1:
+        x1 = x1.reshape(-1, 1)
+    if x2.shape[0] == 1 or x2.shape[1] == 1:
+        x2 = x2.reshape(-1, 1)
+
+    # Compute squared distances (broadcasting works for both 1D and 2D now)
+    diff = x1[:, np.newaxis, :] - x2[np.newaxis, :, :]
+    sq_dist = np.sum(diff**2, axis=2)
+
+    # Apply the RBF formula
+    K = np.exp(-0.5 * sq_dist / tau**2)
+
+    return K
 
 
 class GPR:
@@ -739,7 +762,7 @@ class GPR:
         None.
 
         """
-        K1 = squared_exponenital_kernel(x, x, tau)
+        K1 = squared_exponential_kernel(x, x, tau)
 
         self.K1_inv = np.linalg.inv(K1 + np.eye(len(x)) * sigma)
         self.x = x
@@ -751,7 +774,7 @@ class GPR:
         return self.predict(x)
 
     def predict(self, x):
-        K2 = squared_exponenital_kernel(x, self.x, self.tau)
+        K2 = squared_exponential_kernel(x, self.x, self.tau)
         y_test0 = K2.dot(self.K1_inv)
 
         return y_test0.dot(self.y)
