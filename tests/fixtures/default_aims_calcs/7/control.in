@@ -1,4 +1,4 @@
-xc                           pbe 
+xc                           pbe
 relax_geometry               bfgs 5e-3
 sc_accuracy_rho              1e-10
 sc_accuracy_eev              1e-6
