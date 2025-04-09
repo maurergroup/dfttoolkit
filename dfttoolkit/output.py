@@ -219,11 +219,6 @@ class AimsOutput(Output):
         dict
             The parameters of the FHI-aims control file found in the aims output
         """
-        warnings.warn(
-            """TODO: This function does not cover many ways control
-                       files are written! It needs to be implemented propertly
-                       and should retun the parameters calls."""
-        )
 
         # Find where the parameters start
         for i, line in enumerate(self.lines):

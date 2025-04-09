@@ -1,5 +1,5 @@
 # control.in written by ControlFile class of SAMPLE aimstools
-# General Settings:
+# General Settings: 
 xc	                           hse06 0.11
 hse_unit                           bohr-1
 #periodic_hf coulomb_threshold      1e-06
@@ -13,14 +13,14 @@ charge	                           0.0
 relativistic	                   atomic_zora scalar
 occupation_type	                   gaussian 0.05
 
-# Convergence Criteria:
+# Convergence Criteria: 
 sc_accuracy_etot                   1e-06
 sc_accuracy_eev                    1e-03
 sc_accuracy_rho                    1e-05
 sc_accuracy_forces                 1e-03
 sc_iter_limit	                   200
 
-# Other Settings:
+# Other Settings: 
 many_body_dispersion_nl
 compensate_multipole_errors	   .true.
 #use_local_index                    .true.
