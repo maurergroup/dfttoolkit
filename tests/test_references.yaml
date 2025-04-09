@@ -286,6 +286,55 @@ keywords:
   - !!python/tuple
     - relax_unit_cell
     - - full
+- !MultiDict
+  - !!python/tuple
+    - RI_method
+    - - lvl_fast
+  - !!python/tuple
+    - charge
+    - - '0.0'
+  - !!python/tuple
+    - compensate_multipole_errors
+    - - .true.
+  - !!python/tuple
+    - hse_unit
+    - - bohr-1
+  - !!python/tuple
+    - many_body_dispersion_nl
+    - - ''
+  - !!python/tuple
+    - max_relaxation_steps
+    - - '200'
+  - !!python/tuple
+    - occupation_type
+    - - gaussian 0.05
+  - !!python/tuple
+    - relativistic
+    - - atomic_zora scalar
+  - !!python/tuple
+    - relax_geometry
+    - - trm 1e-02
+  - !!python/tuple
+    - sc_accuracy_eev
+    - - 1e-03
+  - !!python/tuple
+    - sc_accuracy_etot
+    - - 1e-06
+  - !!python/tuple
+    - sc_accuracy_forces
+    - - 1e-03
+  - !!python/tuple
+    - sc_accuracy_rho
+    - - 1e-05
+  - !!python/tuple
+    - sc_iter_limit
+    - - '200'
+  - !!python/tuple
+    - spin
+    - - none
+  - !!python/tuple
+    - xc
+    - - hse06 0.11
 cube_keywords:
 - !MultiDict
   - !!python/tuple

@@ -1,20 +1,20 @@
+import copy
+import os
+from collections import OrderedDict, abc
 from copy import deepcopy
+
 import numpy as np
-from collections.abc import Iterable
-
-from dfttoolkit.parameters import CubefileParameters
 from matplotlib.cm import get_cmap
+from scipy.ndimage.interpolation import shift
 
+from dfttoolkit.dfttoolkit.base import Parser
 from dfttoolkit.geometry import Geometry
 from dfttoolkit.utils.math_utils import get_triple_product
 from dfttoolkit.utils.periodic_table import PeriodicTable
 from dfttoolkit.utils.units import BOHR_IN_ANGSTROM, EPSILON0_AIMS
-from scipy.ndimage.interpolation import shift
-import copy
-import os
 
 
-class Cubefile:
+class Cube(Parser):
     """
     Read (and in the future also interpolate) 3D cube file.
     All distance units are converted to angstrom.
@@ -22,6 +22,10 @@ class Cubefile:
     """
 
     def __init__(self, filename=None, sparse_limit=0.0):
+        # Parse file information and perform checks
+        # TODO
+        # super().__init__(self._supported_files, filename, )
+
         self.periodic_table = PeriodicTable()
         self.verbose = False
         self.filename = filename
@@ -102,9 +106,7 @@ class Cubefile:
             self.n_atoms = int(line[0])
 
             # origin is the lower left corner in front
-            self.origin = (
-                np.array([float(x) for x in line[1:]]) * BOHR_IN_ANGSTROM
-            )
+            self.origin = np.array([float(x) for x in line[1:]]) * BOHR_IN_ANGSTROM
 
             # Read cube dimensions
             n_points = []
@@ -127,9 +129,7 @@ class Cubefile:
                 atom_pos.append([float(x) for x in line[2:]])
 
             atom_pos = np.array(atom_pos) * BOHR_IN_ANGSTROM
-            species = [
-                self.periodic_table.get_chemical_symbol(x) for x in atom_Z
-            ]
+            species = [self.periodic_table.get_chemical_symbol(x) for x in atom_Z]
             self.geom = Geometry()
             # self.geom.lattice_vectors = self.cube_vectors
             self.geom.add_atoms(atom_pos, species)
@@ -223,9 +223,7 @@ class Cubefile:
                 + "   "
                 + "   ".join(
                     [
-                        "{: 10.6f}".format(
-                            self.grid_vectors[i, j] / BOHR_IN_ANGSTROM
-                        )
+                        "{: 10.6f}".format(self.grid_vectors[i, j] / BOHR_IN_ANGSTROM)
                         for j in range(3)
                     ]
                 )
@@ -234,9 +232,7 @@ class Cubefile:
 
         # atoms
         atom_pos = self.geom.coords
-        atom_Z = [
-            self.periodic_table.get_atomic_number(x) for x in self.geom.species
-        ]
+        atom_Z = [self.periodic_table.get_atomic_number(x) for x in self.geom.species]
         for i in range(self.n_atoms):
             header += (
                 "{:5d}".format(atom_Z[i])
@@ -329,19 +325,14 @@ class Cubefile:
             axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(
-                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
-            )
+            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
         )
 
         proj = (
             np.sum(self.data, axis=tuple(axsum)) * dA
         )  # trapeziodal rule: int(f) = sum_i (f_i + f_i+1) * dA / 2 (but here not div by 2 because no double counting in sum)
         xstart = self.origin[axis]
-        xend = (
-            self.origin[axis]
-            + self.grid_vectors[axis, axis] * self.shape[axis]
-        )
+        xend = self.origin[axis] + self.grid_vectors[axis, axis] * self.shape[axis]
         xaxis = np.linspace(xstart, xend, self.shape[axis])
 
         return proj, xaxis
@@ -365,9 +356,7 @@ class Cubefile:
             axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(
-                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
-            )
+            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
         )
         n_datapoints = self.shape[axsum[0]] * self.shape[axsum[1]]
         A = dA * n_datapoints
@@ -399,9 +388,7 @@ class Cubefile:
             axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(
-                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
-            )
+            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
         )
         n_datapoints = self.shape[axsum[0]] * self.shape[axsum[1]]
         A = dA * n_datapoints
@@ -446,7 +433,7 @@ class Cubefile:
         self, vec, repeat=False, integer_only=False, return_shift_indices=False
     ):
         """
-        Shifts values of the CubeFile along a specific vector.
+        Shifts values of the Cube along a specific vector.
         All values that are not known are set to zero.
         All values that are now outside the cube are deleted.
         TODO: Extrapolate unknown values
@@ -500,9 +487,7 @@ class Cubefile:
         """
         trans_mat = copy.deepcopy(self.grid_vectors).T
         coords = np.atleast_2d(coords)
-        pos_inds = np.round(
-            np.dot(np.linalg.inv(trans_mat), (coords - self.origin).T)
-        )
+        pos_inds = np.round(np.dot(np.linalg.inv(trans_mat), (coords - self.origin).T))
         pos_inds = pos_inds.astype(int)
 
         n_coords = np.shape(pos_inds)[1]
@@ -515,10 +500,8 @@ class Cubefile:
 
         for i in range(n_coords):
             try:
-                values[i] = self.data[
-                    pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
-                ]
-            except (IndexError, TypeError) as e:
+                values[i] = self.data[pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]]
+            except (IndexError, TypeError):
                 values[i] = np.nan
 
         if return_mapped_coords:
@@ -556,24 +539,14 @@ class Cubefile:
         difference = pos_inds_0 - pos_inds
 
         if xy_periodic:
-            difference[0, difference[0, :] > 1.0] = (
-                difference[0, :] - self.shape[0]
-            )
-            difference[1, difference[1, :] > 1.0] = (
-                difference[1, :] - self.shape[1]
-            )
+            difference[0, difference[0, :] > 1.0] = difference[0, :] - self.shape[0]
+            difference[1, difference[1, :] > 1.0] = difference[1, :] - self.shape[1]
 
         for i in range(n_coords):
 
-            pos_inds_x = pos_inds[:, i] + np.array(
-                [np.sign(difference[0])[i], 0, 0]
-            )
-            pos_inds_y = pos_inds[:, i] + np.array(
-                [0, np.sign(difference[1])[i], 0]
-            )
-            pos_inds_z = pos_inds[:, i] + np.array(
-                [0, 0, np.sign(difference[2])[i]]
-            )
+            pos_inds_x = pos_inds[:, i] + np.array([np.sign(difference[0])[i], 0, 0])
+            pos_inds_y = pos_inds[:, i] + np.array([0, np.sign(difference[1])[i], 0])
+            pos_inds_z = pos_inds[:, i] + np.array([0, 0, np.sign(difference[2])[i]])
 
             # periodic boundary conditions
             if not xy_periodic:
@@ -602,9 +575,7 @@ class Cubefile:
             pos_inds_y = pos_inds_y.astype(int)
             pos_inds_z = pos_inds_z.astype(int)
 
-            values_0 = self.data[
-                pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
-            ]
+            values_0 = self.data[pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]]
             values_x = self.data[pos_inds_x[0], pos_inds_x[1], pos_inds_x[2]]
             values_y = self.data[pos_inds_y[0], pos_inds_y[1], pos_inds_y[2]]
             values_z = self.data[pos_inds_z[0], pos_inds_z[1], pos_inds_z[2]]
@@ -642,9 +613,7 @@ class Cubefile:
 
         """
         cube_mol = self.geom.get_molecules()
-        cube_geom_center = cube_mol.get_geometric_center(
-            ignore_center_attribute=True
-        )
+        cube_geom_center = cube_mol.get_geometric_center(ignore_center_attribute=True)
         ads_geom_center = adsorption_geometry.get_geometric_center(
             ignore_center_attribute=True
         )
@@ -665,9 +634,7 @@ class Cubefile:
         )
 
         self.corresponding_adsorption_geometry = adsorption_geometry
-        self.distance_to_adsorption_geometry = (
-            ads_geom_center - cube_geom_center
-        )
+        self.distance_to_adsorption_geometry = ads_geom_center - cube_geom_center
 
     def get_voxel_volumina(self):
         grid_vec = copy.deepcopy(self.grid_vectors)
@@ -681,16 +648,13 @@ class Cubefile:
         dv1, dv2, dv3 = self.get_voxel_volumina()
 
         v1_vec = (
-            np.array([self.origin[0] + i * dv1 for i in range(self.shape[0])])
-            - dv1 / 2
+            np.array([self.origin[0] + i * dv1 for i in range(self.shape[0])]) - dv1 / 2
         )  # shift by half a grid vector to align voxel to center
         v2_vec = (
-            np.array([self.origin[1] + i * dv2 for i in range(self.shape[1])])
-            - dv2 / 2
+            np.array([self.origin[1] + i * dv2 for i in range(self.shape[1])]) - dv2 / 2
         )
         v3_vec = (
-            np.array([self.origin[2] + i * dv3 for i in range(self.shape[2])])
-            - dv3 / 2
+            np.array([self.origin[2] + i * dv3 for i in range(self.shape[2])]) - dv3 / 2
         )
 
         return [v1_vec, v2_vec, v3_vec]
@@ -710,15 +674,11 @@ class Cubefile:
 
         # get points in cube grid
         v1_vec = (
-            np.array(
-                [i * dv1 for i in range(self.shape[0] * periodic_replica[0])]
-            )
+            np.array([i * dv1 for i in range(self.shape[0] * periodic_replica[0])])
             - dv1 / 2
         )
         v2_vec = (
-            np.array(
-                [i * dv2 for i in range(self.shape[1] * periodic_replica[1])]
-            )
+            np.array([i * dv2 for i in range(self.shape[1] * periodic_replica[1])])
             - dv2 / 2
         )
         v1, v2 = np.meshgrid(v1_vec, v2_vec)
@@ -816,8 +776,6 @@ class Cubefile:
 
         import matplotlib as mpl
         import matplotlib.pyplot as plt
-        import matplotlib.colors as colors
-        import matplotlib.cm as cmx
 
         lattice = copy.deepcopy(lattice)
 
@@ -866,10 +824,7 @@ class Cubefile:
             v3_pos_index_1 = np.argmin(np.abs(v3_vector - v3_position[0]))
             v3_pos_index_2 = np.argmin(np.abs(v3_vector - v3_position[1]))
 
-            data = (
-                np.sum(data[:, :, v3_pos_index_1:v3_pos_index_2], third_ax)
-                * plt_dv3
-            )
+            data = np.sum(data[:, :, v3_pos_index_1:v3_pos_index_2], third_ax) * plt_dv3
         else:
             # find the points in data closest to required z-plane
             v3_vector = vec_list[third_ax]
@@ -1079,9 +1034,7 @@ class Cubefile:
             cmap_object.set_under((0.188, 0.314, 0.973, 1))
 
         # plot charge
-        pcm = ax.pcolormesh(
-            x.T, y.T, data, cmap=cmap_object, alpha=alpha, norm=norm
-        )
+        pcm = ax.pcolormesh(x.T, y.T, data, cmap=cmap_object, alpha=alpha, norm=norm)
 
         # plot axis
         if show_axis:
@@ -1130,10 +1083,7 @@ class Cubefile:
             np.array([i * dv1 for i in range(self.shape[0])]) - dv1 / 2
         )  # shift by half a grid vector to align voxel to center
         v2_vec = np.array([i * dv2 for i in range(self.shape[1])]) - dv2 / 2
-        v3_vec = (
-            np.array([origin[2] + i * dv3 for i in range(self.shape[2])])
-            - dv3 / 2
-        )
+        v3_vec = np.array([origin[2] + i * dv3 for i in range(self.shape[2])]) - dv3 / 2
 
         if limits is None:
             maxcharge = np.amax(data * dV)
@@ -1210,9 +1160,7 @@ class Cubefile:
             mol.visualize(auto_limits=False)
         fig.tight_layout()
 
-        cax, kw = mpl.colorbar.make_axes(
-            [ax_v1, ax_v2, ax_v3], location="bottom"
-        )
+        cax, kw = mpl.colorbar.make_axes([ax_v1, ax_v2, ax_v3], location="bottom")
         plt.colorbar(im, cax=cax, **kw)
         if fig_dir is not None:
             cax.set_xlabel(os.path.basename(fig_dir)[:-4])
@@ -1228,7 +1176,7 @@ class Cubefile:
         Calculates the overlap integral of the quantity described in the cubefile with that of a second cubefile.
         NOTE: this is written to work with the standard FHI-aims voxels in Angstrom³
         NOTE: the two orbitals should describe the same exact volume of space!
-        :param other_cubefile: CubeFile
+        :param other_cubefile: Cube
         :return: float
         """
         # this data is normally provided in angstrom^(-3/2)
@@ -1410,8 +1358,8 @@ def get_cubefile_grid(geometry, divisions, origin=None, verbose=True):
     If only one division is given, this will be used in all directions.
     If origin is given the vectors will be aligned around this value
 
-    Returns a CubeFileSettings object which can be used for the ControlFile class
-    To get text simply use CubeFileSettings.getText()
+    Returns a CubeSettings object which can be used for the ControlFile class
+    To get text simply use CubeSettings.getText()
 
     """
     if origin is None:
@@ -1433,7 +1381,7 @@ def get_cubefile_grid(geometry, divisions, origin=None, verbose=True):
     vecs[1, :] = geometry.lattice_vectors[1, :] / divisions[1]
     vecs[2, :] = geometry.lattice_vectors[2, :] / divisions[2]
 
-    cube_parms = CubefileParameters()
+    cube_parms = CubeParameters()
     cube_parms.set_origin(origin)
     cube_parms.set_edges(divisions, vecs)
 
@@ -1446,8 +1394,8 @@ def get_cubefile_grid_by_spacing(self, spacing, origin=None, verbose=True):
     If only one division is given, this will be used in all directions.
     If origin is given the vectors will be aligned around this value
 
-    Returns a CubeFileSettings object which can be used for the ControlFile class
-    To get text simply use CubeFileSettings.getText()
+    Returns a CubeSettings object which can be used for the ControlFile class
+    To get text simply use CubeSettings.getText()
     """
 
     if origin is None:
@@ -1457,7 +1405,7 @@ def get_cubefile_grid_by_spacing(self, spacing, origin=None, verbose=True):
             + self.lattice_vectors[2, :] / 2
         )
     # make numeric value a list if necessary
-    if not isinstance(spacing, Iterable):
+    if not isinstance(spacing, abc.Iterable):
         spacing = [spacing]
 
     # check that spacing is given for all three dimensions
@@ -1469,15 +1417,9 @@ def get_cubefile_grid_by_spacing(self, spacing, origin=None, verbose=True):
 
     # calculate n points
     n_points = np.zeros(3)
-    n_points[0] = np.ceil(
-        np.linalg.norm(self.lattice_vectors[0, :]) / spacing[0]
-    )
-    n_points[1] = np.ceil(
-        np.linalg.norm(self.lattice_vectors[1, :]) / spacing[1]
-    )
-    n_points[2] = np.ceil(
-        np.linalg.norm(self.lattice_vectors[2, :]) / spacing[2]
-    )
+    n_points[0] = np.ceil(np.linalg.norm(self.lattice_vectors[0, :]) / spacing[0])
+    n_points[1] = np.ceil(np.linalg.norm(self.lattice_vectors[1, :]) / spacing[1])
+    n_points[2] = np.ceil(np.linalg.norm(self.lattice_vectors[2, :]) / spacing[2])
 
     # calculate vectors
     vecs = np.zeros([3, 3])
@@ -1497,8 +1439,213 @@ def get_cubefile_grid_by_spacing(self, spacing, origin=None, verbose=True):
         * spacing[2]
     )
 
-    cube_parms = CubefileParameters()
+    cube_parms = CubeParameters()
     cube_parms.set_origin(origin)
     cube_parms.set_edges(n_points, vecs)
 
     return cube_parms
+
+
+class CubeParameters:
+    """Represents Cube file settings which can be used to generate a control file
+    All numeric values are parsed, strings are kept as such
+    Input
+    -------------------
+        all textlines that belong to cubefile specification
+        type is also parsed from the text
+
+    Functions
+    -------------------
+        parse(text): parses textlines
+
+        getText(): returns cubefile specifications-string for ControlFile class
+    """
+
+    def __init__(self, text=None):
+        self.type = ""  # type is all that comes after output cube as a single string
+        # parsers for specific cube keywords: {keyword: [string_to_number, number_to_string]}
+        self.parsing_functions = {
+            "spinstate": [
+                lambda x: int(x[0]),
+                lambda x: str(x),
+            ],  #### I change x to x[0] because otherwise it bugs fc 11.02.2021
+            "kpoint": [lambda x: int(x[0]), lambda x: str(x)],
+            "divisor": [lambda x: int(x[0]), lambda x: str(x)],
+            "spinmask": [
+                lambda x: [int(k) for k in x],
+                lambda x: "  ".join([str(k) for k in x]),
+            ],
+            "origin": [
+                lambda x: [float(k) for k in x],
+                lambda x: "  ".join(["{: 15.10f}".format(k) for k in x]),
+            ],
+            "edge": [
+                lambda x: [int(x[0])] + [float(k) for k in x[1:]],
+                lambda x: str(int(x[0]))
+                + "  "
+                + "  ".join(["{: 15.10f}".format(k) for k in x[1:]]),
+            ],
+        }
+
+        self.settings = OrderedDict()
+        if text is not None:
+            self.parse(text)
+
+    def __repr__(self):
+        text = "CubeSettings object with content:\n"
+        text += self.get_text()
+        return text
+
+    def parse(self, text):
+        cubelines = []
+        for line in text:
+            line = line.strip()
+            # parse only lines that start with cube and are not comments
+            if not line.startswith("#"):
+                if line.startswith("cube"):
+                    cubelines.append(line)
+                elif line.startswith("output"):
+                    self.type = " ".join(line.split()[2:])
+
+        # parse cubelines to self.settings
+        for line in cubelines:
+            line = line.split("#")[0]  # remove comments
+            splitline = line.split()
+            keyword = splitline[1]  # parse keyword
+            values = splitline[2:]  # parse all values
+            # check if parsing function exists
+            if keyword in self.parsing_functions:
+                value = self.parsing_functions[keyword][0](values)
+            # reconvert to single string otherwise
+            else:
+                value = " ".join(values)
+
+            # save all values as list, append to list if key already exists
+            if keyword in self.settings:
+                self.settings[keyword].append(value)
+            else:
+                self.settings[keyword] = [value]
+
+    def set_origin(self, origin):
+        """parse numpy array origin to settings"""
+        self.settings["origin"] = [[origin[0], origin[1], origin[2]]]
+
+    def set_edges(self, divisions, edge_vectors):
+        """parse edge vectors to array"""
+        self.settings["edge"] = []
+        for i, d in enumerate(divisions):
+            self.settings["edge"].append([divisions[i]] + list(edge_vectors[i, :]))
+
+    def set_type(self, type):
+        """type is all that comes after output cube as a single string"""
+        self.type = type
+
+    def _get_edges(self):
+        assert "edge" in self.settings, "There are no edges specified"
+        edges = self.settings["edge"]
+        return np.array(edges)
+
+    def get_grid_vectors(self):
+        edges = self._get_edges()
+        return edges[:, 1:]
+
+    def get_divisions(self):
+        edges = self._get_edges()
+        return edges[:, 0]
+
+    def set_divisions(self, divisions):
+        assert (
+            len(divisions) == 3
+        ), "Divisions for all three lattice vectors must be specified!"
+        for i in range(3):
+            self.settings["edge"][i][0] = divisions[i]
+
+    def has_vertical_unit_cell(self):
+        conditions = [
+            self.settings["edge"][0][3] == 0.0,
+            self.settings["edge"][1][3] == 0.0,
+            self.settings["edge"][2][1] == 0.0,
+            self.settings["edge"][2][1] == 0.0,
+        ]
+        if False in conditions:
+            return False
+        else:
+            return True
+
+    def set_z_slice(self, z_bottom, z_top):
+        """
+        Crops the cubefile to only include the space between z_bottom and z_top.
+        The cubefile could go slightly beyond z_bottom and z_top, in order to preserve the distance between grid points.
+        :param z_bottom: float
+        :param z_top: float
+        :return: 0
+        """
+        assert z_top >= z_bottom, "Please provide z_bottom, z_top in the correct order"
+        assert (
+            self.has_vertical_unit_cell()
+        ), "This function should only be used on systems whose cell is parallel to the Z axis!"
+        range = z_top - z_bottom
+        average = z_bottom + range / 2
+        # set origin Z
+        self.settings["origin"][0][2] = average
+        # set edge, approximating for excess
+        z_size = self.settings["edge"][2][0] * self.settings["edge"][2][3]
+        fraction_of_z_size = z_size / range
+        new_z = self.settings["edge"][2][0] / fraction_of_z_size
+        if new_z % 1 != 0:
+            new_z = int(new_z) + 1.0
+        self.settings["edge"][2][0] = new_z
+
+    def set_grid_by_box_dimensions(self, x_limits, y_limits, z_limits, spacing):
+        """
+        Sets origin and edge as a cuboid box, ranging within the given limits, with voxel size specified by spacing.
+        :param x_limits: list [min,max]
+        :param y_limits: list [min,max]
+        :param z_limits: list [min,max]
+        :param spacing: float, or list [x,y,z]
+        :return:
+        """
+        # apparently, this preliminary setting is necessary
+        self.set_origin([0, 0, 0])
+        self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+        # set one dimension at a time
+        for i, lim in enumerate([x_limits, y_limits, z_limits]):
+            assert lim[0] < lim[1]
+            range = lim[1] - lim[0]
+            # set origin
+            center = lim[0] + (range / 2)
+            self.settings["origin"][0][i] = center
+            # set edges
+            if isinstance(spacing, list):
+                space = spacing[i]
+            else:
+                space = spacing
+            ### size of voxel
+            self.settings["edge"][i][i + 1] = space
+            ### number of voxels
+            n_voxels = int(range / space) + 1
+            self.settings["edge"][i][0] = n_voxels
+
+    def get_origin(self):
+        assert "origin" in self.settings, "There is no origin specified"
+        origin = self.settings["origin"]
+        return np.array(origin[0])
+
+    def get_text(self):
+        text = ""
+        if len(self.type) > 0:
+            text += "output cube " + self.type + "\n"
+        else:
+            Warning("No cube type specified")
+            text += "output cube" + "CUBETYPE" + "\n"
+
+        for key, values in self.settings.items():
+            for v in values:
+                text += "cube " + key + " "
+                if key in self.parsing_functions:
+                    text += self.parsing_functions[key][1](v) + "\n"
+                else:
+                    print(v)
+                    text += v + "\n"
+
+        return text

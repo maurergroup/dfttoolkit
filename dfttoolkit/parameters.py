@@ -1,16 +1,13 @@
-import numpy as np
 import collections
-import inspect
-from typing import List, Literal, Union
 from typing import Any, Dict, List, Tuple, Union
 from warnings import warn
 
-from numpy.typing import NDArray
 import numpy as np
+from numpy.typing import NDArray
 
 from .base import Parser
-from .utils.periodic_table import PeriodicTable
 from .utils.file_utils import MultiDict
+from .utils.periodic_table import PeriodicTable
 
 
 class Parameters(Parser):
@@ -178,9 +175,9 @@ class AimsControl(Parameters):
 
         return basis_funcs
 
-    def add_keywords(self, *args: Tuple[str, Any]) -> None:
+    def add_keywords_and_save(self, *args: Tuple[str, Any]) -> None:
         """
-        Add keywords to the control.in file.
+        Add keywords to the control.in file and write the new control.in to disk
 
         Note that files written by ASE or in a format where the keywords are at the top
         of the file followed by the basis sets are the only formats that are supported
@@ -223,10 +220,12 @@ class AimsControl(Parameters):
         with open(self.path, "w") as f:
             f.writelines(self.lines)
 
-    def add_cube_cell(self, cell_matrix: NDArray[Any], resolution: int = 100) -> None:
+    def add_cube_cell_and_save(
+        self, cell_matrix: NDArray[Any], resolution: int = 100
+    ) -> None:
         """
         Add cube output settings to control.in to cover the unit cell specified in
-        `cell_matrix`.
+        `cell_matrix` and save to disk.
 
         Since the default behaviour of FHI-AIMS for generating CUBE files for periodic
         structures with vacuum gives confusing results, this function ensures the cube
@@ -259,7 +258,7 @@ class AimsControl(Parameters):
             2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
         )
         z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
-        self.add_keywords(  # Add cube options to control.in
+        self.add_keywords_and_save(  # Add cube options to control.in
             (
                 "cube",
                 "origin {} {} {}\n".format(
@@ -272,9 +271,9 @@ class AimsControl(Parameters):
         )
         # print("\tCube voxel resolution is {} Å".format(resolution))
 
-    def remove_keywords(self, *args: str) -> None:
+    def remove_keywords_and_save(self, *args: str) -> None:
         """
-        Remove keywords from the control.in file.
+        Remove keywords from the control.in file and save to disk.
 
         Note that this will not remove keywords that are commented with a '#'.
 
@@ -302,208 +301,3 @@ class AimsControl(Parameters):
             return True
         else:
             return False
-
-
-class CubefileParameters:
-    """Represents Cube file settings which can be used to generate a control file
-    All numeric values are parsed, strings are kept as such
-    Input
-    -------------------
-        all textlines that belong to cubefile specification
-        type is also parsed from the text
-
-    Functions
-    -------------------
-        parse(text): parses textlines
-
-        getText(): returns cubefile specifications-string for ControlFile class
-    """
-
-    def __init__(self, text=None):
-        self.type = ""  # type is all that comes after output cube as a single string
-        # parsers for specific cube keywords: {keyword: [string_to_number, number_to_string]}
-        self.parsing_functions = {
-            "spinstate": [
-                lambda x: int(x[0]),
-                lambda x: str(x),
-            ],  #### I change x to x[0] because otherwise it bugs fc 11.02.2021
-            "kpoint": [lambda x: int(x[0]), lambda x: str(x)],
-            "divisor": [lambda x: int(x[0]), lambda x: str(x)],
-            "spinmask": [
-                lambda x: [int(k) for k in x],
-                lambda x: "  ".join([str(k) for k in x]),
-            ],
-            "origin": [
-                lambda x: [float(k) for k in x],
-                lambda x: "  ".join(["{: 15.10f}".format(k) for k in x]),
-            ],
-            "edge": [
-                lambda x: [int(x[0])] + [float(k) for k in x[1:]],
-                lambda x: str(int(x[0]))
-                + "  "
-                + "  ".join(["{: 15.10f}".format(k) for k in x[1:]]),
-            ],
-        }
-
-        self.settings = collections.OrderedDict()
-        if text is not None:
-            self.parse(text)
-
-    def __repr__(self):
-        text = "CubeFileSettings object with content:\n"
-        text += self.get_text()
-        return text
-
-    def parse(self, text):
-        cubelines = []
-        for line in text:
-            line = line.strip()
-            # parse only lines that start with cube and are not comments
-            if not line.startswith("#"):
-                if line.startswith("cube"):
-                    cubelines.append(line)
-                elif line.startswith("output"):
-                    self.type = " ".join(line.split()[2:])
-
-        # parse cubelines to self.settings
-        for line in cubelines:
-            line = line.split("#")[0]  # remove comments
-            splitline = line.split()
-            keyword = splitline[1]  # parse keyword
-            values = splitline[2:]  # parse all values
-            # check if parsing function exists
-            if keyword in self.parsing_functions:
-                value = self.parsing_functions[keyword][0](values)
-            # reconvert to single string otherwise
-            else:
-                value = " ".join(values)
-
-            # save all values as list, append to list if key already exists
-            if keyword in self.settings:
-                self.settings[keyword].append(value)
-            else:
-                self.settings[keyword] = [value]
-
-    def set_origin(self, origin):
-        """parse numpy array origin to settings"""
-        self.settings["origin"] = [[origin[0], origin[1], origin[2]]]
-
-    def set_edges(self, divisions, edge_vectors):
-        """parse edge vectors to array"""
-        self.settings["edge"] = []
-        for i, d in enumerate(divisions):
-            self.settings["edge"].append([divisions[i]] + list(edge_vectors[i, :]))
-
-    def set_type(self, type):
-        """type is all that comes after output cube as a single string"""
-        self.type = type
-
-    def _get_edges(self):
-        assert "edge" in self.settings, "There are no edges specified"
-        edges = self.settings["edge"]
-        return np.array(edges)
-
-    def get_grid_vectors(self):
-        edges = self._get_edges()
-        return edges[:, 1:]
-
-    def get_divisions(self):
-        edges = self._get_edges()
-        return edges[:, 0]
-
-    def set_divisions(self, divisions):
-        assert (
-            len(divisions) == 3
-        ), "Divisions for all three lattice vectors must be specified!"
-        for i in range(3):
-            self.settings["edge"][i][0] = divisions[i]
-
-    def has_vertical_unit_cell(self):
-        conditions = [
-            self.settings["edge"][0][3] == 0.0,
-            self.settings["edge"][1][3] == 0.0,
-            self.settings["edge"][2][1] == 0.0,
-            self.settings["edge"][2][1] == 0.0,
-        ]
-        if False in conditions:
-            return False
-        else:
-            return True
-
-    def set_z_slice(self, z_bottom, z_top):
-        """
-        Crops the cubefile to only include the space between z_bottom and z_top.
-        The cubefile could go slightly beyond z_bottom and z_top, in order to preserve the distance between grid points.
-        :param z_bottom: float
-        :param z_top: float
-        :return: 0
-        """
-        assert z_top >= z_bottom, "Please provide z_bottom, z_top in the correct order"
-        assert (
-            self.has_vertical_unit_cell()
-        ), "This function should only be used on systems whose cell is parallel to the Z axis!"
-        range = z_top - z_bottom
-        average = z_bottom + range / 2
-        # set origin Z
-        self.settings["origin"][0][2] = average
-        # set edge, approximating for excess
-        z_size = self.settings["edge"][2][0] * self.settings["edge"][2][3]
-        fraction_of_z_size = z_size / range
-        new_z = self.settings["edge"][2][0] / fraction_of_z_size
-        if new_z % 1 != 0:
-            new_z = int(new_z) + 1.0
-        self.settings["edge"][2][0] = new_z
-
-    def set_grid_by_box_dimensions(self, x_limits, y_limits, z_limits, spacing):
-        """
-        Sets origin and edge as a cuboid box, ranging within the given limits, with voxel size specified by spacing.
-        :param x_limits: list [min,max]
-        :param y_limits: list [min,max]
-        :param z_limits: list [min,max]
-        :param spacing: float, or list [x,y,z]
-        :return:
-        """
-        # apparently, this preliminary setting is necessary
-        self.set_origin([0, 0, 0])
-        self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
-        # set one dimension at a time
-        for i, lim in enumerate([x_limits, y_limits, z_limits]):
-            assert lim[0] < lim[1]
-            range = lim[1] - lim[0]
-            # set origin
-            center = lim[0] + (range / 2)
-            self.settings["origin"][0][i] = center
-            # set edges
-            if isinstance(spacing, list):
-                space = spacing[i]
-            else:
-                space = spacing
-            ### size of voxel
-            self.settings["edge"][i][i + 1] = space
-            ### number of voxels
-            n_voxels = int(range / space) + 1
-            self.settings["edge"][i][0] = n_voxels
-
-    def get_origin(self):
-        assert "origin" in self.settings, "There is no origin specified"
-        origin = self.settings["origin"]
-        return np.array(origin[0])
-
-    def get_text(self):
-        text = ""
-        if len(self.type) > 0:
-            text += "output cube " + self.type + "\n"
-        else:
-            Warning("No cube type specified")
-            text += "output cube" + "CUBETYPE" + "\n"
-
-        for key, values in self.settings.items():
-            for v in values:
-                text += "cube " + key + " "
-                if key in self.parsing_functions:
-                    text += self.parsing_functions[key][1](v) + "\n"
-                else:
-                    print(v)
-                    text += v + "\n"
-
-        return text
