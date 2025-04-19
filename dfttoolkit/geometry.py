@@ -3975,7 +3975,7 @@ class Geometry:
         # Specify atom colors by value list or default atom colors
         if value_list is None and color_list is None:
             colors = [
-                self.periodic_table.get_species_colors(s) for s in species
+                self.periodic_table.get_species_colours(s) for s in species
             ]
             colors = np.array(colors)
         elif color_list is not None:
