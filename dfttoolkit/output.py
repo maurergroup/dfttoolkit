@@ -1,3 +1,4 @@
+import copy
 import warnings
 from typing import List, Tuple, Union
 
@@ -1206,11 +1207,6 @@ class AimsOutput(Output):
             The current SCF iteration.
         n_ks_states : int
             The number of KS states to save.
-
-        Raises
-        ------
-        ValueError
-            Something went wrong with parsing the KS states.
         """
 
         if (
@@ -1218,12 +1214,6 @@ class AimsOutput(Output):
             or eigenvalues["occupation"].ndim == 1
             or eigenvalues["eigenvalue_eV"].ndim == 1
         ):
-            if (
-                eigenvalues["state"].ndim > 1
-                or eigenvalues["occupation"].ndim > 1
-                or eigenvalues["eigenvalue_eV"].ndim > 1
-            ):
-                raise ValueError("Something went wrong with parsing the KS states.")
 
             # This is the case for finding the final KS eigenvalues
             # Therefore only parse the KS states from the final SCF iteration
@@ -1394,7 +1384,7 @@ class AimsOutput(Output):
                 "occupation": np.zeros((n_ks_states), dtype=float),
                 "eigenvalue_eV": np.zeros((n_ks_states), dtype=float),
             }
-            sd_eigenvalues = su_eigenvalues.copy()
+            sd_eigenvalues = copy.deepcopy(su_eigenvalues)
 
             # The spin-down states start from here
             self._get_ks_states(final_ev_start, sd_eigenvalues, 0, n_ks_states)

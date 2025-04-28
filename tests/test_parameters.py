@@ -113,10 +113,6 @@ class TestAimsControl:
             ("output", "mulliken"),
         )
 
-        if self.aims_fixture_no == 13:
-            with open("tmp.out", "w") as f:
-                f.writelines(ac.lines)
-
         assert "".join(added_keywords_ref_files) == control_path.read_text()
 
     def test_remove_keywords_and_save(self, tmp_dir, removed_keywords_ref_files):
