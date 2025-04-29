@@ -698,29 +698,27 @@ def get_significance(x, t):
     return Df
 
 
-# def squared_exponential_kernel(x1_vec_0, x2_vec_0, tau):
-#     x1_vec = np.atleast_3d(x1_vec_0)
-#     x2_vec = np.atleast_3d(x2_vec_0)
-
-#     x1 = np.tile(x1_vec, len(x2_vec))
-#     x2 = np.tile(x2_vec, len(x1_vec))
-
-#     print(x1_vec.shape, x2_vec.shape, x1.shape, x2.shape)
-
-#     x1 = np.moveaxis(x1, 2, 1)
-#     x2 = x2.T
-#     x2 = np.moveaxis(x2, 2, 1)
-
-#     x_diff = x1 - x2
-
-#     a = np.sum(x_diff**2, axis=2)
-
-#     M = np.exp(-0.5 / tau**2 * a)
-
-#     return M
-
-
 def squared_exponential_kernel(x1_vec, x2_vec, tau):
+    """
+    A simlpe squared exponential kernel to determine a similarity measure.
+
+    Parameters
+    ----------
+    x1_vec : np.array
+        Descriptor for first set of data of shape
+        [data points, descriptor dimensions].
+    x2_vec : np.array
+        Descriptor for second set of data of shape
+        [data points, descriptor dimensions].
+    tau : float
+        Correlation length for the descriptor.
+
+    Returns
+    -------
+    K : np.array
+        Matrix contianing pairwise kernel values.
+
+    """
     # Ensure inputs are at least 2D (n_samples, n_features)
     x1 = np.atleast_2d(x1_vec)
     x2 = np.atleast_2d(x2_vec)
@@ -744,18 +742,18 @@ def squared_exponential_kernel(x1_vec, x2_vec, tau):
 class GPR:
     def __init__(self, x, y, tau, sigma):
         """
-
+        A very simple GPR designed for interpolation and smoothing of data.
 
         Parameters
         ----------
         x : np.array
             Descriptor of shape [data points, descriptor dimensions].
-        y : TYPE
-            DESCRIPTION.
-        tau : TYPE
-            DESCRIPTION.
-        sigma : TYPE
-            DESCRIPTION.
+        y : np.array
+            Data to be learned.
+        tau : float
+            Correlation length for the descriptor.
+        sigma : float
+            Uncertainity of the input data.
 
         Returns
         -------
