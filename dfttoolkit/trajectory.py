@@ -213,9 +213,7 @@ class MDTrajectory:
         for ind in range(cutoff_start, len(self.traj) - cutoff_end):
             if ind % steps == 0.0:
                 atoms = self.traj[ind]
-                unconstrained_atoms = len(atoms) - len(
-                    atoms.constraints[0].index
-                )
+                unconstrained_atoms = len(atoms) - len(atoms.constraints[0].index)
 
                 ekin = atoms.get_kinetic_energy() / unconstrained_atoms
                 temperature.append(ekin / (1.5 * units.kB))

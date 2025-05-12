@@ -19,7 +19,6 @@ class BenchmarkAims(AimsOutput):
     """
 
     def __init__(self, benchmark_dirs: List[str]):
-
         self.benchmarks = []
 
         # Get the aims.out files from the provided directories

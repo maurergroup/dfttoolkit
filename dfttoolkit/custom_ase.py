@@ -28,7 +28,6 @@ class CustomAims(Aims):
         scaled=False,
         velocities=None,
     ):
-
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
 
         if scaled is None:

@@ -34,9 +34,7 @@ class Vibrations:
         return self._vibration_coords
 
     @vibration_coords.setter
-    def vibration_coords(
-        self, vibration_coords: List[npt.NDArray[np.float64]]
-    ):
+    def vibration_coords(self, vibration_coords: List[npt.NDArray[np.float64]]):
         self._vibration_coords = vibration_coords
 
     @property
@@ -44,9 +42,7 @@ class Vibrations:
         return self._vibration_forces
 
     @vibration_forces.setter
-    def vibration_forces(
-        self, vibration_forces: List[npt.NDArray[np.float64]]
-    ):
+    def vibration_forces(self, vibration_forces: List[npt.NDArray[np.float64]]):
         self._vibration_forces = vibration_forces
 
     @property
@@ -152,8 +148,11 @@ class Vibrations:
         H = np.zeros([N, N])
 
         assert np.allclose(
-            self.coords, self.vibration_coords[0]  # pyright:ignore
-        ), "The first entry in vibration_coords must be identical to the undispaced geometry."
+            self.coords,
+            self.vibration_coords[0],  # pyright:ignore
+        ), (
+            "The first entry in vibration_coords must be identical to the undispaced geometry."
+        )
 
         coords_0 = self.vibration_coords[0].flatten()
         F_0 = self.vibration_forces[0].flatten()
@@ -174,9 +173,7 @@ class Vibrations:
 
         for row in range(H.shape[0]):
             if n_forces[row] > 0:
-                H[row, :] /= n_forces[
-                    row
-                ]  # prevent div by zero for unknown forces
+                H[row, :] /= n_forces[row]  # prevent div by zero for unknown forces
 
         if set_constrained_atoms_zero:
             constrained = self.constrain_relax.flatten()  # pyright:ignore
@@ -211,9 +208,7 @@ class Vibrations:
         constrained_inds = [i for i, c in enumerate(constrain) if c]
         constrained_inds = np.array(constrained_inds)
 
-        unconstrained_inds = np.array(
-            list(set(all_inds) - set(constrained_inds))
-        )
+        unconstrained_inds = np.array(list(set(all_inds) - set(constrained_inds)))
 
         for i in unconstrained_inds:
             for j in unconstrained_inds:
@@ -260,9 +255,9 @@ class Vibrations:
         elif hessian is None:
             hessian = copy.deepcopy(self.hessian)
 
-        assert (
-            hasattr(self, "hessian") and hessian is not None
-        ), "Hessian must be given to calculate the Eigenvalues!"
+        assert hasattr(self, "hessian") and hessian is not None, (
+            "Hessian must be given to calculate the Eigenvalues!"
+        )
 
         M = 1 / self.get_mass_tensor()
 
@@ -321,8 +316,7 @@ class Vibrations:
         omega = np.sign(omega2) * np.sqrt(np.abs(omega2))  # pyright:ignore
 
         conversion = np.sqrt(
-            (units.EV_IN_JOULE)
-            / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
+            (units.EV_IN_JOULE) / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
         )
         omega_SI = omega * conversion
 
@@ -353,23 +347,19 @@ class Vibrations:
     def get_eigenvalues_in_eV(
         self, omega2: Union[None, npt.NDArray[np.float64]] = None
     ) -> npt.NDArray[np.float64]:
-
         omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
         eV = omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
 
         return eV
 
     def get_atom_type_index(self):
-
         n_atoms = len(self)  # pyright:ignore
 
         # Tolerance for accepting equivalent atoms in super cell
         masses = self.get_mass_of_all_atoms()  # pyright:ignore
         tolerance = 0.001
 
-        primitive_cell_inverse = np.linalg.inv(
-            self.lattice_vectors
-        )  # pyright:ignore
+        primitive_cell_inverse = np.linalg.inv(self.lattice_vectors)  # pyright:ignore
 
         atom_type_index = np.array([None] * n_atoms)
         counter = 0
@@ -395,9 +385,7 @@ class Vibrations:
                     difference_in_cell_coordinates,
                 )
                 separation = pow(
-                    np.linalg.norm(
-                        projected_coordinates_atom_j - coordinates_atom_i
-                    ),
+                    np.linalg.norm(projected_coordinates_atom_j - coordinates_atom_i),
                     2,
                 )
 
@@ -439,7 +427,6 @@ class Vibrations:
         wave_vector: npt.NDArray[np.float64],
         project_on_atom: int = -1,
     ) -> npt.NDArray[np.float64]:
-
         number_of_primitive_atoms = len(self)  # pyright:ignore
         number_of_atoms = velocities.shape[1]
         number_of_dimensions = velocities.shape[2]
@@ -575,7 +562,6 @@ class Vibrations:
         frequency_cutoff=None,
         dirname="cross_spectrum",
     ):
-
         velocities_proj = self.get_normal_mode_decomposition(velocities)
 
         n_points = len(self.eigenvectors)
@@ -606,9 +592,7 @@ class Vibrations:
             L = f_inv_cm < frequency_cutoff
             cutoff = np.sum(L)
 
-        np.savetxt(
-            os.path.join(dirname, "frequencies.csv"), frequencies[:cutoff]
-        )
+        np.savetxt(os.path.join(dirname, "frequencies.csv"), frequencies[:cutoff])
 
         index = []
         for index_0 in range(n_points):

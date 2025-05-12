@@ -25,11 +25,10 @@ else:
 def get_cross_correlation_function(
     signal_0: npt.NDArray, signal_1: npt.NDArray, bootstrapping_blocks: int = 1
 ) -> npt.NDArray:
-
-    assert (
-        signal_0.size == signal_1.size
-    ), f"The parameters signal_0 and signal_1 \
+    assert signal_0.size == signal_1.size, (
+        f"The parameters signal_0 and signal_1 \
         must have the same size but they are {signal_0.size} and {signal_1.size}."
+    )
 
     signal_length = len(signal_0)
     block_size = int(np.floor(signal_length / bootstrapping_blocks))
@@ -37,7 +36,6 @@ def get_cross_correlation_function(
     cross_correlation = []
 
     for block in range(bootstrapping_blocks):
-
         block_start = block * block_size
         block_end = (block + 1) * block_size
         if block_end > signal_length:
@@ -108,10 +106,10 @@ def get_cross_spectrum(
         Power spectrum.
 
     """
-    assert (
-        signal_0.size == signal_1.size
-    ), f"The parameters signal_0 and signal_1 \
+    assert signal_0.size == signal_1.size, (
+        f"The parameters signal_0 and signal_1 \
         must have the same size but they are {signal_0.size} and {signal_1.size}."
+    )
 
     signal_length = len(signal_0)
     block_size = int(
@@ -126,9 +124,7 @@ def get_cross_spectrum(
     cross_spectrum = []
 
     for block in range(bootstrapping_blocks):
-        block_start = int(
-            np.ceil(block * block_size / (1 + bootstrapping_overlap))
-        )
+        block_start = int(np.ceil(block * block_size / (1 + bootstrapping_overlap)))
         if block_start < 0:
             block_start = 0
 
@@ -212,9 +208,7 @@ def get_cross_spectrum_mem(
     """
     # Calculate the autocorrelation of the time series
     autocorr = np.correlate(signal_0, signal_1, mode="full") / len(signal_0)
-    autocorr = autocorr[
-        len(autocorr) // 2 : len(autocorr) // 2 + model_order + 1
-    ]
+    autocorr = autocorr[len(autocorr) // 2 : len(autocorr) // 2 + model_order + 1]
 
     # Create a Toeplitz matrix from the autocorrelation function
     # R = toeplitz(autocorr[:-1])
@@ -239,7 +233,6 @@ def get_cross_spectrum_mem(
 
 
 def get_last_maximum(x: npt.NDArray):
-
     maxima = argrelextrema(x, np.greater_equal)[0]
     # roots = argrelextrema(-np.abs(x), np.greater_equal)[0]
 
@@ -256,7 +249,6 @@ def get_last_maximum(x: npt.NDArray):
 
 
 def lorentzian_fit(frequencies, power_spectrum, p_0=None, filter_maximum=0):
-
     if filter_maximum:
         delete_ind = np.argmax(power_spectrum)
         delete_ind = np.array(
@@ -284,7 +276,6 @@ def lorentzian_fit(frequencies, power_spectrum, p_0=None, filter_maximum=0):
 
 
 def get_peak_parameters(frequencies, power_spectrum):
-
     max_ind = np.argmax(power_spectrum)
     frequency = frequencies[max_ind]
 
@@ -318,9 +309,7 @@ def get_line_widths(
     res = [np.nan, np.nan, np.nan]
 
     if use_lorentzian:
-        res = lorentzian_fit(
-            frequencies, power_spectrum, filter_maximum=filter_maximum
-        )
+        res = lorentzian_fit(frequencies, power_spectrum, filter_maximum=filter_maximum)
 
     if np.isnan(res[0]):
         res = get_peak_parameters(frequencies, power_spectrum)
@@ -381,10 +370,7 @@ def get_normal_mode_decomposition(
 def _get_normal_mode_decomposition_numba(
     velocities_projected, velocities, eigenvectors
 ) -> None:
-
-    number_of_timesteps, number_of_cell_atoms, velocity_components = (
-        velocities.shape
-    )
+    number_of_timesteps, number_of_cell_atoms, velocity_components = velocities.shape
     number_of_frequencies = eigenvectors.shape[0]
 
     # Loop over all frequencies
@@ -398,9 +384,7 @@ def _get_normal_mode_decomposition_numba(
             # Loop over atoms and components
             for i in range(number_of_cell_atoms):
                 for m in range(velocity_components):
-                    projection_sum += (
-                        velocities[n, i, m] * eigenvectors[k, i, m]
-                    )
+                    projection_sum += velocities[n, i, m] * eigenvectors[k, i, m]
 
             # Store the result in the projected velocities array
             velocities_projected[n, k] = projection_sum
@@ -409,11 +393,8 @@ def _get_normal_mode_decomposition_numba(
 def _get_normal_mode_decomposition_numpy(
     velocities_projected, velocities, eigenvectors
 ) -> None:
-
     # Use einsum to perform the double summation over cell atoms and time steps
-    velocities_projected += np.einsum(
-        "tij,kij->tk", velocities, eigenvectors.conj()
-    )
+    velocities_projected += np.einsum("tij,kij->tk", velocities, eigenvectors.conj())
 
 
 def get_coupling_matrix(

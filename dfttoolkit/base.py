@@ -2,9 +2,10 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from types import FunctionType, MethodType
+from typing import override
 
-from dfttoolkit.utils.exceptions import UnsupportedFileError
+from .utils.exceptions import UnsupportedFileError
 
 
 @dataclass
@@ -32,11 +33,12 @@ class File:
     """
 
     path: str
+    _path: Path = field(init=False)
     _format: str
     _name: str = field(init=False)
     _extension: str = field(init=False)
     _binary: bool = field(init=False)
-    lines: List[str] = field(init=False)
+    lines: list[str] = field(init=False)
     data: bytes = field(init=False)
 
     def __post_init__(self):
@@ -46,7 +48,7 @@ class File:
 
         self._path = Path(self.path)
         if not self._path.is_file():
-            raise FileNotFoundError(f"{self.path} path not found.")
+            raise FileNotFoundError("Path not found.")
 
         self._name = self._path.name
         self._extension = self._path.suffix
@@ -65,28 +67,31 @@ class File:
                 self.data = b""
                 self._binary = False
 
+    @override
     def __str__(self) -> str:
         if len(self.lines) == 0:
-            raise OSError(f"{self._name} is a binary file")
-        else:
-            return "".join(self.lines)
+            raise OSError("Is a binary file")
+
+        return "".join(self.lines)
 
 
 class Parser(File, ABC):
-    """Handle all file parsing"""
+    """Handle all file parsing."""
 
-    def __init__(self, supported_files, **kwargs):
+    def __init__(self, supported_files: dict[str, str], **kwargs: str):
         # Check that only one supported file was provided
         if not kwargs:
-            raise TypeError(
+            msg = (
                 f"Ensure one of {list(supported_files.keys())} is specified as a kwarg."
             )
+            raise TypeError(msg)
 
         provided_keys = set(kwargs.keys())
 
         if len(provided_keys) != 1:
+            msg = f"Ensure only one of {list(supported_files.keys())} is specified."
             raise TypeError(
-                f"Ensure only one of {list(supported_files.keys())} is specified."
+                msg
             )
 
         # Check if the provided file is a supported type
@@ -96,37 +101,37 @@ class Parser(File, ABC):
             raise UnsupportedFileError(provided_keys, list(supported_files.keys()))
 
         # Check if the provided file is a valid file type
-        if supported_files.get(key) not in kwargs[key]:
-            raise KeyError(f"{kwargs[key]} is not a valid {key} file")
+        if supported_files.get(key) != kwargs[key]:
+            msg = f"{kwargs[key]} is not a valid {key} file"
+            raise KeyError(msg)
 
         super().__init__(*reversed(next(iter(kwargs.items()))))
 
     @property
     @abstractmethod
-    def _supported_files(self) -> dict:
-        """Currently supported output file types and extensions"""
+    def _supported_files(self) -> dict[str, str]:
+        """Currently supported output file types and extensions."""
         ...
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: str):
         super().__init_subclass__(**kwargs)
 
         # Get the class __init__
-        cls_init = cls.__dict__.get("__init__")
+        init_obj = cls.__dict__.get("__init__")
 
-        if cls_init is None:
-            raise TypeError(f"{cls.__name__} must implement __init__")
+        if init_obj is None:
+            msg = f"{cls.__name__} must implement __init__"
+            raise TypeError(msg)
 
-        src = inspect.getsource(cls_init)
+        if not isinstance(init_obj, (FunctionType, MethodType)):
+            msg = f"{cls.__name__}.__init__ is not a function or method"
+            raise TypeError(msg)
 
-        # Check if the required methods are implemented
-        # required_methods = ["_check_output_file_extension, _check_binary"]
-        # if not all(method in src for method in required_methods):
-        #     raise TypeError(
-        #         f"{cls.__name__} must implement {*required_methods,} methods"
-        #     )
+        src = inspect.getsource(init_obj)
 
         if "_check_binary" not in src:
-            raise TypeError(f"{cls.__name__} must implement _check_binary method")
+            msg = f"{cls.__name__} must implement _check_binary method"
+            raise TypeError(msg)
 
     def _check_binary(self, binary: bool) -> None:
         """
@@ -140,4 +145,5 @@ class Parser(File, ABC):
 
         if self._binary is not binary:
             expected_str = "binary" if binary else "text"
-            raise ValueError(f"{self._name} should be {expected_str} format")
+            msg = f"{self._name} should be {expected_str} format"
+            raise ValueError(msg)

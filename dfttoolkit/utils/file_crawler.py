@@ -51,9 +51,7 @@ def find_aims_output_file(
 
 def find_vasp_output_file(calc_dir):
     """Searches directory for output files"""
-    return find_file(
-        calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"]
-    )
+    return find_file(calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"])
 
 
 def find_file(
@@ -63,9 +61,7 @@ def find_file(
     list_of_filenames=[],
 ):
     """Searches directory for output files"""
-    allfiles = [
-        f for f in os.listdir(calc_dir) if os.path.isfile(join(calc_dir, f))
-    ]
+    allfiles = [f for f in os.listdir(calc_dir) if os.path.isfile(join(calc_dir, f))]
     filename = []
     for f in allfiles:
         if f.lower() in list_of_filenames:

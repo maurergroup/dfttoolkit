@@ -1,9 +1,7 @@
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, ClassVar
 
 import yaml
-
-from .file_utils import classproperty
 
 
 class Element:
@@ -57,31 +55,34 @@ class PeriodicTable:
     """
 
     # Parse the yaml file
-    with open(Path(__file__).parent / "periodic_table.yaml", "r") as pt:
+    with open(Path(__file__).parent / "periodic_table.yaml") as pt:
         _raw_table = yaml.safe_load(pt)
 
     # Save
     _order = _raw_table["order"]
-    _elements = {}
+    _elements: ClassVar = {}
     for name in _order:
         del _raw_table[name]["name"]
-        # _elements[s] = Element(name, **_raw_table[name])
         _elements[_raw_table[name]["symbol"]] = Element(name, **_raw_table[name])
 
     def __new__(cls):
+        """Prevent instantiation of this class."""
         raise TypeError("This class cannot be instantiated.")
 
-    @classproperty
-    def elements(cls) -> dict:
+    @classmethod
+    def elements(cls) -> dict[str, Element]:
+        """Elements as a dictionary of their symbols mapped to element objects."""
         return cls._elements
 
-    @classproperty
-    def element_names(cls) -> List[str]:
-        return [e.name for e in cls.elements.values()]
+    @classmethod
+    def element_names(cls) -> list[str]:
+        """Element names ordered by atomic number."""
+        return [e.name for e in cls._elements.values()]
 
-    @classproperty
-    def element_symbols(cls) -> List[str]:
-        return list(cls.elements.keys())
+    @classmethod
+    def element_symbols(cls) -> list[str]:
+        """Element symbols ordered by atomic number."""
+        return list(cls._elements.keys())
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:
@@ -99,7 +100,7 @@ class PeriodicTable:
             Instance of Element.
         """
 
-        return cls.elements[symbol]
+        return cls._elements[symbol]
 
     @classmethod
     def get_name(cls, symbol: str) -> str:
@@ -171,13 +172,13 @@ class PeriodicTable:
             Covalent radius in atomic units.
         """
 
-        with open(Path(__file__).parent / "covalent_radii.yaml", "r") as cr:
+        with open(Path(__file__).parent / "covalent_radii.yaml") as cr:
             data = yaml.safe_load(cr)
 
         return data[symbol]
 
     @classmethod
-    def get_species_colours(cls, symbol: str) -> Tuple[float, float, float]:
+    def get_species_colours(cls, symbol: str) -> tuple[float, float, float]:
         """
         Get the JMol colour of an element
 
@@ -192,7 +193,7 @@ class PeriodicTable:
             Covalent radius in atomic units.
         """
 
-        with open(Path(__file__).parent / "elemental_colourmaps.yaml", "r") as ec:
+        with open(Path(__file__).parent / "elemental_colourmaps.yaml") as ec:
             data = yaml.safe_load(ec)
 
         return data[symbol]

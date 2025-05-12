@@ -1,6 +1,7 @@
-from collections.abc import MutableMapping
+from collections.abc import Callable, Iterator, MutableMapping
 from pathlib import Path
-from typing import Any, Tuple, Union
+from types import FunctionType
+from typing import Any, Optional
 
 from click import edit
 
@@ -13,7 +14,7 @@ class MultiDict(MutableMapping):
     new values to the list
     """
 
-    def __init__(self, *args: Tuple[str, Any]):
+    def __init__(self, *args: tuple[str, Any]):
         self._dict = {}
 
         for key, val in args:
@@ -47,54 +48,17 @@ class MultiDict(MutableMapping):
     def __len__(self):
         return len(self._dict.keys())
 
-    def reversed_items(self):
-        """
-        Yields (key, value) pairs in reverse key order and reversed values
-        """
-
+    def reversed_items(self) -> Iterator[tuple[str, Any]]:
+        """Yield (key, value) pairs in reverse key order and reversed values."""
         for key in reversed(list(self._dict.keys())):
             for val in reversed(self._dict[key]):
                 yield key, val
 
 
-class ClassPropertyDescriptor(object):
-    def __init__(self, fget, fset=None):
-        self.fget = fget
-        self.fset = fset
 
-    def __get__(self, obj, klass=None):
-        if klass is None:
-            klass = type(obj)
-
-        return self.fget.__get__(obj, klass)()
-
-    def __set__(self, obj, value):
-        if not self.fset:
-            raise AttributeError("can't set attribute")
-        type_ = type(obj)
-
-        return self.fset.__get__(obj, type_)(value)
-
-    def setter(self, func):
-        if not isinstance(func, (classmethod, staticmethod)):
-            func = classmethod(func)
-        self.fset = func
-
-        return self
-
-
-def classproperty(func):
-    """Combine class methods and properties to make a classproperty"""
-    if not isinstance(func, (classmethod, staticmethod)):
-        func = classmethod(func)
-
-    return ClassPropertyDescriptor(func)
-
-
-def aims_bin_path_prompt(change_bin: Union[bool, str], save_dir) -> str:
+def aims_bin_path_prompt(change_bin: bool | str, save_dir: Path) -> str:
     """
-    Prompt the user to enter the path to the FHI-aims binary, if not already found in
-    .aims_bin_loc.txt
+    Prompt the user to enter the path to the FHI-aims binary.
 
     If it is found in .aims_bin_loc.txt, the path will be read from there, unless
     change_bin is True, in which case the user will be prompted to enter the path again.
@@ -112,15 +76,15 @@ def aims_bin_path_prompt(change_bin: Union[bool, str], save_dir) -> str:
     binary : str
         path to the location of the FHI-aims binary
     """
-
     marker = (
         "\n# Enter the path to the FHI-aims binary above this line\n"
         "# Ensure that the full absolute path is provided"
     )
 
-    def write_bin():
+    def write_bin() -> str:
         binary = edit(marker)
         binary = str(binary).split()[0]
+
         if binary is not None:
             if Path(binary).is_file():
                 with open(f"{save_dir}/.aims_bin_loc.txt", "w+") as f:
@@ -146,7 +110,7 @@ def aims_bin_path_prompt(change_bin: Union[bool, str], save_dir) -> str:
 
     else:
         # Parse the binary path from .aims_bin_loc.txt
-        with open(f"{save_dir}/.aims_bin_loc.txt", "r") as f:
+        with open(f"{save_dir}/.aims_bin_loc.txt") as f:
             binary = f.readlines()[0]
 
         # Check if the binary path exists and is a file

@@ -1,14 +1,11 @@
 from copy import deepcopy
-from typing import Union
 
 import numpy as np
 import numpy.typing as npt
 import scipy
 
 
-def get_rotation_matrix(
-    vec_start: npt.NDArray, vec_end: npt.NDArray
-) -> npt.NDArray:
+def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDArray:
     """
     Given a two (unit) vectors, vec_start and vec_end, this function calculates
     the rotation matrix U, so that
@@ -41,9 +38,7 @@ def get_rotation_matrix(
     return R
 
 
-def get_rotation_matrix_around_axis(
-    axis: npt.NDArray, phi: float
-) -> npt.NDArray:
+def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArray:
     """
     Generates a rotation matrix around a given vector.
 
@@ -146,9 +141,7 @@ def get_angle_between_vectors(
 
     """
     angle = (
-        np.dot(vector_1, vector_2)
-        / np.linalg.norm(vector_1)
-        / np.linalg.norm(vector_2)
+        np.dot(vector_1, vector_2) / np.linalg.norm(vector_1) / np.linalg.norm(vector_2)
     )
     return angle
 
@@ -198,9 +191,7 @@ def get_cartesian_coords(
     return np.dot(frac_coords, lattice_vectors)
 
 
-def get_triple_product(
-    a: npt.NDArray, b: npt.NDArray, c: npt.NDArray
-) -> npt.NDArray:
+def get_triple_product(a: npt.NDArray, b: npt.NDArray, c: npt.NDArray) -> npt.NDArray:
     """
     Returns the triple product (DE: Spatprodukt): a*(bxc)
 
@@ -592,9 +583,7 @@ def get_moving_average(signal: npt.NDArray[np.float64], window_size: int):
         Variance around the moving average.
 
     """
-    moving_avg = np.convolve(
-        signal, np.ones(window_size) / window_size, mode="valid"
-    )
+    moving_avg = np.convolve(signal, np.ones(window_size) / window_size, mode="valid")
     variance = np.array(
         [
             np.var(signal[i : i + window_size])
@@ -673,7 +662,6 @@ def get_t_test(x, y):
 
 
 def probability_density(t, n):
-
     degrees_of_freedom = n - 2
 
     f = (
@@ -682,15 +670,13 @@ def probability_density(t, n):
             np.sqrt(np.pi * degrees_of_freedom)
             * scipy.special.gamma(degrees_of_freedom / 2.0)
         )
-        * (1 + t**2 / degrees_of_freedom)
-        ** (-(degrees_of_freedom + 1.0) / 2.0)
+        * (1 + t**2 / degrees_of_freedom) ** (-(degrees_of_freedom + 1.0) / 2.0)
     )
 
     return f
 
 
 def get_significance(x, t):
-
     n = len(x)
 
     Df = scipy.integrate.quad(probability_density, -np.inf, t, args=(n))[0]

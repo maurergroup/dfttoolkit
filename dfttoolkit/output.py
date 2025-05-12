@@ -1,14 +1,14 @@
 import copy
 import warnings
-from typing import List, Tuple, Union
+from typing import override
 
 import numpy as np
 import numpy.typing as npt
 import scipy.sparse as sp
 
-from dfttoolkit.base import Parser
-from dfttoolkit.geometry import AimsGeometry
-from dfttoolkit.utils.exceptions import ItemNotFoundError
+from .base import Parser
+from .geometry import AimsGeometry
+from .utils.exceptions import ItemNotFoundError
 
 
 class Output(Parser):
@@ -28,8 +28,9 @@ class Output(Parser):
         List of supported file types.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: str):
         # Parse file information and perform checks
+
         super().__init__(self._supported_files, **kwargs)
 
         # Check that the files are in the correct format
@@ -40,17 +41,18 @@ class Output(Parser):
                 self._check_binary(True)
 
     @property
-    def _supported_files(self) -> dict:
+    @override
+    def _supported_files(self) -> dict[str, str]:
         # FHI-aims, ELSI, ...
         return {"aims_out": ".out", "elsi_csc": ".csc"}
 
+    @override
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._format}={self._path})"
 
-    def __init_subclass__(cls, **kwargs):
-        # Revert back to the original __init_subclass__ method to avoid checking for
-        # required methods in child class of this class too
-        return super(Parser, cls).__init_subclass__(**kwargs)
+    def __init_subclass__(cls, **kwargs: str):  # pyright: ignore[reportMissingSuperCall]
+        # Override the parent's __init_subclass__ without calling it
+        pass
 
 
 class AimsOutput(Output):
@@ -71,8 +73,8 @@ class AimsOutput(Output):
     >>> ao = AimsOutput(aims_out="./aims.out")
     """
 
-    def __init__(self, aims_out: str = "aims.out", **kwargs):
-        super().__init__(aims_out=aims_out, **kwargs)
+    def __init__(self, aims_out: str = "aims.out"):
+        super().__init__(aims_out=aims_out)
 
     def get_number_of_atoms(self) -> int:
         """
@@ -85,9 +87,9 @@ class AimsOutput(Output):
         """
         n_atoms = None
 
-        for l in self.lines:
-            if "| Number of atoms" in l:
-                n_atoms = int(l.strip().split()[5])
+        for line in self.lines:
+            if "| Number of atoms" in line:
+                n_atoms = int(line.strip().split()[5])
 
         if n_atoms is None:
             raise ValueError("Number of atoms not found in aims.out file")
@@ -107,7 +109,7 @@ class AimsOutput(Output):
 
         geometry_lines = []
         read_trigger = False
-        for l in self.lines:
+        for line in self.lines:
             if (
                 "Parsing geometry.in (first pass over file, find array dimensions only)."
                 in l
@@ -117,7 +119,7 @@ class AimsOutput(Output):
             if read_trigger:
                 geometry_lines.append(l)
 
-            if "Completed first pass over input file geometry.in ." in l:
+            if "Completed first pass over input file geometry.in ." in line:
                 break
 
         geometry_text = "\n".join(geometry_lines[6:-3])
@@ -127,7 +129,9 @@ class AimsOutput(Output):
 
         return geometry
 
-    def get_geometry_steps_of_optimisation(self, n_occurrence=None) -> list:
+    def get_geometry_steps_of_optimisation(
+        self, n_occurrence: None | int = None
+    ) -> list:
         """
         Get a list of all geometry steps performed.
 
@@ -146,7 +150,8 @@ class AimsOutput(Output):
             List of geometry objects.
 
         """
-        geometry_files = [self.get_geometry()]  # append initial geometry
+        # append initial geometry
+        geometry_files = [self.get_geometry()]
 
         state = 0
         # 0... before geometry file,
@@ -154,25 +159,27 @@ class AimsOutput(Output):
         # 2... in lattice section of geometry file
         # 3... in atoms section of geometry file
 
-        for l in self.lines:
+        for line in self.lines:
             if (
-                "Updated atomic structure:" in l
-                or "Atomic structure that was used in the preceding time step of the wrapper"
-                in l
+                "Updated atomic structure:" in line
+                or "Atomic structure that was used in the preceding time step of the "
+                "wrapper"
+                in line
             ):
                 state = 1
                 geometry_lines = []
+            else:
+                geometry_lines = []
 
-            if state > 0 and "atom " in l:
+            if state > 0 and "atom " in line:
                 state = 3
-            if state == 1 and "lattice_vector  " in l:
+            if state == 1 and "lattice_vector  " in line:
                 state = 2
 
             if state > 0:
-                # print(l)
-                geometry_lines.append(l)
+                geometry_lines.append(line)
 
-            if state == 3 and "atom " not in l:
+            if state == 3 and "atom " not in line:
                 state = 0
                 geometry_text = "".join(geometry_lines[2:-1])
                 g = AimsGeometry()
@@ -184,7 +191,7 @@ class AimsOutput(Output):
 
         return geometry_files
 
-    def get_control_file(self) -> List[str]:
+    def get_control_file(self) -> list[str]:
         """
         Extract the control file from the aims output
 
@@ -232,10 +239,7 @@ class AimsOutput(Output):
         parameters = {}
 
         # If the file was written with ASE, there is an extra header/keyword delimiter
-        if "(ASE)" == self.lines[i + 8].split()[-1]:  # pyright: ignore
-            extra_lines = 11
-        else:
-            extra_lines = 6
+        extra_lines = 11 if self.lines[i + 8].split()[-1] == "(ASE)" else 6
 
         for line in self.lines[i + extra_lines :]:  # pyright: ignore
             # End of parameters and start of basis sets
@@ -603,7 +607,6 @@ class AimsOutput(Output):
         n_occurrence: Union[None, int] = -1,
         energy_invalid_indicator: list[str] = [],
     ) -> Union[float, npt.NDArray[np.float64]]:
-
         search_keyword = "| vdW energy correction"
         token_nr = None
 
@@ -791,7 +794,6 @@ class AimsOutput(Output):
             return all_force_values[n_occurrence]
 
     def get_vdw_forces(self, nr_of_occurrence=-1):
-
         components_of_gradients = self.get_force_components()
 
         return components_of_gradients["van_der_waals"]
@@ -1073,7 +1075,6 @@ class AimsOutput(Output):
 
                 # Use spin density if spin polarised calculation
                 if "Change of charge/spin density" in line:
-
                     self.scf_conv_acc_params["change_of_charge"][
                         current_scf_iter - 1
                     ] = float(spl[-2])
@@ -1214,7 +1215,6 @@ class AimsOutput(Output):
             or eigenvalues["occupation"].ndim == 1
             or eigenvalues["eigenvalue_eV"].ndim == 1
         ):
-
             # This is the case for finding the final KS eigenvalues
             # Therefore only parse the KS states from the final SCF iteration
             for i, line in enumerate(self.lines[ev_start : ev_start + n_ks_states]):
@@ -1302,7 +1302,6 @@ class AimsOutput(Output):
             up_n = 0
             down_n = 0
             for i, line in enumerate(self.lines):
-
                 # Printing of KS states is weird in aims.out. Ensure that we don't add
                 # more KS states than the array is long
                 if up_n == n_scf_iters and down_n == n_scf_iters:

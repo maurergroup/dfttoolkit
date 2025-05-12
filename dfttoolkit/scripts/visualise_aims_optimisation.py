@@ -15,9 +15,7 @@ import matplotlib.pyplot as plt
 
 def get_all_outputs(calc_dir, outputname):
     restart_dirs = [join(calc_dir, d) for d in os.listdir(calc_dir)]
-    restart_dirs = sorted(
-        [d for d in restart_dirs if isfile(join(d, outputname))]
-    )
+    restart_dirs = sorted([d for d in restart_dirs if isfile(join(d, outputname))])
     restart_dirs.append(calc_dir)
 
     outputs = []
@@ -54,17 +52,13 @@ def plot_energy(E, logarithmic=False):
     E_difference = 1e3 * (E - E_ref)
     print(E, np.min([e for e in E if not np.isnan(e)]))
 
-    ymax_rounded_to_next_power_of_ten = 10 ** np.ceil(
-        np.log10(E_difference.max())
-    )
+    ymax_rounded_to_next_power_of_ten = 10 ** np.ceil(np.log10(E_difference.max()))
 
     if logarithmic:
         # reference energy would be zero per def. -> plot np.NAN instead
         E_difference_replace = E_difference.copy()
         E_difference_replace[E_difference_replace == 0.0] = np.nan
-        plt.semilogy(
-            range(len(E)), E_difference_replace, marker="+", linewidth=2
-        )
+        plt.semilogy(range(len(E)), E_difference_replace, marker="+", linewidth=2)
         plt.ylim(
             [
                 0.9 * sorted(E_difference)[1],  # use lowest plotted E_diff
@@ -87,15 +81,9 @@ def plot_forces(forces, converged, threshold, logarithmic=False):
         color_key = "r"
 
     if logarithmic:
-        plt.semilogy(
-            range(len(forces)), forces, color_key, marker="+", linewidth=2
-        )
-        ymax_rounded_to_next_power_of_ten = 10 ** np.ceil(
-            np.log10(forces.max())
-        )
-        ymin_rounded_to_next_power_of_ten = 10 ** np.floor(
-            np.log10(forces.min())
-        )
+        plt.semilogy(range(len(forces)), forces, color_key, marker="+", linewidth=2)
+        ymax_rounded_to_next_power_of_ten = 10 ** np.ceil(np.log10(forces.max()))
+        ymin_rounded_to_next_power_of_ten = 10 ** np.floor(np.log10(forces.min()))
         plt.ylim(
             [
                 ymin_rounded_to_next_power_of_ten,
@@ -103,9 +91,7 @@ def plot_forces(forces, converged, threshold, logarithmic=False):
             ]
         )
     else:
-        plt.plot(
-            range(len(forces)), forces, color_key, marker="+", linewidth=2
-        )
+        plt.plot(range(len(forces)), forces, color_key, marker="+", linewidth=2)
         plt.ylim([0, 1.0])
 
     plt.ylabel("force / eV/A")
@@ -198,7 +184,6 @@ def get_heights(geometries):
 def get_output_filename(
     output_option, calc_dir, energy_logarithmic, forces_logarithmic
 ):
-
     file_name = "optimization"
     if energy_logarithmic:
         file_name += "_log-energy"
@@ -315,9 +300,7 @@ def visualise_optimisation(aims_output, args):
                         arrow_scale=20,
                         print_constrained=False,
                     )
-                    fig.savefig(
-                        join(forces_dir, "{:04d}.png".format(ind)), dpi=600
-                    )
+                    fig.savefig(join(forces_dir, "{:04d}.png".format(ind)), dpi=600)
                     plt.close()
                     ind = ind + 1
 
@@ -342,9 +325,7 @@ if __name__ == "__main__":
         description="Visualize energy and forces during a geometry optimization.",
         epilog=usage_example,
     )
-    parser.add_argument(
-        "aims_output", nargs="+", help="Path to aims output file(s)"
-    )
+    parser.add_argument("aims_output", nargs="+", help="Path to aims output file(s)")
     parser.add_argument(
         "--output",
         "-o",

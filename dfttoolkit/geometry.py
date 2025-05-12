@@ -63,9 +63,7 @@ class Geometry:
         self.forces = None
         self.hessian = None
         self.geometry_parts = []  # list of lists: indices of each geometry part
-        self.geometry_part_descriptions = (
-            []
-        )  # list of strings:  name of each geometry part
+        self.geometry_part_descriptions = []  # list of strings:  name of each geometry part
         self.symmetry_axes = None
         self.inversion_index = None
         self.vacuum_level = None
@@ -171,7 +169,6 @@ class Geometry:
     #                             OUTPUT PARSER                               #
     ###########################################################################
     def save_to_file(self, filename, **kwargs):
-
         geometry_type = get_file_format_from_ending(filename)
 
         new_geometry = self.get_instance_of_other_type(geometry_type)
@@ -211,7 +208,7 @@ class Geometry:
         if isinstance(atoms, (list, tuple)):
             if len(atoms) > 1:
                 raise RuntimeError(
-                    "Don't know how to save more than " "one image to FHI-aims input"
+                    "Don't know how to save more than one image to FHI-aims input"
                 )
             else:
                 atoms = atoms[0]  # pyright:ignore
@@ -842,9 +839,9 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         frac_coords = utils.get_fractional_coords(self.coords, lattice_vectors)
         # modulo 1 maps all coordinates to first unit cell
@@ -856,9 +853,9 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         offset = self.get_geometric_center()
         frac_offset = utils.get_fractional_coords(offset, lattice_vectors)
@@ -1151,7 +1148,6 @@ class Geometry:
     def align_with_view_direction(
         self, view_direction: npt.NDArray[np.float64]
     ) -> None:
-
         view_direction /= np.linalg.norm(view_direction)
 
         vec_z = np.array([0.0, 0.0, -1.0])
@@ -1676,7 +1672,6 @@ class Geometry:
         return not np.allclose(self.lattice_vectors, np.zeros([3, 3]))
 
     def get_reassembled_molecule(self, threshold: float = 2.0):
-
         geom_replica = self.get_periodic_replica(
             (1, 1, 1),
             explicit_replications=[[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
@@ -1688,15 +1683,12 @@ class Geometry:
         new_cluster = True
 
         while new_cluster:
-
             clusters = []
             new_cluster = False
 
             for pair in pairs:
-
                 in_culster = False
                 for ind, indices in enumerate(clusters):
-
                     for p in pair:
                         if p in indices:
                             clusters[ind] = set(list(indices) + list(pair))
@@ -1745,9 +1737,9 @@ class Geometry:
             Geometry object with scaled coordinates and lattice vectors
         """
 
-        assert hasattr(
-            self, "lattice_vectors"
-        ), "This function only works for geometries with a Unit Cell"
+        assert hasattr(self, "lattice_vectors"), (
+            "This function only works for geometries with a Unit Cell"
+        )
 
         if isinstance(scaling_factor, float):
             scaling_factors = [
@@ -1807,9 +1799,9 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         fractional_coords = np.linalg.solve(lattice_vectors.T, self.coords.T)
         return fractional_coords.T
@@ -1925,9 +1917,9 @@ class Geometry:
         if species is None:
             species_to_consider = list(set(self.species))
         else:
-            assert isinstance(
-                species, list
-            ), "species must be a list of species identifiers or None if all atoms should be probed"
+            assert isinstance(species, list), (
+                "species must be a list of species identifiers or None if all atoms should be probed"
+            )
             species_to_consider = species
 
         return_single_list = False
@@ -2668,7 +2660,6 @@ class Geometry:
 
         # --- merge height-indices dicts ---
         for data in layers_by_species.values():
-
             for height, indices in data.items():
                 new = True
                 for new_height in layers_by_height.keys():
@@ -2823,10 +2814,10 @@ class Geometry:
             the values of the array correspond to the atoms in other_geometry
 
         """
-        assert len(self) == len(
-            other_geometry
-        ), "Geometries have different number of atoms {0} != {1}".format(
-            len(self), len(other_geometry)
+        assert len(self) == len(other_geometry), (
+            "Geometries have different number of atoms {0} != {1}".format(
+                len(self), len(other_geometry)
+            )
         )
 
         # Replicate other geometry to also search in neighbouring cells
@@ -3092,12 +3083,10 @@ class Geometry:
             for h in range(-shell, shell + 1):
                 for k in range(-shell, shell + 1):
                     for l in range(-shell, shell + 1):
-
                         if (abs(h) < shell) and (abs(k) < shell) and (abs(l) < shell):
                             continue
 
                         for new_species, coord in zip(atomic_numbers, scaled_positions):
-
                             new_coord = coord.dot(lattice) + np.array([h, k, l]).dot(
                                 lattice
                             )
@@ -3162,11 +3151,11 @@ class Geometry:
         # Sanity check: primitive_slab must be reducable to the standard unit cell
         check_lattice, _, _ = spglib.standardize_cell(primitive_slab.get_spglib_cell())
 
-        assert np.allclose(
-            check_lattice, lattice
-        ), "<Geometry.get_primitive_slab> the slab that was constructed \
+        assert np.allclose(check_lattice, lattice), (
+            "<Geometry.get_primitive_slab> the slab that was constructed \
         could not be reduced to the original bulk unit cell. Something \
         must have gone wrong."
+        )
 
         return primitive_slab
 
@@ -3845,15 +3834,15 @@ class Geometry:
                 ]  # converting all types of color inputs to rgba here
             colors = np.array(colors)
         elif value_list is not None:
-            assert (
-                len(value_list) == self.n_atoms
-            ), "Number of Values does not match number of atoms in geometry"
+            assert len(value_list) == self.n_atoms, (
+                "Number of Values does not match number of atoms in geometry"
+            )
             values = [value_list[i] for i in orig_inds]
 
             if minvalue is not None:
-                assert (
-                    maxvalue is not None
-                ), "Error! If minvalue is defined also maxvalue must be defined"
+                assert maxvalue is not None, (
+                    "Error! If minvalue is defined also maxvalue must be defined"
+                )
 
             if maxvalue is None and minvalue is None:
                 maxvalue = np.max(np.abs(value_list))
@@ -3897,7 +3886,6 @@ class Geometry:
         # make specified atoms brighter by adding color_offset to all rgb values
 
         if brightness_modifier is not None:
-
             # Check if brightness modifier is flat (i.e. a single value) or per atom (list of length n_atoms)
             if isinstance(brightness_modifier, float) or isinstance(
                 brightness_modifier, int
@@ -3913,9 +3901,9 @@ class Geometry:
                 )
                 brightness_modifier = [brightness_modifier[i] for i in orig_inds]
 
-            assert (
-                len(brightness_modifier) == n_atoms
-            ), "Something went wrong while reformatting brightness_modifier!"
+            assert len(brightness_modifier) == n_atoms, (
+                "Something went wrong while reformatting brightness_modifier!"
+            )
             for i in range(n_atoms):
                 # TODO fix the pyright errors
                 hls_color = np.array(
@@ -4029,7 +4017,6 @@ class Geometry:
                 # For this calculate the lengths and make the smaller limit longer so that the ratio fits
 
             if crop_ratio is not None:
-
                 len_xlim = ax_xmax - ax_xmin
                 len_ylim = ax_ymax - ax_ymin
                 curr_crop_ratio = len_xlim / len_ylim
@@ -4106,7 +4093,6 @@ class Geometry:
 
         # loop over all atoms
         for i in range(self.n_atoms):
-
             # evaluate only if atom is not already on the black list
             if i not in colliding_atoms_list:
                 colliding_atoms_dict[i] = []
@@ -4345,7 +4331,6 @@ class AimsGeometry(Geometry):
         So, if symmetry_params are found, is_fractional is overridden to true.
         """
         if is_fractional is None:
-
             if hasattr(self, "symmetry_params") and self.symmetry_params is not None:
                 is_fractional = True
             else:
