@@ -2,55 +2,130 @@ import copy
 import os
 from collections import OrderedDict, abc
 from copy import deepcopy
+from typing import Self, override
 
+from ase import Atom, Atoms
 import numpy as np
+import numpy.typing as npt
+from ase.io import cube
 from matplotlib.cm import get_cmap
 from scipy.ndimage.interpolation import shift
 
-from dfttoolkit.dfttoolkit.base import Parser
-from dfttoolkit.geometry import Geometry
-from dfttoolkit.utils.math_utils import get_triple_product
-from dfttoolkit.utils.periodic_table import PeriodicTable
-from dfttoolkit.utils.units import BOHR_IN_ANGSTROM, EPSILON0_AIMS
+from .base import Parser
+from .geometry import Geometry
+from .utils.math_utils import get_triple_product
+from .utils.periodic_table import PeriodicTable
+from .utils.units import BOHR_IN_ANGSTROM, EPSILON0_AIMS
 
 
 class Cube(Parser):
     """
-    Read (and in the future also interpolate) 3D cube file.
-    All distance units are converted to angstrom.
+    Read, interpolate, and perform operations on cube files.
 
+    ...
+
+    Attributes
+    ----------
+    path: str
+        path to the cube file
+    lines: List[str]
+        contents of the cube file
     """
 
-    def __init__(self, filename=None, sparse_limit=0.0):
+    def __init__(self, sparse_limit: float = 0.0, **kwargs: str):
         # Parse file information and perform checks
-        # TODO
-        # super().__init__(self._supported_files, filename, )
+        super().__init__(self._supported_files, **kwargs)
 
-        self.periodic_table = PeriodicTable()
-        self.verbose = False
-        self.filename = filename
-        self.data = None
-        self.comment = ""
-        if self.filename is not None:
-            self.read(sparse_limit=sparse_limit)
+        # Check that the file is a cube file and in the correct format
+        self._check_binary(False)
 
-    def __add__(self, other_cube):
-        assert np.allclose(self.origin, other_cube.origin)
-        assert np.allclose(self.grid_vectors, other_cube.grid_vectors)
-        assert np.allclose(self.shape, other_cube.shape)
+        # Parse the cube data here rather than in base.File.__post_init__ so we can call
+        # ASE's cube.read_cube()
+        with open(self.path) as f:
+            self._cf = cube.read_cube(f)
+            self.lines = f.readlines()
+            self.data = b""
+            self._binary = False
 
+        self._atoms = self._cf["atoms"]
+        self._volume = self._cf["volume"]
+        self._origin = self._cf["origin"]
+
+        # Centre the atoms to cube origin
+        # self._atoms.translate(-self._origin)
+        self._atoms.translate(self._origin)
+
+        self._grid_vectors = np.array(
+            [float(j) for i in self.lines[2:5] for j in i.split()[1:]]
+        )
+
+        self._shape = np.array(
+            [int(i.strip().split()[0]) for i in self.lines[3:5]], dtype=np.int64
+        )
+
+        # self.verbose = False
+
+        # TODO fix assignment of these attrs
+        # self.data = None
+        # self.comment = ""
+        # if self.filename is not None:
+        #     self.read(sparse_limit=sparse_limit)
+
+    @property
+    @override
+    def supported_files(self) -> dict:
+        return {"cube": ".cube"}
+
+    def __init_subclass__(cls, **kwargs: str):
+        # Override the parent's __init_subclass__ without calling it
+        pass
+
+    @property
+    def atoms(self) -> Atom | Atoms:
+        """Atoms present in the cube file."""
+        return self._atoms
+
+    @property
+    def comment(self) -> str:
+        """Comment line of the cube file."""
+        return ' '.join(self.lines[0:1])
+
+    @property
+    def grid_vectors(self) -> npt.NDArray:
+        """Grid vectors of the cube file."""
+        return self._grid_vectors
+
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the cube file."""
+        return len(self.atoms)
+
+    @property
+    def origin(self) -> npt.NDArray[np.float64]:
+        """Origin of the cube file."""
+        return self._origin
+
+    @property
+    def shape(self) -> npt.NDArray[np.int64]:
+        """Number of dimensions of the grid vectors."""
+        return self._shape
+
+    @property
+    def volume(self) -> npt.NDArray[np.float64]:
+        """Volume of the cube file."""
+        return self._volume
+
+    # TODO Finish re-writing attrs into properties
+
+    def __add__(self, other: Self):
         new_cube = copy.deepcopy(self)
-        new_cube.data += other_cube.data
+        new_cube.data += other.data
 
         return new_cube
 
-    def __sub__(self, other_cube):
-        assert np.allclose(self.origin, other_cube.origin)
-        assert np.allclose(self.grid_vectors, other_cube.grid_vectors)
-        assert np.allclose(self.shape, other_cube.shape)
-
+    def __sub__(self, other:Self):
         new_cube = copy.deepcopy(self)
-        new_cube.data -= other_cube.data
+        new_cube.data -= other.data
 
         return new_cube
 
@@ -63,7 +138,6 @@ class Cube(Parser):
         return self
 
     def __mul__(self, other_cube):
-
         new_cube = copy.deepcopy(self)
 
         if isinstance(other_cube, float) or isinstance(other_cube, int):
@@ -78,7 +152,6 @@ class Cube(Parser):
         return new_cube
 
     def __imul__(self, other_cube):
-
         if isinstance(other_cube, float) or isinstance(other_cube, int):
             self.data *= other_cube
         else:
@@ -143,6 +216,7 @@ class Cube(Parser):
             self.N_points = len(data)
             self.data = data.reshape(self.shape)
 
+    # TODO remove assignments to inst attrs here
     def _calculate_cube_vectors(self):
         self.cube_vectors = ((self.grid_vectors.T) * self.shape).T
         self.dV = np.abs(
@@ -158,7 +232,6 @@ class Cube(Parser):
         self.dv3 = np.linalg.norm(self.grid_vectors[2, :])
 
     def get_periodic_replica(self, periodic_replica):
-
         print(
             "WARNING: the periodic replicas assume that the cube lattice is identical to the actual lattice vectors of the calculation"
         )
@@ -380,7 +453,6 @@ class Cube(Parser):
         return averaged, xaxis
 
     def getChargeFieldPotentialAlongAxis(self, axis):
-
         if axis not in [0, 1, 2]:
             raise Exception("Wrong axis input")
         else:
@@ -543,7 +615,6 @@ class Cube(Parser):
             difference[1, difference[1, :] > 1.0] = difference[1, :] - self.shape[1]
 
         for i in range(n_coords):
-
             pos_inds_x = pos_inds[:, i] + np.array([np.sign(difference[0])[i], 0, 0])
             pos_inds_y = pos_inds[:, i] + np.array([0, np.sign(difference[1])[i], 0])
             pos_inds_z = pos_inds[:, i] + np.array([0, 0, np.sign(difference[2])[i]])
@@ -627,10 +698,10 @@ class Cube(Parser):
             + distance_to_adsorption_geometry
             - adsorption_geometry.coords
         )
-        assert (
-            coord_diff < 5e-2
-        ), "Local Geometry doesnt match cube geometry!, difference is {}".format(
-            coord_diff
+        assert coord_diff < 5e-2, (
+            "Local Geometry doesnt match cube geometry!, difference is {}".format(
+                coord_diff
+            )
         )
 
         self.corresponding_adsorption_geometry = adsorption_geometry
@@ -644,7 +715,6 @@ class Cube(Parser):
         return dv1, dv2, dv3
 
     def get_voxel_coordinates(self):
-
         dv1, dv2, dv3 = self.get_voxel_volumina()
 
         v1_vec = (
@@ -806,7 +876,6 @@ class Cube(Parser):
 
         # plot of xy plane has to be projected correctly
         if third_ax == 2:
-
             # --- project points only unit cell ---
             v1_plot, v2_plot = self.get_voxel_coordinates_along_lattice(
                 periodic_replica=periodic_replica
@@ -1411,9 +1480,9 @@ def get_cubefile_grid_by_spacing(self, spacing, origin=None, verbose=True):
     # check that spacing is given for all three dimensions
     if len(spacing) == 1:
         spacing = [spacing, spacing, spacing]
-    assert (
-        len(spacing) == 3
-    ), "Either one spacing or a separate one for each dimension must be given"
+    assert len(spacing) == 3, (
+        "Either one spacing or a separate one for each dimension must be given"
+    )
 
     # calculate n points
     n_points = np.zeros(3)
@@ -1554,9 +1623,9 @@ class CubeParameters:
         return edges[:, 0]
 
     def set_divisions(self, divisions):
-        assert (
-            len(divisions) == 3
-        ), "Divisions for all three lattice vectors must be specified!"
+        assert len(divisions) == 3, (
+            "Divisions for all three lattice vectors must be specified!"
+        )
         for i in range(3):
             self.settings["edge"][i][0] = divisions[i]
 
@@ -1581,9 +1650,9 @@ class CubeParameters:
         :return: 0
         """
         assert z_top >= z_bottom, "Please provide z_bottom, z_top in the correct order"
-        assert (
-            self.has_vertical_unit_cell()
-        ), "This function should only be used on systems whose cell is parallel to the Z axis!"
+        assert self.has_vertical_unit_cell(), (
+            "This function should only be used on systems whose cell is parallel to the Z axis!"
+        )
         range = z_top - z_bottom
         average = z_bottom + range / 2
         # set origin Z
