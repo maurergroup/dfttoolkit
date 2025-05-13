@@ -6,7 +6,7 @@ import yaml
 
 class Element:
     """
-    Hold and access data for individual elements
+    Hold and access data for individual elements.
 
     ...
 
@@ -36,13 +36,13 @@ class Element:
     def __repr__(self):
         return f"Element({vars(self)})"
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         return getattr(self, key)
 
 
 class PeriodicTable:
     """
-    Hold and access data for elements in the periodic table
+    Hold and access data for elements in the periodic table.
 
     ...
 
@@ -70,19 +70,68 @@ class PeriodicTable:
         raise TypeError("This class cannot be instantiated.")
 
     @classmethod
-    def elements(cls) -> dict[str, Element]:
-        """Elements as a dictionary of their symbols mapped to element objects."""
+    def elements(cls, atomic_number: int | None = None) -> dict[str, Element]:
+        """
+        Elements as a dictionary of their symbols mapped to element objects.
+
+        Parameters
+        ----------
+        atomic_number : int | None, optional
+            Atomic number of the element.
+
+        Returns
+        -------
+        dict[str, Element]
+            Dictionary of elements or a single element if atomic_number is provided.
+        """
+        if atomic_number is not None:
+            return cls._elements[atomic_number]
+
         return cls._elements
 
     @classmethod
-    def element_names(cls) -> list[str]:
-        """Element names ordered by atomic number."""
-        return [e.name for e in cls._elements.values()]
+    def element_names(cls, atomic_number: int | None = None) -> list[str] | str:
+        """
+        Element names ordered by atomic number.
+
+        Parameters
+        ----------
+        atomic_number : int | None, optional
+            Atomic number of the element.
+
+        Returns
+        -------
+        list[str] | str
+            List of element names or a single name if atomic_number is provided.
+        """
+        element_names = [e.name for e in cls._elements.values()]
+
+        if atomic_number is not None:
+            return element_names[atomic_number]
+
+        return element_names
 
     @classmethod
-    def element_symbols(cls) -> list[str]:
-        """Element symbols ordered by atomic number."""
-        return list(cls._elements.keys())
+    def element_symbols(cls, atomic_number: int | None = None) -> list[str] | str:
+        """
+        Element symbols ordered by atomic number.
+
+        Parameters
+        ----------
+        atomic_number : int | None, optional
+            Atomic number of the element.
+
+        Returns
+        -------
+        list[str] | str
+            List of element symbols or a single symbol if atomic_number is provided.
+        """
+        element_symbols = list(cls._elements.keys())
+
+        if atomic_number is not None:
+            return element_symbols[atomic_number]
+
+        return element_symbols
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:

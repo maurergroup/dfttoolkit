@@ -11,7 +11,7 @@ from .utils.exceptions import UnsupportedFileError
 @dataclass
 class File:
     """
-    Hold information about a file
+    Hold information about a file.
 
     ...
 
@@ -61,8 +61,8 @@ class File:
                 self.lines = []
                 self._binary = True
 
-        else:
-            with open(self.path, "r") as f:
+        elif self._extension != ".cube":
+            with open(self.path) as f:
                 self.lines = f.readlines()
                 self.data = b""
                 self._binary = False
@@ -90,9 +90,7 @@ class Parser(File, ABC):
 
         if len(provided_keys) != 1:
             msg = f"Ensure only one of {list(supported_files.keys())} is specified."
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
 
         # Check if the provided file is a supported type
         key = next(iter(provided_keys))
@@ -135,14 +133,13 @@ class Parser(File, ABC):
 
     def _check_binary(self, binary: bool) -> None:
         """
-        Check if the file is supposed to be a binary of text format
+        Check if the file is supposed to be a binary of text format.
 
         Parameters
         ----------
         binary : bool
             Whether the file is expected to be a binary or not
         """
-
         if self._binary is not binary:
             expected_str = "binary" if binary else "text"
             msg = f"{self._name} should be {expected_str} format"
