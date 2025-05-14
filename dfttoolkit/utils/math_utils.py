@@ -7,9 +7,10 @@ import scipy
 
 def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDArray:
     """
-    Given a two (unit) vectors, vec_start and vec_end, this function calculates
-    the rotation matrix U, so that
-    U * vec_start = vec_end.
+    Calculate the rotation matrix to align two unit vectors.
+
+    Given a two (unit) vectors, vec_start and vec_end, this function calculates the
+    rotation matrix U, so that U * vec_start = vec_end.
 
     U the is rotation matrix that rotates vec_start to point in the direction
     of vec_end.
@@ -21,8 +22,8 @@ def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDA
     vec_start, vec_end : npt.NDArray[np.float64]
         Two vectors that should be aligned. Both vectors must have a l2-norm of 1.
 
-    Returns:
-    --------
+    Returns
+    -------
     R
         The rotation matrix U as npt.NDArray with shape (3,3)
     """
@@ -33,9 +34,7 @@ def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDA
     v = np.cross(vec_start, vec_end)
     c = np.dot(vec_start, vec_end)
     v_x = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    R = np.eye(3) + v_x + v_x.dot(v_x) / (1 + c)
-
-    return R
+    return np.eye(3) + v_x + v_x.dot(v_x) / (1 + c)
 
 
 def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArray:
@@ -69,8 +68,7 @@ def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArra
         dtype=np.float64,
     )
 
-    R = ddt + np.cos(phi) * (eye - ddt) + np.sin(phi) * skew
-    return R
+    return ddt + np.cos(phi) * (eye - ddt) + np.sin(phi) * skew
 
 
 def get_rotation_matrix_around_z_axis(phi: float) -> npt.NDArray:
@@ -140,10 +138,9 @@ def get_angle_between_vectors(
         Angle in radiants.
 
     """
-    angle = (
+    return (
         np.dot(vector_1, vector_2) / np.linalg.norm(vector_1) / np.linalg.norm(vector_2)
     )
-    return angle
 
 
 def get_fractional_coords(
@@ -192,10 +189,7 @@ def get_cartesian_coords(
 
 
 def get_triple_product(a: npt.NDArray, b: npt.NDArray, c: npt.NDArray) -> npt.NDArray:
-    """
-    Returns the triple product (DE: Spatprodukt): a*(bxc)
-
-    """
+    """Returns the triple product (DE: Spatprodukt): a*(bxc)."""
     assert len(a) == 3
     assert len(b) == 3
     assert len(c) == 3
@@ -220,8 +214,7 @@ def smooth_function(y: npt.NDArray, box_pts: int):
 
     """
     box = np.ones(box_pts) / box_pts
-    y_smooth = np.convolve(y, box, mode="same")
-    return y_smooth
+    return np.convolve(y, box, mode="same")
 
 
 def get_cross_correlation_function(
@@ -256,9 +249,7 @@ def get_cross_correlation_function(
     # normalize by number of overlapping data points
     cross_correlation /= np.arange(cross_correlation.size, 0, -1)
     cutoff = int(cross_correlation.size * 0.75)
-    cross_correlation = cross_correlation[:cutoff]
-
-    return cross_correlation
+    return cross_correlation[:cutoff]
 
 
 def get_autocorrelation_function_manual_lag(
@@ -288,13 +279,10 @@ def get_autocorrelation_function_manual_lag(
 
     autocorrelation = np.array([np.nan] * max_lag)
 
-    for l in lag:
-        if l == 0:
-            corr = 1.0
-        else:
-            corr = np.corrcoef(signal[l:], signal[:-l])[0][1]
+    for i in lag:
+        corr = 1.0 if i == 0 else np.corrcoef(signal[i], signal[:-i])[0][1]
 
-        autocorrelation[l] = corr
+        autocorrelation[i] = corr
 
     return autocorrelation
 
@@ -327,8 +315,8 @@ def get_fourier_transform(signal: npt.NDArray, time_step: float) -> tuple:
 
 
 def lorentzian(
-    x: Union[float, npt.NDArray], a: float, b: float, c: float
-) -> Union[float, npt.NDArray]:
+    x: float | npt.NDArray, a: float, b: float, c: float
+) -> float | npt.NDArray:
     """
     Returns a Lorentzian function.
 
@@ -350,23 +338,17 @@ def lorentzian(
 
     """
     # f = c / (np.pi * b * (1.0 + ((x - a) / b) ** 2))  # +d
-    f = c / (1.0 + ((x - a) / (b / 2.0)) ** 2)  # +d
-
-    return f
+    return c / (1.0 + ((x - a) / (b / 2.0)) ** 2)  # +d
 
 
-def exponential(
-    x: Union[float, npt.NDArray], a: float, b: float
-) -> Union[float, npt.NDArray]:
-    f = a * np.exp(x * b)
-    return f
+def exponential(x: float | npt.NDArray, a: float, b: float) -> float | npt.NDArray:
+    return a * np.exp(x * b)
 
 
 def double_exponential(
-    x: Union[float, npt.NDArray], a: float, b: float, c: float
-) -> Union[float, npt.NDArray]:
-    f = a * (np.exp(x * b) + np.exp(x * c))
-    return f
+    x: float | npt.NDArray, a: float, b: float, c: float
+) -> float | npt.NDArray:
+    return a * (np.exp(x * b) + np.exp(x * c))
 
 
 def gaussian_window(N, std=0.4):
@@ -388,8 +370,7 @@ def gaussian_window(N, std=0.4):
 
     """
     n = np.linspace(-1, 1, N)
-    window = np.exp(-0.5 * (n / std) ** 2)
-    return window
+    return np.exp(-0.5 * (n / std) ** 2)
 
 
 def apply_gaussian_window(data, std=0.4):
@@ -411,8 +392,7 @@ def apply_gaussian_window(data, std=0.4):
     """
     N = len(data)
     window = gaussian_window(N, std)
-    windowed_data = data * window
-    return windowed_data
+    return data * window
 
 
 def hann_window(N):
@@ -448,8 +428,7 @@ def apply_hann_window(data):
     """
     N = len(data)
     window = hann_window(N)
-    windowed_data = data * window
-    return windowed_data
+    return data * window
 
 
 def norm_matrix_by_dagonal(matrix: npt.NDArray) -> npt.NDArray:
@@ -502,7 +481,7 @@ def mae(delta: np.ndarray) -> np.floating:
     return np.mean(np.abs(delta))
 
 
-def rel_mae(delta: np.ndarray, target_val: np.ndarray) -> np.floating:
+def rel_mae(delta: np.ndarray, target_val: np.ndarray) -> np.floating | np.float64 | float:
     """
     Calculated the relative mean absolute error from a list of value differnces,
     given the target values.
@@ -656,15 +635,13 @@ def get_t_test(x, y):
 
     n = len(x)
 
-    t = np.abs(r) * np.sqrt((n - 2) / (1 - r**2))
-
-    return t
+    return np.abs(r) * np.sqrt((n - 2) / (1 - r**2))
 
 
 def probability_density(t, n):
     degrees_of_freedom = n - 2
 
-    f = (
+    return (
         scipy.special.gamma((degrees_of_freedom + 1.0) / 2.0)
         / (
             np.sqrt(np.pi * degrees_of_freedom)
@@ -673,15 +650,11 @@ def probability_density(t, n):
         * (1 + t**2 / degrees_of_freedom) ** (-(degrees_of_freedom + 1.0) / 2.0)
     )
 
-    return f
-
 
 def get_significance(x, t):
     n = len(x)
 
-    Df = scipy.integrate.quad(probability_density, -np.inf, t, args=(n))[0]
-
-    return Df
+    return scipy.integrate.quad(probability_density, -np.inf, t, args=(n))[0]
 
 
 def squared_exponential_kernel(x1_vec, x2_vec, tau):
@@ -720,9 +693,7 @@ def squared_exponential_kernel(x1_vec, x2_vec, tau):
     sq_dist = np.sum(diff**2, axis=2)
 
     # Apply the RBF formula
-    K = np.exp(-0.5 * sq_dist / tau**2)
-
-    return K
+    return np.exp(-0.5 * sq_dist / tau**2)
 
 
 class GPR:

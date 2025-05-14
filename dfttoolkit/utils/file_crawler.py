@@ -8,10 +8,10 @@ def find_all_aims_output_files(
     allow_all_out_files=False,
     allow_multiple_files=False,
 ):
-    """Recursively searches for AIMS output files and returns their full filenames as a list"""
+    """Recursively searches for AIMS output files and returns their full filenames as a list."""
     aims_fnames = []
 
-    for root, directories, files in os.walk(directory):
+    for root, _directories, _files in os.walk(directory):
         fname_list = find_aims_output_file(
             root, allow_all_out_files, allow_multiple_files
         )
@@ -34,7 +34,7 @@ def find_all_aims_output_files(
 def find_aims_output_file(
     calc_dir, allow_all_out_files=False, allow_multiple_files=False
 ):
-    """Searches directory for output files"""
+    """Searches directory for output files."""
     return find_file(
         calc_dir,
         allow_all_out_files=allow_all_out_files,
@@ -50,7 +50,7 @@ def find_aims_output_file(
 
 
 def find_vasp_output_file(calc_dir):
-    """Searches directory for output files"""
+    """Searches directory for output files."""
     return find_file(calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"])
 
 
@@ -58,21 +58,23 @@ def find_file(
     calc_dir,
     allow_all_out_files=False,
     allow_multiple_files=False,
-    list_of_filenames=[],
+    list_of_filenames=None,
 ):
-    """Searches directory for output files"""
+    """Searches directory for output files."""
+    if list_of_filenames is None:
+        list_of_filenames = []
     allfiles = [f for f in os.listdir(calc_dir) if os.path.isfile(join(calc_dir, f))]
     filename = []
     for f in allfiles:
         if f.lower() in list_of_filenames:
             filename.append(f)
 
-    if allow_all_out_files:
-        if len(filename) == 0:
-            filename = [f for f in allfiles if f.endswith(".out")]
+    if allow_all_out_files and len(filename) == 0:
+        filename = [f for f in allfiles if f.endswith(".out")]
 
     if len(filename) > 1 and not allow_multiple_files:
+        msg = f"Multiple output files found: {calc_dir}, {filename}"
         raise Exception(
-            "Multiple output files found: {}, {}".format(calc_dir, filename)
+            msg
         )
     return filename

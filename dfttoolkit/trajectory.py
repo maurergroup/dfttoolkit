@@ -1,10 +1,12 @@
+import copy
+
 import numpy as np
+import numpy.typing as npt
 from ase import units
 from ase.io.trajectory import Trajectory
-from dfttoolkit.geometry import Geometry
+
 import dfttoolkit.utils.vibrations_utils as vu
-import copy
-import numpy.typing as npt
+from dfttoolkit.geometry import Geometry
 
 
 class MDTrajectory:
@@ -23,6 +25,7 @@ class MDTrajectory:
         return traj
 
         self.traj = self.traj + other_traj.traj
+        return None
 
     def __iadd__(self, other_traj):
         self.traj = self.traj + other_traj.traj
@@ -109,7 +112,7 @@ class MDTrajectory:
         """
         Calculate the normal-mode-decomposition of the velocities. This is done
         by projecting the atomic velocities onto the vibrational eigenvectors.
-        See equation 10 in: https://doi.org/10.1016/j.cpc.2017.08.017
+        See equation 10 in: https://doi.org/10.1016/j.cpc.2017.08.017.
 
         Parameters
         ----------
@@ -148,13 +151,12 @@ class MDTrajectory:
                 steps=steps, cutoff_start=cutoff_start, cutoff_end=cutoff_end
             )
 
-        velocities_projected = vu.get_normal_mode_decomposition(
+        return vu.get_normal_mode_decomposition(
             velocities,
             projection_vectors,
             use_numba=use_numba,
         )
 
-        return velocities_projected
 
     def get_kinetic_energies(
         self, steps: int = 1, cutoff_start: int = 0, cutoff_end: int = 0
@@ -183,9 +185,8 @@ class MDTrajectory:
         )
         velocities_norm = np.linalg.norm(velocities, axis=2)
 
-        energies = 0.5 * velocities_norm**2
+        return 0.5 * velocities_norm**2
 
-        return energies
 
     def get_temperature(
         self, steps: int = 1, cutoff_start: int = 0, cutoff_end: int = 0
@@ -255,7 +256,7 @@ class MDTrajectory:
 
         coords = []
         for ind, atom in enumerate(atoms):
-            if not ind in unconstrained_atoms:
+            if ind not in unconstrained_atoms:
                 coords.append(atom.position)
 
         return np.array(coords)

@@ -1,36 +1,38 @@
 import numpy as np
 import pytest
+from scipy.sparse import load_npz
+
 from dfttoolkit.output import AimsOutput, ELSIOutput
 from dfttoolkit.utils.exceptions import ItemNotFoundError
-from scipy.sparse import load_npz
 
 
 class TestAimsOutput:
+    """Tests for the AimsOutput class."""
+
     @property
     def _aims_fixture_no(self) -> int:
         return int(self.ao.path.split("/")[-2])
 
     @pytest.fixture(params=range(1, 14), autouse=True)
-    def aims_out(self, cwd, request, aims_calc_dir):
+    def aims_out(self, cwd, request, aims_calc_dir) -> None:
         self.ao = AimsOutput(
-            aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{str(request.param)}/aims.out"
+            aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{request.param!s}/aims.out"
         )
 
     @pytest.fixture
     def control_in(self, cwd, aims_calc_dir):
         with open(
             f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in",
-            "r",
         ) as f:
             yield [line.strip() for line in f.readlines()]
 
-    def test_get_number_of_atoms(self):
+    def test_get_number_of_atoms(self) -> None:
         if self._aims_fixture_no in [4, 6, 8, 10, 11, 12]:
             assert self.ao.get_number_of_atoms() == 2
         else:
             assert self.ao.get_number_of_atoms() == 3
 
-    def test_get_geometry(self):
+    def test_get_geometry(self) -> None:
         geom = self.ao.get_geometry()
 
         if self._aims_fixture_no in [1, 2, 3, 5, 7, 9, 13]:
@@ -40,7 +42,7 @@ class TestAimsOutput:
             assert len(geom) == 2
             assert geom.get_is_periodic() is True
 
-    def test_get_geometry_steps_of_optimisation(self):
+    def test_get_geometry_steps_of_optimisation(self) -> None:
         positions = np.array(
             [
                 [0.00000004, 0.00000045, 2.95776161],
@@ -53,22 +55,22 @@ class TestAimsOutput:
             geom_steps = self.ao.get_geometry_steps_of_optimisation()
             assert np.allclose(geom_steps[-1].coords, positions)
 
-    def test_get_control_file(self, control_in):
+    def test_get_control_file(self, control_in) -> None:
         assert self.ao.get_control_file() == control_in
 
-    def test_get_parameters(self, ref_data):
+    def test_get_parameters(self, ref_data) -> None:
         assert (
             self.ao.get_parameters()
             == ref_data["control_params"][self._aims_fixture_no - 1]
         )
 
-    def test_check_exit_normal(self):
+    def test_check_exit_normal(self) -> None:
         if self._aims_fixture_no in [7, 8]:
             assert self.ao.check_exit_normal() is False
         else:
             assert self.ao.check_exit_normal() is True
 
-    def test_get_time_per_scf(self, ref_data):
+    def test_get_time_per_scf(self, ref_data) -> None:
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 2e-3
         if self._aims_fixture_no in range(1, 13):
@@ -78,9 +80,8 @@ class TestAimsOutput:
                 atol=2e-3,
             )
 
-    def test_get_change_of_total_energy_1(self):
-        """Using default args (final energy change)"""
-
+    def test_get_change_of_total_energy_1(self) -> None:
+        """Using default args (final energy change)."""
         final_energies = np.array(
             [
                 1.599e-08,
@@ -107,9 +108,8 @@ class TestAimsOutput:
             < 1e-8
         )
 
-    def test_get_change_of_total_energy_2(self, ref_data):
-        """Get every energy change"""
-
+    def test_get_change_of_total_energy_2(self, ref_data) -> None:
+        """Get every energy change."""
         # Fail if the absolute tolerance between any values in test vs. reference array is
         # greater than 1e-10
         if self._aims_fixture_no in range(1, 13):
@@ -119,9 +119,8 @@ class TestAimsOutput:
                 atol=1e-8,
             )
 
-    def test_get_change_of_total_energy_3(self):
-        """Get the 1st energy change"""
-
+    def test_get_change_of_total_energy_3(self) -> None:
+        """Get the 1st energy change."""
         first_energies = [
             1.408,
             -0.1508,
@@ -162,7 +161,7 @@ class TestAimsOutput:
     # of the following functions wrap around _get_energy(), which have all been tested in
     # the previous 4 tests
 
-    def test_get_forces(self):
+    def test_get_forces(self) -> None:
         forces = [
             np.array(
                 [
@@ -187,16 +186,11 @@ class TestAimsOutput:
 
         if self._aims_fixture_no in [5]:
             assert (
-                np.all(
-                    abs(
-                        self.ao.get_forces()
-                        - forces[self._aims_fixture_no - 5]
-                    )
-                )
+                np.all(abs(self.ao.get_forces() - forces[self._aims_fixture_no - 5]))
                 < 1e-8
             )
 
-    def test_get_forces_without_vdw_1(self):
+    def test_get_forces_without_vdw_1(self) -> None:
         forces = {
             13: np.array(
                 [
@@ -212,15 +206,14 @@ class TestAimsOutput:
                 self.ao.get_forces_without_vdw(), forces[self._aims_fixture_no]
             )
 
-    def test_get_forces_without_vdw_2(self):
+    def test_get_forces_without_vdw_2(self) -> None:
         if self._aims_fixture_no in [13]:
-
             f_1 = self.ao.get_forces_without_vdw()
             f_2 = self.ao.get_forces() - self.ao.get_vdw_forces()
 
             assert np.allclose(f_1, f_2)
 
-    def test_get_change_of_forces(self):
+    def test_get_change_of_forces(self) -> None:
         forces = {
             5: 0.4728,
             6: 6.684e-12,
@@ -233,10 +226,7 @@ class TestAimsOutput:
 
         if self._aims_fixture_no in aims_forces_fixtures:
             assert (
-                abs(
-                    self.ao.get_change_of_forces()
-                    - forces[self._aims_fixture_no]
-                )
+                abs(self.ao.get_change_of_forces() - forces[self._aims_fixture_no])
                 < 1e-8
             )
 
@@ -247,9 +237,8 @@ class TestAimsOutput:
     # TODO
     # def get_change_of_sum_of_eigenvalues(self):
 
-    def test_get_change_of_charge_density(self):
-        """Using default args (final charge density change)"""
-
+    def test_get_change_of_charge_density(self) -> None:
+        """Using default args (final charge density change)."""
         charge_densities = np.array(
             [
                 0.7136e-06,
@@ -265,25 +254,19 @@ class TestAimsOutput:
                 < 1e-8
             )
 
-    def test_check_spin_polarised(self):
+    def test_check_spin_polarised(self) -> None:
         if self._aims_fixture_no in [2, 3, 11, 12]:
             assert self.ao.check_spin_polarised() is True
         else:
             assert self.ao.check_spin_polarised() is False
 
-    def test_get_convergence_parameters(self, ref_data):
+    def test_get_convergence_parameters(self, ref_data) -> None:
         if self._aims_fixture_no in [7, 8]:
-            assert (
-                self.ao.get_convergence_parameters()
-                == ref_data["conv_params"][1]
-            )
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][1]
         elif self._aims_fixture_no in [1, 2, 3, 4, 5, 6, 9, 10]:
-            assert (
-                self.ao.get_convergence_parameters()
-                == ref_data["conv_params"][0]
-            )
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][0]
 
-    def test_get_final_energy(self):
+    def test_get_final_energy(self) -> None:
         final_energies = [
             -2080.832254505,
             -2080.832254498,
@@ -306,12 +289,9 @@ class TestAimsOutput:
             assert final_energy is None
 
         else:
-            assert (
-                abs(final_energy - final_energies[self._aims_fixture_no - 1])
-                < 1e-8
-            )
+            assert abs(final_energy - final_energies[self._aims_fixture_no - 1]) < 1e-8
 
-    def test_get_final_spin_moment(self):
+    def test_get_final_spin_moment(self) -> None:
         final_spin_moments = [
             None,
             (0.0, 0.0, 1.00),
@@ -354,23 +334,21 @@ class TestAimsOutput:
         else:
             assert final_spin_moment is None
 
-    def get_n_relaxation_steps_test(self):
+    def get_n_relaxation_steps_test(self) -> None:
         n_relaxation_steps = [1, 1, 1, 1, 4, 2, 3, 0, 1, 1, 1, 2]
         assert (
             self.ao.get_n_relaxation_steps()
             == n_relaxation_steps[self._aims_fixture_no - 1]
         )
 
-    def test_get_n_scf_iters(self):
+    def test_get_n_scf_iters(self) -> None:
         n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29, 251]
-        assert (
-            self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
-        )
+        assert self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
 
     # TODO
     # def get_i_scf_conv_acc_test(self):
 
-    def test_get_n_initial_ks_states(self):
+    def test_get_n_initial_ks_states(self) -> None:
         n_initial_ks_states = [
             11,
             22,
@@ -399,9 +377,9 @@ class TestAimsOutput:
                     == n_initial_ks_states[self._aims_fixture_no - 1]
                 )
 
-    def test_get_all_ks_eigenvalues(self, ref_data):
+    def test_get_all_ks_eigenvalues(self, ref_data) -> None:
         if self._aims_fixture_no == 1:
-            for key in ref_data["eigenvalues"].keys():
+            for key in ref_data["eigenvalues"]:
                 # Check the values are within tolerance and that keys match
                 assert np.allclose(
                     self.ao.get_all_ks_eigenvalues()[key],
@@ -416,9 +394,7 @@ class TestAimsOutput:
             for spin_eval, spin in zip(
                 ["su_eigenvalues", "sd_eigenvalues"], [spin_up, spin_down]
             ):
-                for key in ref_data[spin_eval][
-                    self._aims_fixture_no - 2
-                ].keys():
+                for key in ref_data[spin_eval][self._aims_fixture_no - 2]:
                     # Check the values are within tolerance and that keys match
                     assert np.allclose(
                         spin[key],
@@ -430,10 +406,8 @@ class TestAimsOutput:
             with pytest.raises(ItemNotFoundError):
                 self.ao.get_all_ks_eigenvalues()
 
-    def _compare_final_ks_evals(
-        self, ref_data: dict, ref: int, spin_case: str
-    ) -> None:
-        for key in ref_data[f"{spin_case}_final_eigenvalues"][ref].keys():
+    def _compare_final_ks_evals(self, ref_data: dict, ref: int, spin_case: str) -> None:
+        for key in ref_data[f"{spin_case}_final_eigenvalues"][ref]:
             if spin_case == "sn":
                 test = self.ao.get_final_ks_eigenvalues()[key]
             elif spin_case == "su":
@@ -451,7 +425,7 @@ class TestAimsOutput:
                 atol=1e-8,
             )
 
-    def test_get_final_ks_eigenvalues(self, ref_data):
+    def test_get_final_ks_eigenvalues(self, ref_data) -> None:
         sn_refs = [1, 4, 5, 6, 7, 8, 9]
         sc_refs = [2, 3, 11, 12]
 
@@ -464,9 +438,9 @@ class TestAimsOutput:
             self._compare_final_ks_evals(ref_data, ref, "su")
             self._compare_final_ks_evals(ref_data, ref, "sd")
 
-    def test_get_pert_soc_ks_eigenvalues(self, ref_data):
+    def test_get_pert_soc_ks_eigenvalues(self, ref_data) -> None:
         if self._aims_fixture_no == 3:
-            for key in ref_data["pert_soc_eigenvalues"].keys():
+            for key in ref_data["pert_soc_eigenvalues"]:
                 # Check the values are within tolerance and that keys match
                 assert np.allclose(
                     self.ao.get_pert_soc_ks_eigenvalues()[key],
@@ -480,25 +454,22 @@ class TestAimsOutput:
 
         else:
             # Check that it warns and then raises an error
-            with pytest.warns(UserWarning):
-                with pytest.raises(ValueError):
-                    self.ao.get_pert_soc_ks_eigenvalues()
+            with pytest.warns(UserWarning), pytest.raises(ValueError):
+                self.ao.get_pert_soc_ks_eigenvalues()
 
 
 class TestELSIOutput:
     @pytest.fixture(autouse=True)
-    def elsi_csc(self, cwd):
+    def elsi_csc(self, cwd) -> None:
         self.eo_csc = ELSIOutput(
             elsi_csc=f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
         )
 
     @pytest.fixture(autouse=True)
-    def elsi_npz(self, cwd):
-        self.eo_npz = load_npz(
-            f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz"
-        )
+    def elsi_npz(self, cwd) -> None:
+        self.eo_npz = load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
 
-    def test_get_elsi_csc_header(self):
+    def test_get_elsi_csc_header(self) -> None:
         assert (
             self.eo_csc.get_elsi_csc_header().all()
             == np.array(
@@ -523,7 +494,7 @@ class TestELSIOutput:
             ).all()
         )
 
-    def test_read_elsi_as_csc_to_array(self):
+    def test_read_elsi_as_csc_to_array(self) -> None:
         assert np.allclose(
             self.eo_csc.read_elsi_as_csc(csc_format=False).all(),
             self.eo_npz.toarray().all(),
@@ -535,10 +506,11 @@ class TestELSIOutput:
             self.eo_npz.toarray().all(),
         )
 
-    @pytest.mark.xfail(
-        False, reason="Direct comparison of floats without tolerance"
-    )
-    def test_read_elsi_as_csc_bin_compare(self):
+    @pytest.mark.xfail(False, reason="Direct comparison of floats without tolerance")
+    def test_read_elsi_as_csc_bin_compare(self) -> None:
         assert (
             self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz
         )._getnnz() == 0
+
+
+# ruff: noqa: S101

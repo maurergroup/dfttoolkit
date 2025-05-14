@@ -136,7 +136,7 @@ class PeriodicTable:
     @classmethod
     def get_element(cls, symbol: str) -> Element:
         """
-        Retrieve an element as an instance of Element
+        Retrieve an element as an instance of Element.
 
         Parameters
         ----------
@@ -148,7 +148,6 @@ class PeriodicTable:
         Element
             Instance of Element.
         """
-
         return cls._elements[symbol]
 
     @classmethod
@@ -166,7 +165,6 @@ class PeriodicTable:
         str
             Full name.
         """
-
         return cls.get_element(symbol).name
 
     @classmethod
@@ -184,7 +182,6 @@ class PeriodicTable:
         int
             Atomic number.
         """
-
         return cls.get_element(symbol).atomic_number
 
     @classmethod
@@ -202,7 +199,6 @@ class PeriodicTable:
         float
             Atomic mass.
         """
-
         return cls.get_element(symbol).atomic_mass
 
     @classmethod
@@ -220,7 +216,6 @@ class PeriodicTable:
         float
             Covalent radius in atomic units.
         """
-
         with open(Path(__file__).parent / "covalent_radii.yaml") as cr:
             data = yaml.safe_load(cr)
 
@@ -229,7 +224,7 @@ class PeriodicTable:
     @classmethod
     def get_species_colours(cls, symbol: str) -> tuple[float, float, float]:
         """
-        Get the JMol colour of an element
+        Get the JMol colour of an element.
 
         Parameters
         ----------
@@ -241,7 +236,6 @@ class PeriodicTable:
         Tuple[float, float, float]
             Covalent radius in atomic units.
         """
-
         with open(Path(__file__).parent / "elemental_colourmaps.yaml") as ec:
             data = yaml.safe_load(ec)
 

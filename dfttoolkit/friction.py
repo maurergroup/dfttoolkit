@@ -17,13 +17,13 @@ class FrictionTensor:
         return self.friction_tensor_raw
 
     @friction_tensor.setter
-    def friction_tensor(self, friction_tensor_raw):
+    def friction_tensor(self, friction_tensor_raw) -> None:
         self.friction_tensor_raw = friction_tensor_raw
 
     def read_friction_tensor(self, filename: str):
         """
         Reads the friction tensor when given a calculation directroy; Saves a
-        full size firction tensor (elements for all atoms) where atom-pairs
+        full size friction tensor (elements for all atoms) where atom-pairs
         without friction are assigned a friction value of 0.
 
         Parameters
@@ -48,20 +48,15 @@ class FrictionTensor:
                 line = line.strip().split(" ")
 
                 line_1 = []
-                for l in line:
-                    if not l == "":
-                        line_1.append(l)
+                for i in line:
+                    if i != "":
+                        line_1.append(i)
 
                 atom_index = 3 * (int(line_1[2]) - 1) + int(line_1[4]) - 1
                 atom_indices.append(atom_index)
 
             elif "#" not in line:
-                line = line.strip().split(" ")
-
-                friction_tensor_line = []
-                for l in line:
-                    if not l == "":
-                        friction_tensor_line.append(float(l))
+                friction_tensor_line = [float(i) for i in line.split(" ") if i != ""]
 
                 friction_tensor_0.append(friction_tensor_line)
 
@@ -79,16 +74,11 @@ class FrictionTensor:
         return friction_tensor
 
     def get_life_time(self, vibration):
-        """
-        Returns life time in ps
-
-        """
+        """Returns life time in ps."""
         vibration /= np.linalg.norm(vibration)
 
         force = self.friction_tensor_raw.dot(vibration)
 
         eta = vibration.dot(force)
 
-        life_time = 1 / eta
-
-        return life_time
+        return 1 / eta

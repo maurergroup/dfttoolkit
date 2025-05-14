@@ -27,7 +27,7 @@ class CustomAims(Aims):
         geo_constrain=None,
         scaled=False,
         velocities=None,
-    ):
+    ) -> None:
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
 
         if scaled is None:

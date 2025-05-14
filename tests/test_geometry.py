@@ -1,12 +1,13 @@
-import pytest
 import numpy as np
+import pytest
+
 from dfttoolkit.geometry import AimsGeometry
 
 
 class TestAimsGeometry:
 
     @pytest.fixture(autouse=True)
-    def geometry(self):
+    def geometry(self) -> None:
         self.geom = AimsGeometry()
         self.geom.add_atoms(
             cartesian_coords=[
@@ -21,7 +22,7 @@ class TestAimsGeometry:
         )
 
     @pytest.fixture(autouse=True)
-    def geometry_periodic(self):
+    def geometry_periodic(self) -> None:
         self.ap_geom = AimsGeometry()
 
         self.ap_geom.lattice_vectors = np.array(
@@ -56,7 +57,7 @@ class TestAimsGeometry:
             ],
         )
 
-    def test_save_and_read_file(self, tmp_path):
+    def test_save_and_read_file(self, tmp_path) -> None:
         # pytest method of creating a temporary directory
         d = tmp_path / "tmp"
         d.mkdir()
@@ -68,16 +69,16 @@ class TestAimsGeometry:
 
         assert self.geom == geometry_read
 
-    def test_get_displaced_atoms(self):
+    def test_get_displaced_atoms(self) -> None:
         new_geom = self.geom.get_displaced_atoms(1)
         assert not np.allclose(self.geom.coords[0], new_geom.coords[0])
         assert np.allclose(self.geom.coords[1], new_geom.coords[1])
 
-    def test_get_symmetries(self):
+    def test_get_symmetries(self) -> None:
         symmetries = self.ap_geom.get_symmetries(symmetry_precision=1e-03)
         assert len(symmetries[0]) == 6
         assert len(symmetries[1]) == 6
 
-    def test_get_number_of_electrons(self):
+    def test_get_number_of_electrons(self) -> None:
         n_electrons = self.ap_geom.get_number_of_electrons()
         assert n_electrons == 145

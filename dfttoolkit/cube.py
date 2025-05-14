@@ -6,12 +6,11 @@ import numpy.typing as npt
 from ase import Atom, Atoms
 from ase.io import cube
 
-from dfttoolkit.geometry import Geometry
-from dfttoolkit.utils.periodic_table import PeriodicTable
-from dfttoolkit.utils.units import BOHR_IN_ANGSTROM
-
 from .base import Parser
+from .geometry import Geometry
 from .utils.math_utils import get_triple_product
+from .utils.periodic_table import PeriodicTable
+from .utils.units import BOHR_IN_ANGSTROM
 
 
 class Cube(Parser):
@@ -49,7 +48,7 @@ class Cube(Parser):
         self._origin = _cf["origin"]
 
         # Centre the atoms to cube origin
-        self._atoms.translate(-self._origin)
+        self._atoms.translate(-self._origin)  # pyright: ignore[reportOperatorIssue]
 
         # Get other cube file parameters
         self._grid_vectors = np.array(

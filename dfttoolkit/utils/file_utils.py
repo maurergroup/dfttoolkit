@@ -1,7 +1,6 @@
-from collections.abc import Callable, Iterator, MutableMapping
+from collections.abc import Iterator, MutableMapping
 from pathlib import Path
-from types import FunctionType
-from typing import Any, Optional
+from typing import Any
 
 from click import edit
 

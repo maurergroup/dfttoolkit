@@ -28,7 +28,7 @@ def read_xyz_animation(filename) -> list:
 
             n_entries = len(line_split)
 
-            if not ind == 0 and n_entries == 1:
+            if ind != 0 and n_entries == 1:
                 text_list.append(geometry_text)
                 geometry_text = ""
 

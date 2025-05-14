@@ -99,7 +99,8 @@ class Parser(File, ABC):
             raise UnsupportedFileError(provided_keys, list(supported_files.keys()))
 
         # Check if the provided file is a valid file type
-        if supported_files.get(key) != kwargs[key]:
+        # TODO: change so pathlib.Path is used in all child classes
+        if supported_files.get(key) != Path(kwargs[key]).suffix:
             msg = f"{kwargs[key]} is not a valid {key} file"
             raise KeyError(msg)
 

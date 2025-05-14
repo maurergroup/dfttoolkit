@@ -1,5 +1,4 @@
-import collections
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Union
 from warnings import warn
 
 import numpy as np
@@ -80,31 +79,29 @@ class AimsControl(Parameters):
         MultiDict
             Keywords in the control.in file.
         """
-
         keywords = MultiDict()
 
         for line in self.lines:
             # Stop at third keyword delimiter if ASE wrote the file
             spl = line.split()
-            if len(spl) > 0 and "(ASE)" == spl[-1]:
+            if len(spl) > 0 and spl[-1] == "(ASE)":
                 n_delims = 0
-                if "#" + ("=" * 79) == line:
+                if line == "#" + ("=" * 79):
                     n_delims += 1
                     if n_delims == 3:
                         # Reached end of keywords
                         break
 
-            else:
-                if "#" * 80 in line.strip():
-                    # Reached the basis set definitions
-                    break
+            elif "#" * 80 in line.strip():
+                # Reached the basis set definitions
+                break
 
             if len(spl) > 0 and line[0] != "#":
                 keywords[spl[0]] = " ".join(spl[1:])
 
         return keywords
 
-    def get_species(self) -> List[str]:
+    def get_species(self) -> list[str]:
         """
         Get the species from a control.in file.
 
@@ -113,20 +110,19 @@ class AimsControl(Parameters):
         List[str]
             A list of the species in the control.in file.
         """
-
         species = []
         for line in self.lines:
             spl = line.split()
-            if len(spl) > 0 and "species" == spl[0]:
+            if len(spl) > 0 and spl[0] == "species":
                 species.append(line.split()[1])
 
         return species
 
     def get_default_basis_funcs(
-        self, elements: Union[List[str], None] = None
-    ) -> Dict[str, str]:
+        self, elements: Union[list[str], None] = None
+    ) -> dict[str, str]:
         """
-        Get the basis functions
+        Get the basis functions.
 
         Parameters
         ----------
@@ -138,7 +134,6 @@ class AimsControl(Parameters):
         Dict[str, str]
             A dictionary of the basis functions for the specified elements.
         """
-
         # Check that the given elements are valid
         if elements is not None and not set(elements).issubset(
             set(PeriodicTable.element_symbols)
@@ -147,7 +142,7 @@ class AimsControl(Parameters):
 
         # Warn if the requested elements aren't found in control.in
         if elements is not None and not set(elements).issubset(self.get_species()):
-            warn("Could not find all requested elements in control.in")
+            warn("Could not find all requested elements in control.in", stacklevel=2)
 
         basis_funcs = {}
 
@@ -175,9 +170,9 @@ class AimsControl(Parameters):
 
         return basis_funcs
 
-    def add_keywords_and_save(self, *args: Tuple[str, Any]) -> None:
+    def add_keywords_and_save(self, *args: tuple[str, Any]) -> None:
         """
-        Add keywords to the control.in file and write the new control.in to disk
+        Add keywords to the control.in file and write the new control.in to disk.
 
         Note that files written by ASE or in a format where the keywords are at the top
         of the file followed by the basis sets are the only formats that are supported
@@ -189,7 +184,6 @@ class AimsControl(Parameters):
         *args : Tuple[str, Any]
             Keywords to be added to the control.in file.
         """
-
         # Get the location of the start of the basis sets
         basis_set_start = False
 
@@ -197,16 +191,16 @@ class AimsControl(Parameters):
         # otherwise, use the start of the basis sets as 'add' point
         for i, line_1 in enumerate(self.lines):
             if line_1.strip() == "#" * 80:
-                if "(ASE)" == self.lines[2].split()[-1]:
+                if self.lines[2].split()[-1] == "(ASE)":
                     for j, line_2 in enumerate(reversed(self.lines[:i])):
-                        if "#" + ("=" * 79) == line_2.strip():
+                        if line_2.strip() == "#" + ("=" * 79):
                             basis_set_start = i - j - 1
                             break
                     break
 
-                else:  # not ASE
-                    basis_set_start = i
-                    break
+                # not ASE
+                basis_set_start = i
+                break
 
         # Check to make sure basis sets were found
         if not basis_set_start:
@@ -282,7 +276,6 @@ class AimsControl(Parameters):
         *args : str
             Keywords to be removed from the control.in file.
         """
-
         for keyword in args:
             for i, line in enumerate(self.lines):
                 spl = line.split()
@@ -293,11 +286,5 @@ class AimsControl(Parameters):
             f.writelines(self.lines)
 
     def check_periodic(self) -> bool:
-        """
-        Check if the system is periodic.
-        """
-
-        if "k_grid" in self.get_keywords():
-            return True
-        else:
-            return False
+        """Check if the system is periodic."""
+        return "k_grid" in self.get_keywords()

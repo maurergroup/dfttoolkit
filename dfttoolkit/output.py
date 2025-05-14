@@ -78,7 +78,7 @@ class AimsOutput(Output):
 
     def get_number_of_atoms(self) -> int:
         """
-        Return number of atoms in unit cell
+        Return number of atoms in unit cell.
 
         Returns
         -------
@@ -98,26 +98,24 @@ class AimsOutput(Output):
 
     def get_geometry(self) -> AimsGeometry:
         """
-        Extract the geometry file from the aims output and return it as a
-        Geometry object
+        Extract the geometry file from the aims output and return it as a Geometry.
 
         Returns
         -------
         AimsGeometry
             Geometry object
         """
-
         geometry_lines = []
         read_trigger = False
         for line in self.lines:
             if (
-                "Parsing geometry.in (first pass over file, find array dimensions only)."
-                in l
+                "Parsing geometry.in "
+                "(first pass over file, find array dimensions only)." in line
             ):
                 read_trigger = True
 
             if read_trigger:
-                geometry_lines.append(l)
+                geometry_lines.append(line)
 
             if "Completed first pass over input file geometry.in ." in line:
                 break
@@ -131,7 +129,7 @@ class AimsOutput(Output):
 
     def get_geometry_steps_of_optimisation(
         self, n_occurrence: None | int = None
-    ) -> list:
+    ) -> AimsGeometry | list[AimsGeometry]:
         """
         Get a list of all geometry steps performed.
 
@@ -193,57 +191,65 @@ class AimsOutput(Output):
 
     def get_control_file(self) -> list[str]:
         """
-        Extract the control file from the aims output
+        Extract the control file from the aims output.
 
         Returns
         -------
         List[str]
             Lines from the control file found in the aims output
         """
-
         control_lines = []
         control_file_reached = False
-        for l in self.lines:
+        for line in self.lines:
             if (
                 "Parsing control.in (first pass over file, find array dimensions only)."
-                in l
+                in line
             ):
                 control_file_reached = True
 
             if control_file_reached:
-                control_lines.append(l.strip())
+                control_lines.append(line.strip())
 
-            if "Completed first pass over input file control.in ." in l:
+            if "Completed first pass over input file control.in ." in line:
                 break
 
         return control_lines[6:-3]
 
     def get_parameters(self) -> dict:
         """
-        Parse the parameters of the FHI-aims control file from the aims output
+        Parse the parameters of the FHI-aims control file from the aims output.
 
         Returns
         -------
         dict
             The parameters of the FHI-aims control file found in the aims output
-        """
 
+        Raises
+        ------
+        ValueError
+            If the control.in section is not found in the aims output
+        """
         # Find where the parameters start
+        start_index = None
         for i, line in enumerate(self.lines):
             if (
                 "Parsing control.in (first pass over file, find array dimensions only)."
                 in line
             ):
+                start_index = i
                 break
+
+        if start_index is None:
+            raise ValueError(
+                "Could not find the start of the control.in parameters in the output."
+            )
 
         parameters = {}
 
-        # If the file was written with ASE, there is an extra header/keyword delimiter
-        extra_lines = 11 if self.lines[i + 8].split()[-1] == "(ASE)" else 6
+        extra_lines = 11 if self.lines[start_index + 8].split()[-1] == "(ASE)" else 6
 
-        for line in self.lines[i + extra_lines :]:  # pyright: ignore
-            # End of parameters and start of basis sets
-            if "#" * 80 == line.strip() or "#" + ("=" * 79) == line.strip():
+        for line in self.lines[start_index + extra_lines :]:
+            if line.strip() == "#" * 80 or line.strip() == "#" + ("=" * 79):
                 break
 
             spl = line.split()
@@ -252,7 +258,7 @@ class AimsOutput(Output):
 
         return parameters
 
-    def get_basis_sets(self): ...
+    def get_basis_sets(self) -> None: ...
 
     def check_exit_normal(self) -> bool:
         """
@@ -263,10 +269,9 @@ class AimsOutput(Output):
         bool
             whether the calculation exited normally or not
         """
-
         exit_normal = False
         for i in range(1, 10):  # only read last few lines
-            if "Have a nice day." == self.lines[-i].strip():
+            if self.lines[-i].strip() == "Have a nice day.":
                 exit_normal = True
                 break
 
@@ -281,7 +286,6 @@ class AimsOutput(Output):
         npt.NDArray[np.float64]
             The average time taken per SCF iteration.
         """
-
         # Get the number of SCF iterations
         n_scf_iters = self.get_n_scf_iters()
         scf_iter_times = np.zeros(n_scf_iters)
@@ -297,12 +301,16 @@ class AimsOutput(Output):
 
     def check_geometry_optimisation_has_completed(self) -> bool:
         """
-        Checks whether present geometry is converged
+        Check whether present geometry is converged.
 
+        Returns
+        -------
+        bool
+            Whether the geometry optimisation has completed or not
         """
         geometry_optimisation_has_completed = False
-        for l in reversed(self.lines):
-            if "Present geometry is converged." in l:
+        for line in reversed(self.lines):
+            if "Present geometry is converged." in line:
                 geometry_optimisation_has_completed = True
 
         return geometry_optimisation_has_completed
@@ -310,51 +318,54 @@ class AimsOutput(Output):
     ###############################################################################
     #                                   Energies                                  #
     ###############################################################################
-    def _get_energy(
+    def _get_energy(  # noqa: PLR0912
         self,
-        n_occurrence: Union[int, None],
+        n_occurrence: int | None,
         search_string: str,
-        token_nr: Union[int, None] = None,
-        energy_invalid_indicator: Union[list, int, str, None] = None,
-        energy_valid_indicator: Union[list, int, str, None] = None,
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        token_nr: int | None = None,
+        energy_invalid_indicator: list | int | str | None = None,
+        energy_valid_indicator: list | int | str | None = None,
+    ) -> npt.NDArray[np.float64]:
         """
-        Generalized energy parser
+        Generalized energy parser.
 
         Parameters
         ----------
-        n_occurrence : Union[int, None]
-            If there are multiple energies in a file (e.g. during a geometry optimization)
-            this parameters allows to select which energy is returned.
-            If set to -1 the last one is returned (e.g. result of a geometry optimization),
-            if set to None, all values will be returned as a numpy array.
+        n_occurrence : int | None
+            If there are multiple energies in a file (e.g. during a geometry
+            optimization) this parameters allows to select which energy is returned.
+            If set to -1 the last one is returned (e.g. result of a geometry
+            optimization), if set to None, all values will be returned as a numpy array.
         search_string : str
             string to be searched in the output file
-        token_nr : Union[int, None]
+        token_nr : int | None
             take n-th element of found line
-        energy_invalid_indicator : Union[list, int, str, None] = None
-            In some cases an energy value can be found in the output file although it is invalid -> ignore this value
-            example: a line having 'restarting mixer to attempt better convergence'
-                        indicates that this scf-cycle leads to invalid energies
-        param energy_valid_indicator : Union[list, int, str, None] = None
-            In some cases the value is only valid after a certain phrase is used -> ignore all values before
-            example: The post-SCF vdW energy correction is 0.00 until the SCF is converged.
+        energy_invalid_indicator : list | int | str | None, default = None
+            In some cases an energy value can be found in the output file although it is
+            invalid -> ignore this value. For example, a line having
+            'restarting mixer to attempt better convergence' indicates that this
+            scf-cycle leads to invalid energies
+        param energy_valid_indicator : list | int | str | None, default = None
+            In some cases the value is only valid after a certain phrase is used ->
+            ignore all values before
+            example: The post-SCF vdW energy correction is 0.00 until the SCF is
+            converged.
 
         Returns
         -------
-        energies : Union[float, npt.NDArray[np.float64]]
+        energies : float | npt.NDArray[np.float64]
             Energies that have been grepped
-
         """
         skip_next_energy = (
             False  # only relevant if energy_invalid_indicator is not None
         )
         use_next_energy = False  # only relevant if energy_valid_indicator is not None
 
-        assert not (skip_next_energy and use_next_energy), (
-            "AIMSOutput._get_energy: usage of skip_next_energy and "
-            "use_next_energy at the same function call is undefined!"
-        )
+        if skip_next_energy and use_next_energy:
+            raise ValueError(
+                "AIMSOutput._get_energy: usage of skip_next_energy and "
+                "use_next_energy at the same function call is undefined!"
+            )
         # energy (in)valid indicator allows now for multiple values, if a list is
         # provided. Otherwise, everything works out as before.
         if energy_valid_indicator is not None and not isinstance(
@@ -395,20 +406,21 @@ class AimsOutput(Output):
                     pass
 
         if len(energies) == 0:
-            raise ValueError(f"Energy not found in aims.out file for {search_string}")
+            msg = f"Energy not found in aims.out file for {search_string}"
+            raise ValueError(msg)
 
         energies = np.array(energies)
 
         if n_occurrence is None:
             return energies
-        else:
-            return energies[n_occurrence]
+
+        return energies[n_occurrence]
 
     def get_change_of_total_energy(
         self,
-        n_occurrence: Union[int, None] = -1,
-        energy_invalid_indicator=None,
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: int | None = -1,
+        energy_invalid_indicator: str | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Change of total energy",
@@ -417,8 +429,8 @@ class AimsOutput(Output):
         )
 
     def get_change_of_forces(
-        self, n_occurrence=-1, energy_invalid_indicator=None
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        self, n_occurrence: int = -1, energy_invalid_indicator: str | None = None
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Change of forces",
@@ -427,8 +439,8 @@ class AimsOutput(Output):
         )
 
     def get_change_of_sum_of_eigenvalues(
-        self, n_occurrence=-1, energy_invalid_indicator=None
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        self, n_occurrence: int = -1, energy_invalid_indicator: str | None = None
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Change of sum of eigenvalues",
@@ -437,8 +449,8 @@ class AimsOutput(Output):
         )
 
     def get_change_of_charge_density(
-        self, n_occurrence=-1, energy_invalid_indicator=None
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        self, n_occurrence: int = -1, energy_invalid_indicator: str | None = None
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Change of charge density",
@@ -447,8 +459,8 @@ class AimsOutput(Output):
         )
 
     def get_maximum_force(
-        self, n_occurrence=-1, energy_invalid_indicator=None
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        self, n_occurrence: int = -1, energy_invalid_indicator: str | None = None
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Maximum force component",
@@ -458,35 +470,36 @@ class AimsOutput(Output):
 
     def get_energy_corrected(
         self,
-        n_occurrence: Union[int, None] = -1,
-        skip_E_after_mixer: bool = True,
+        n_occurrence: int | None = -1,
+        skip_E_after_mixer: bool = True,  # noqa: N803
         all_scfs: bool = False,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         """
         Return the total corrected energy.
 
         Parameters
         ----------
         n_occurrence : Union[int, None]
-            If there are multiple energies in a file (e.g. during a geometry optimization)
-            this parameters allows to select which energy is returned.
-            If set to -1 the last one is returned (e.g. result of a geometry optimization),
-            if set to None, all values will be returned as a numpy array.
+            If there are multiple energies in a file (e.g. during a geometry
+            optimization) this parameters allows to select which energy is returned.
+            If set to -1 the last one is returned (e.g. result of a geometry
+            optimization), if set to None, all values will be returned as a numpy array.
 
         skip_E_after_mixer : bool, default=True
             If the scf cycles of one geometry optimisation step didn't converge,
             aims will restart the mixer and this optimisation step.
-            However, it still prints out the total energy, which can be totally nonsense.
-            if skip_E_after_mixer==True ignore first total energy after 'restarting
-            mixer to attempt better convergence'
+            However, it still prints out the total energy, which can be totally
+            nonsense. if skip_E_after_mixer==True ignore first total energy after
+            'restarting mixer to attempt better convergence'
 
         Examples
-        ---------
+        --------
         >>> AimsOutput.get_energy_corrected()
         -2080.83225450528
         """
-
+        if energy_invalid_indicator is None:
+            energy_invalid_indicator = []
         if skip_E_after_mixer:
             energy_invalid_indicator += [
                 "restarting mixer to attempt better convergence"
@@ -494,20 +507,22 @@ class AimsOutput(Output):
 
         if all_scfs:
             return self.get_total_energy_T0(n_occurrence, skip_E_after_mixer)
-        else:
-            return self._get_energy(
-                n_occurrence,
-                search_string="| Total energy corrected",
-                energy_invalid_indicator=energy_invalid_indicator,
-                token_nr=5,
-            )
 
-    def get_total_energy_T0(
+        return self._get_energy(
+            n_occurrence,
+            search_string="| Total energy corrected",
+            energy_invalid_indicator=energy_invalid_indicator,
+            token_nr=5,
+        )
+
+    def get_total_energy_T0(  # noqa: N802
         self,
-        n_occurrence: Union[None, int] = -1,
-        skip_E_after_mixer: bool = True,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        skip_E_after_mixer: bool = True,  # noqa: N803
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
+        if energy_invalid_indicator is None:
+            energy_invalid_indicator = []
         if skip_E_after_mixer:
             energy_invalid_indicator += [
                 "restarting mixer to attempt better convergence"
@@ -522,12 +537,12 @@ class AimsOutput(Output):
 
     def get_energy_uncorrected(
         self,
-        n_occurrence: Union[None, int] = -1,
-        skip_E_after_mixer: bool = True,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        skip_E_after_mixer: bool = True,  # noqa: N803
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         """
-        Return uncorrected (without smearing correction) energy
+        Return uncorrected (without smearing correction) energy.
 
         Parameters
         ----------
@@ -537,16 +552,17 @@ class AimsOutput(Output):
         skip_E_after_mixer : bool
             If the scf cycles of one geometry optimisation step didn't converge,
             aims will restart the mixer and this optimisation step.
-            However, it still prints out the total energy, which can be totally nonsense.
-            if skip_E_after_mixer==True: ignore first total energy after 'restarting
-            mixer to attempt better convergence'
+            However, it still prints out the total energy, which can be totally
+            nonsense. if skip_E_after_mixer==True: ignore first total energy after
+            'restarting mixer to attempt better convergence'
 
         Returns
         -------
         Union[float, npt.NDArray[np.float64]]
             Uncorrected energy
         """
-
+        if energy_invalid_indicator is None:
+            energy_invalid_indicator = []
         if skip_E_after_mixer:
             energy_invalid_indicator += [
                 "restarting mixer to attempt better convergence"
@@ -561,9 +577,11 @@ class AimsOutput(Output):
 
     def get_energy_without_vdw(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
+        if energy_invalid_indicator is None:
+            energy_invalid_indicator = []
         energy = self.get_energy_corrected(
             n_occurrence=n_occurrence,
             energy_invalid_indicator=energy_invalid_indicator,
@@ -574,15 +592,13 @@ class AimsOutput(Output):
             energy_invalid_indicator=energy_invalid_indicator,
         )
 
-        energy_without_vdw = energy - energy_vdw
+        return energy - energy_vdw
 
-        return energy_without_vdw
-
-    def get_HOMO_energy(
+    def get_HOMO_energy(  # noqa: N802
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Highest occupied state",
@@ -590,11 +606,11 @@ class AimsOutput(Output):
             energy_invalid_indicator=energy_invalid_indicator,
         )
 
-    def get_LUMO_energy(
+    def get_LUMO_energy(  # noqa: N802
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "Lowest unoccupied state",
@@ -604,26 +620,25 @@ class AimsOutput(Output):
 
     def get_vdw_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         search_keyword = "| vdW energy correction"
         token_nr = None
 
-        result = self._get_energy(
+        return self._get_energy(
             n_occurrence,
             search_keyword,
             token_nr=token_nr,
             energy_invalid_indicator=energy_invalid_indicator,
             energy_valid_indicator="Self-consistency cycle converged",
         )
-        return result
 
     def get_exchange_correlation_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| XC energy correction",
@@ -632,9 +647,9 @@ class AimsOutput(Output):
 
     def get_electrostatic_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Electrostatic energy ",
@@ -643,9 +658,9 @@ class AimsOutput(Output):
 
     def get_kinetic_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Kinetic energy ",
@@ -654,9 +669,9 @@ class AimsOutput(Output):
 
     def get_sum_of_eigenvalues(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Sum of eigenvalues  ",
@@ -665,9 +680,9 @@ class AimsOutput(Output):
 
     def get_cx_potential_correction(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| XC potential correction",
@@ -676,9 +691,9 @@ class AimsOutput(Output):
 
     def get_free_atom_electrostatic_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Free-atom electrostatic energy:",
@@ -688,9 +703,9 @@ class AimsOutput(Output):
 
     def get_entropy_correction(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Entropy correction ",
@@ -699,9 +714,9 @@ class AimsOutput(Output):
 
     def get_hartree_energy_correction(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         return self._get_energy(
             n_occurrence,
             "| Hartree energy correction",
@@ -710,11 +725,10 @@ class AimsOutput(Output):
 
     def get_ionic_embedding_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
-        """The energy of the nuclei in the potential of the external electric
-        field."""
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
+        """Energy of the nuclei in the electric field."""
         return self._get_energy(
             n_occurrence,
             "| Ionic    embedding energy",
@@ -723,11 +737,10 @@ class AimsOutput(Output):
 
     def get_density_embedding_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
-        """The energy of the electrons (electron density) in the potential of
-        the external electric field."""
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
+        """Energy of the electrons in the electric field."""
         return self._get_energy(
             n_occurrence,
             "| Density  embedding energy",
@@ -736,14 +749,10 @@ class AimsOutput(Output):
 
     def get_nonlocal_embedding_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
-        """
-        Energy of non local electron interaction (i think?) in the potential
-        of the electric field.
-
-        """
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
+        """Energy of non local electron interaction in the electric field."""
         return self._get_energy(
             n_occurrence,
             "| Nonlocal embedding energy",
@@ -752,13 +761,13 @@ class AimsOutput(Output):
 
     def get_external_embedding_energy(
         self,
-        n_occurrence: Union[None, int] = -1,
-        energy_invalid_indicator: list[str] = [],
-    ) -> Union[float, npt.NDArray[np.float64]]:
+        n_occurrence: None | int = -1,
+        energy_invalid_indicator: list[str] | None = None,
+    ) -> float | npt.NDArray[np.float64]:
         """
-        This is the sum of all the embedding energies.
-        I.e. ionic + (electronic) density + nonlocal.
+        Sum of all the embedding energies.
 
+        Ionic + (electronic) density + nonlocal.
         """
         return self._get_energy(
             n_occurrence,
@@ -766,18 +775,13 @@ class AimsOutput(Output):
             energy_invalid_indicator=energy_invalid_indicator,
         )
 
-    def get_forces(
-        self, n_occurrence: Union[None, int] = -1
-    ) -> npt.NDArray[np.float64]:
-        """
-        Return forces on all atoms
-
-        """
+    def get_forces(self, n_occurrence: None | int = -1) -> npt.NDArray[np.float64]:
+        """Return forces on all atoms."""
         natoms = self.get_number_of_atoms()
         all_force_values = []
 
-        for j, l in enumerate(self.lines):
-            if "Total atomic forces" in l:
+        for j, line in enumerate(self.lines):
+            if "Total atomic forces" in line:
                 force_values = np.ones([natoms, 3]) * np.nan
                 for i in range(natoms):
                     force_values[i, :] = [
@@ -786,29 +790,34 @@ class AimsOutput(Output):
                 all_force_values.append(np.array(force_values))
 
         if len(all_force_values) == 0:
-            raise ValueError(f"Forces not found in {self.path} file")
+            msg = f"Forces not found in {self.path} file"
+            raise ValueError(msg)
 
         if n_occurrence is None:
             return np.array(all_force_values)
-        else:
-            return all_force_values[n_occurrence]
 
-    def get_vdw_forces(self, nr_of_occurrence=-1):
+        return all_force_values[n_occurrence]
+
+    def get_vdw_forces(self, nr_of_occurrence: int = -1) -> dict:
         components_of_gradients = self.get_force_components()
 
         return components_of_gradients["van_der_waals"]
+
         # TODO: implement occurences
         # if nr_of_occurrence is None:
         #     return components_of_gradients["van_der_waals"]
         # else:
         #     return components_of_gradients["van_der_waals"][nr_of_occurrence]
 
-    def get_forces_without_vdw(self, nr_of_occurrence=-1):
+    def get_forces_without_vdw(
+        self, nr_of_occurrence: int = -1
+    ) -> npt.NDArray[np.float64]:
         """
-        Return the uncleaned forces with the vdW component. Note that for the
-        final output, which you get when envoding self.get_forces() you get the
-        cleaned forces. Look up "final_forces_cleaned" in the AIMS manual for
-        more info.
+        Return the uncleaned forces with the vdW component.
+
+        For the final output, which you get when envoding `self.get_forces()` you get
+        the cleaned forces. Look up "final_forces_cleaned" in the AIMS manual for more
+        info.
 
         Parameters
         ----------
@@ -817,27 +826,26 @@ class AimsOutput(Output):
 
         Returns
         -------
-        gradients_without_vdW : np.array
-
+        gradients_without_vdW : npt.NDArray
         """
         components_of_gradients = self.get_force_components()
 
-        gradients_without_vdW = (
+        return (
             components_of_gradients["total"] - components_of_gradients["van_der_waals"]
         )
 
-        return gradients_without_vdW
         # TODO: implement occurences
         # if nr_of_occurrence is None:
         #     return gradients_without_vdW
         # else:
         #     return gradients_without_vdW[nr_of_occurrence]
 
-    def get_force_components(self, nr_of_occurrence=-1):
+    def get_force_components(self) -> dict:
         """
-        Return the force component specified in "component"
-        for all atoms.
-        (Hellmann-Feynman, Ionic forces, Multipole, Pulay + GGA, Van der Waals, Total forces)
+        Return the force component specified in "component" for all atoms.
+
+        Hellmann-Feynman, Ionic forces, Multipole, Pulay + GGA, Van der Waals, Total
+        forces.
         """
         number_of_atoms = self.get_number_of_atoms()
 
@@ -888,7 +896,6 @@ class AimsOutput(Output):
         bool
             Whether the calculation was spin polarised or not
         """
-
         spin_polarised = False
 
         for line in self.lines:
@@ -913,7 +920,6 @@ class AimsOutput(Output):
         dict
             The convergence parameters from the aims.out file
         """
-
         # Setup dictionary to store convergence parameters
         self.convergence_params = {
             "charge_density": 0.0,
@@ -925,13 +931,13 @@ class AimsOutput(Output):
         for line in self.lines:
             spl = line.split()
             if len(spl) > 1:
-                if "accuracy" == spl[1] and "charge density" in line:
+                if spl[1] == "accuracy" and "charge density" in line:
                     self.convergence_params["charge_density"] = float(spl[-1])
-                if "accuracy" == spl[1] and "sum of eigenvalues" in line:
+                if spl[1] == "accuracy" and "sum of eigenvalues" in line:
                     self.convergence_params["sum_eigenvalues"] = float(spl[-1])
-                if "accuracy" == spl[1] and "total energy" in line:
+                if spl[1] == "accuracy" and "total energy" in line:
                     self.convergence_params["total_energy"] = float(spl[-1])
-                if "accuracy" == spl[1] and "forces:" == spl[3]:
+                if spl[1] == "accuracy" and spl[3] == "forces:":
                     self.convergence_params["total_force"] = float(spl[-1])
 
                 # No more values to get after SCF starts
@@ -940,7 +946,7 @@ class AimsOutput(Output):
 
         return self.convergence_params
 
-    def get_final_energy(self) -> Union[float, None]:
+    def get_final_energy(self) -> float | None:
         """
         Get the final energy from a FHI-aims calculation.
 
@@ -949,12 +955,13 @@ class AimsOutput(Output):
         Union[float, None]
             The final energy of the calculation
         """
-
         for line in self.lines:
             if "s.c.f. calculation      :" in line:
                 return float(line.split()[-2])
 
-    def get_final_spin_moment(self) -> Union[tuple, None]:
+        return None
+
+    def get_final_spin_moment(self) -> tuple | None:
         """
         Get the final spin moment from a FHI-aims calculation.
 
@@ -963,27 +970,28 @@ class AimsOutput(Output):
         Union[tuple, None]
             The final spin moment of the calculation, if it exists
         """
-
-        N, S, J = None, None, None
+        n, s, j = None, None, None
 
         # Iterate through the lines in reverse order to find the final spin moment
         for i, line in enumerate(reversed(self.lines)):
             if "Current spin moment of the entire structure :" in line:
                 if len(self.lines[-1 - i + 3].split()) > 0:
-                    N = float(self.lines[-1 - i + 1].split()[-1])
-                    S = float(self.lines[-1 - i + 2].split()[-1])
-                    J = float(self.lines[-1 - i + 3].split()[-1])
+                    n = float(self.lines[-1 - i + 1].split()[-1])
+                    s = float(self.lines[-1 - i + 2].split()[-1])
+                    j = float(self.lines[-1 - i + 3].split()[-1])
 
-                    return N, S, J
+                    return n, s, j
 
-                else:  # Non-gamma point periodic calculation
-                    N = float(self.lines[-1 - i + 1].split()[-1])
-                    S = float(self.lines[-1 - i + 2].split()[-1])
+                # Non-gamma point periodic calculation
+                n = float(self.lines[-1 - i + 1].split()[-1])
+                s = float(self.lines[-1 - i + 2].split()[-1])
 
-                    return N, S
+                return n, s
 
-        if N is None or S is None:
+        if n is None or s is None:
             return None
+
+        return None
 
     def get_n_relaxation_steps(self) -> int:
         """
@@ -994,7 +1002,6 @@ class AimsOutput(Output):
         int
             the number of relaxation steps
         """
-
         n_relax_steps = 0
         for line in reversed(self.lines):
             if "Number of relaxation steps" in line:
@@ -1003,7 +1010,7 @@ class AimsOutput(Output):
             # If the calculation did not finish normally, the number of relaxation steps
             # will not be printed. In this case, count each relaxation step as they were
             # calculated by checking when the SCF cycle converged.
-            if "Self-consistency cycle converged." == line.strip():
+            if line.strip() == "Self-consistency cycle converged.":
                 n_relax_steps += 1
 
         return n_relax_steps
@@ -1017,7 +1024,6 @@ class AimsOutput(Output):
         int
             The number of scf iterations
         """
-
         n_scf_iters = 0
         for line in reversed(self.lines):
             if "Number of self-consistency cycles" in line:
@@ -1040,7 +1046,6 @@ class AimsOutput(Output):
         dict
             The scf convergence accuracy values from the aims.out file
         """
-
         # Read the total number of SCF iterations
         n_scf_iters = self.get_n_scf_iters()
         n_relax_steps = self.get_n_relaxation_steps() + 1
@@ -1053,13 +1058,13 @@ class AimsOutput(Output):
             "change_of_charge_spin_density": np.zeros(n_scf_iters),
             "change_of_sum_eigenvalues": np.zeros(n_scf_iters),
             "change_of_total_energy": np.zeros(n_scf_iters),
-            # "change_of_forces": np.zeros(n_relax_steps),
+            # "change_of_forces": np.zeros(n_relax_steps),  # noqa: ERA001
             "forces_on_atoms": np.zeros(n_relax_steps),
         }
 
         current_scf_iter = 0
         current_relax_step = 0
-        # new_scf_iter = True
+        # new_scf_iter = True  # noqa: ERA001
 
         for line in self.lines:
             spl = line.split()
@@ -1113,10 +1118,10 @@ class AimsOutput(Output):
                 #             current_relax_step - 1
                 #         ] = float(spl[-2])
 
-                #         new_scf_iter = False
+                #         new_scf_iter = False  # noqa: ERA001
 
                 #     elif (
-                #         float(spl[-2])
+                #         float(spl[-2])  # noqa: ERA001
                 #         < self.scf_conv_acc_params["change_of_forces"][-1]
                 #     ):
                 #         self.scf_conv_acc_params["change_of_forces"][
@@ -1129,7 +1134,7 @@ class AimsOutput(Output):
                     ] = float(spl[-2])
 
                 if line.strip() == "Self-consistency cycle converged.":
-                    # new_scf_iter = True
+                    # new_scf_iter = True  # noqa: ERA001
                     current_relax_step += 1
 
         return self.scf_conv_acc_params
@@ -1154,21 +1159,22 @@ class AimsOutput(Output):
         ValueError
             No KS states found in aims.out file
         """
-
         target_line = "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
 
         init_ev_start = 0
-        n_ks_states = 0
 
         # Find the first time the KS states are printed
-        for init_ev_start, line in enumerate(self.lines):
+        for line in self.lines:
             if target_line == line.strip():
                 init_ev_start += 1
                 break
 
+        n_ks_states = 0
+
         # Then count the number of lines until the next empty line
-        for n_ks_states, line in enumerate(self.lines[init_ev_start:]):
+        for i, line in enumerate(self.lines[init_ev_start:]):
             if len(line) <= 1:
+                n_ks_states = i
                 break
 
         if n_ks_states == 0:
@@ -1187,7 +1193,8 @@ class AimsOutput(Output):
 
             else:  # If SD states are not found 4 lines below end of SU states
                 warnings.warn(
-                    "A spin polarised calculation was expected but not found."
+                    "A spin polarised calculation was expected but not found.",
+                    stacklevel=2,
                 )
 
         return n_ks_states
@@ -1209,7 +1216,6 @@ class AimsOutput(Output):
         n_ks_states : int
             The number of KS states to save.
         """
-
         if (
             eigenvalues["state"].ndim == 1
             or eigenvalues["occupation"].ndim == 1
@@ -1230,16 +1236,16 @@ class AimsOutput(Output):
                 eigenvalues["occupation"][scf_iter][i] = float(values[1])
                 eigenvalues["eigenvalue_eV"][scf_iter][i] = float(values[3])
 
-    def get_all_ks_eigenvalues(self) -> Union[dict, Tuple[dict, dict]]:
+    def get_all_ks_eigenvalues(self) -> dict | tuple[dict, dict]:
         """
         Get all Kohn-Sham eigenvalues from a calculation.
 
         Returns
         -------
-        Union[dict, Tuple[dict, dict]]
+        dict | tuple[dict, dict]
             dict
                 the kohn-sham eigenvalues
-            Tuple[dict, dict]
+            tuple[dict, dict]
                 dict
                     the spin-up kohn-sham eigenvalues
                 dict
@@ -1252,7 +1258,6 @@ class AimsOutput(Output):
         ValueError
             could not determine if the calculation was spin polarised
         """
-
         # Check if the calculation was spin polarised
         spin_polarised = self.check_spin_polarised()
 
@@ -1286,7 +1291,7 @@ class AimsOutput(Output):
 
             return eigenvalues
 
-        elif spin_polarised:
+        if spin_polarised:
             su_eigenvalues = {
                 "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
                 "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
@@ -1322,18 +1327,17 @@ class AimsOutput(Output):
 
             return su_eigenvalues, sd_eigenvalues
 
-        else:
-            raise ValueError("Could not determine if calculation was spin polarised.")
+        raise ValueError("Could not determine if calculation was spin polarised.")
 
-    def get_final_ks_eigenvalues(self) -> Union[dict, Tuple[dict, dict]]:
+    def get_final_ks_eigenvalues(self) -> dict | tuple[dict, dict]:
         """Get the final Kohn-Sham eigenvalues from a calculation.
 
         Returns
         -------
-        Union[dict, Tuple[dict, dict]]
+        dict | tuple[dict, dict]
             dict
                 the final kohn-sham eigenvalues
-            Tuple[dict, dict]
+            tuple[dict, dict]
                 dict
                     the spin-up kohn-sham eigenvalues
                 dict
@@ -1346,7 +1350,6 @@ class AimsOutput(Output):
         ValueError
             the final KS states were not found in aims.out file
         """
-
         # Check if the calculation was spin polarised
         spin_polarised = self.check_spin_polarised()
 
@@ -1377,7 +1380,7 @@ class AimsOutput(Output):
 
             return eigenvalues
 
-        elif spin_polarised:
+        if spin_polarised:
             su_eigenvalues = {
                 "state": np.zeros((n_ks_states), dtype=int),
                 "occupation": np.zeros((n_ks_states), dtype=float),
@@ -1398,8 +1401,7 @@ class AimsOutput(Output):
 
             return su_eigenvalues, sd_eigenvalues
 
-        else:
-            raise ValueError("Could not determine if calculation was spin polarised.")
+        raise ValueError("Could not determine if calculation was spin polarised.")
 
     def get_pert_soc_ks_eigenvalues(self) -> dict:
         """
@@ -1415,7 +1417,6 @@ class AimsOutput(Output):
         ValueError
             the final KS states were not found in aims.out file
         """
-
         # Get the number of KS states
         n_ks_states = self.get_n_initial_ks_states()
 
@@ -1475,19 +1476,18 @@ class ELSIOutput(Output):
         Number of non-zero elements in the matrix
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, elsi_csc: str):
+        super().__init__(elsi_csc=elsi_csc)
 
     def get_elsi_csc_header(self) -> npt.NDArray[np.int64]:
         """
-        Get the contents of the ELSI file header
+        Get the contents of the ELSI file header.
 
         Returns
         -------
-        tuple
+        npt.NDArray[np.int64]
             The contents of the ELSI csc file header
         """
-
         return np.frombuffer(self.data[0:128], dtype=np.int64)
 
     @property
@@ -1500,9 +1500,9 @@ class ELSIOutput(Output):
 
     def read_elsi_as_csc(
         self, csc_format: bool = False
-    ) -> Union[sp.csc_matrix, npt.NDArray[np.float64]]:
+    ) -> sp.csc_array | npt.NDArray[np.float64]:
         """
-        Get a CSC matrix from an ELSI output file
+        Get a CSC matrix from an ELSI output file.
 
         Parameters
         ----------
@@ -1511,10 +1511,9 @@ class ELSIOutput(Output):
 
         Returns
         -------
-        Tuple[sp.csc_matrix, np.ndarray]
+        tuple[sp.csc_matrix, npt.NDArray]
             The CSC matrix or numpy array
         """
-
         header = self.get_elsi_csc_header()
 
         # Get the column pointer
@@ -1541,9 +1540,13 @@ class ELSIOutput(Output):
             )
 
         if csc_format:
-            return sp.csc_array((nnz, row_i, col_i), shape=(self.n_basis, self.n_basis))
+            csc_arr = sp.csc_array(
+                (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
+            )
 
         else:
-            return sp.csc_array(
+            csc_arr = sp.csc_array(
                 (nnz, row_i, col_i), shape=(self.n_basis, self.n_basis)
             ).toarray()
+
+        return csc_arr

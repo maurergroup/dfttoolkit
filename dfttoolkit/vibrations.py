@@ -1,77 +1,84 @@
 import copy
 import functools
 import multiprocessing as mp
-import os
-from typing import List, Tuple, Union
+import sys
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
-from scipy.signal import argrelextrema
 
-import dfttoolkit.utils.units as units
-import dfttoolkit.utils.vibrations_utils as vu
-from dfttoolkit.geometry import AimsGeometry, VaspGeometry
+from .geometry import AimsGeometry, VaspGeometry
+from .utils import units
+from .utils import vibrations_utils as vu
 
 
 class Vibrations:
+    """TODO."""
+
     def __init__(self):
         # TODO This is currently a placeholder and should be developed further
         self.wave_vector = np.array([0.0, 0.0, 0.0])
-        self._vibration_coords = None
-        self._vibration_forces = None
+        self._vibration_coords = []
+        self._vibration_forces = []
 
-    def get_instance_of_other_type(self, vibrations_type):
+    def get_instance_of_other_type(
+        self, vibrations_type: str
+    ) -> "AimsVibrations | VaspVibrations":
         if vibrations_type == "aims":
             new_vibration = AimsVibrations()
-        if vibrations_type == "vasp":
+        elif vibrations_type == "vasp":
             new_vibration = VaspVibrations()
+        else:
+            msg = f"Unsupported vibration type: {vibrations_type}"
+            raise ValueError(msg)
 
         new_vibration.__dict__ = self.__dict__
+
         return new_vibration
 
     @property
-    def vibration_coords(self):
+    def vibration_coors(self) -> list[npt.NDArray[np.float64]]:
         return self._vibration_coords
 
-    @vibration_coords.setter
-    def vibration_coords(self, vibration_coords: List[npt.NDArray[np.float64]]):
+    @vibration_coors.setter
+    def vibration_coors(self, vibration_coords: list[npt.NDArray[np.float64]]) -> None:
         self._vibration_coords = vibration_coords
 
     @property
-    def vibration_forces(self):
+    def vibration_forces(self) -> list[npt.NDArray[np.float64]]:
         return self._vibration_forces
 
     @vibration_forces.setter
-    def vibration_forces(self, vibration_forces: List[npt.NDArray[np.float64]]):
+    def vibration_forces(self, vibration_forces: list[npt.NDArray[np.float64]]) -> None:
         self._vibration_forces = vibration_forces
 
     @property
-    def hessian(self):
+    def hessian(self) -> npt.NDArray[np.float64]:
         return self._hessian
 
     @hessian.setter
-    def hessian(self, hessian: npt.NDArray[np.float64]):
+    def hessian(self, hessian: npt.NDArray[np.float64]) -> None:
         self._hessian = hessian
 
     @property
-    def eigenvalues(self):
+    def eigenvalues(self) -> npt.NDArray[np.float64]:
         return self._eigenvalues
 
     @eigenvalues.setter
-    def eigenvalues(self, eigenvalues: npt.NDArray[np.float64]):
+    def eigenvalues(self, eigenvalues: npt.NDArray[np.float64]) -> None:
         self._eigenvalues = eigenvalues
 
     @property
-    def eigenvectors(self):
+    def eigenvectors(self) -> npt.NDArray[np.float64]:
         return self._eigenvectors
 
     @eigenvectors.setter
-    def eigenvectors(self, eigenvectors: npt.NDArray[np.float64]):
+    def eigenvectors(self, eigenvectors: npt.NDArray[np.float64]) -> None:
         self._eigenvectors = eigenvectors
 
     def get_displacements(self, displacement: float = 0.0025) -> list:
         """
-        Applies a given displacement for each degree of freedom of self and
+        Apply a given displacement for each degree of freedom of self and
         generates a new vibration with it.
 
         Parameters
@@ -85,7 +92,7 @@ class Vibrations:
         list
             List of geometries where atoms have been displaced.
 
-        """
+        """  # noqa: D205
         geometries_displaced = [self]
 
         directions = [-1, 1]
@@ -113,7 +120,6 @@ class Vibrations:
         -------
         mass_tensor : np.array
             Mass tensor in atomic units.
-
         """
         mass_vector = [
             self.periodic_table.get_atomic_mass(s)  # pyright:ignore
@@ -122,16 +128,16 @@ class Vibrations:
         mass_vector = np.repeat(mass_vector, 3)
 
         mass_tensor = np.tile(mass_vector, (len(mass_vector), 1))
-        mass_tensor = np.sqrt(mass_tensor * mass_tensor.T)
 
-        return mass_tensor
+        return np.sqrt(mass_tensor * mass_tensor.T)
 
     def get_hessian(
         self, set_constrained_atoms_zero: bool = False
     ) -> npt.NDArray[np.float64]:
         """
-        Calculates the Hessian from the forces. This includes the atmoic masses
-        since F = m*a.
+        Calculate the Hessian from the forces.
+
+        This includes the atomic masses since F = m*a.
 
         Parameters
         ----------
@@ -142,25 +148,23 @@ class Vibrations:
         -------
         H : np.array
             Hessian.
-
         """
-        N = len(self) * 3  # pyright:ignore
-        H = np.zeros([N, N])
+        N = len(self) * 3  # pyright:ignore  # noqa: N806
+        H = np.zeros([N, N])  # noqa: N806
 
-        assert np.allclose(
-            self.coords,
-            self.vibration_coords[0],  # pyright:ignore
-        ), (
-            "The first entry in vibration_coords must be identical to the undispaced geometry."
-        )
+        if not np.allclose(self.coors, self.vibration_coors[0]):  # pyright:ignore
+            raise ValueError(
+                "The first entry in vibration_coords must be identical to the "
+                "undispaced geometry."
+            )
 
-        coords_0 = self.vibration_coords[0].flatten()
-        F_0 = self.vibration_forces[0].flatten()
+        coords_0 = self.vibration_coors[0].flatten()
+        F_0 = self.vibration_forces[0].flatten()  # noqa: N806
 
         n_forces = np.zeros(N, np.int64)
 
-        for c, F in zip(self.vibration_coords, self.vibration_forces):
-            dF = F.flatten() - F_0
+        for c, F in zip(self.vibration_coors, self.vibration_forces):  # noqa: N806
+            dF = F.flatten() - F_0  # noqa: N806
             dx = c.flatten() - coords_0
             ind = np.argmax(np.abs(dx))
             n_forces[ind] += 1
@@ -181,28 +185,31 @@ class Vibrations:
             H[:, constrained] = 0
 
         self.hessian = H
+
         return H
 
-    def get_symmetrized_hessian(self, hessian=None):
+    def get_symmetrized_hessian(
+        self, hessian: npt.NDArray[np.float64] | None = None
+    ) -> npt.NDArray[np.float64]:
         """
-        Symmetrieses the Hessian by using the lower triangular matrix
+        Symmetrieses the Hessian by using the lower triangular matrix.
 
         Parameters
         ----------
-        hessian : TYPE, default=None
-            DESCRIPTION
+        hessian : npt.NDArray[np.float64] | None, default=None
+            Hessian matrix to be symmetrized. If None, the Hessian of the object
 
         Returns
         -------
-        None.
-
+        npt.NDArray[np.float64]
+            Symmetrized Hessian matrix.
         """
         if hessian is None:
             hessian = copy.deepcopy(self.hessian)
 
         hessian_new = hessian + hessian.T
 
-        all_inds = list(range(len(self) * 3))
+        all_inds = list(range(len(self) * 3))  # pyright:ignore
 
         constrain = self.constrain_relax.flatten()  # pyright:ignore
         constrained_inds = [i for i, c in enumerate(constrain) if c]
@@ -215,18 +222,18 @@ class Vibrations:
                 hessian_new[i, j] *= 0.5
 
         return hessian_new
-        # self.hessian = (h+np.transpose(h))/2
 
     def get_eigenvalues_and_eigenvectors(
         self,
-        hessian: Union[npt.NDArray[np.float64], None] = None,
+        hessian: npt.NDArray[np.float64] | None = None,
         only_real: bool = True,
         symmetrize_hessian: bool = True,
         eigenvectors_to_cartesian: bool = False,
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        This function is supposed to return all eigenvalues and eigenvectors of
-        the matrix self.hessian. Note that the eigenvectors are mass weighted.
+        Get all eigenvalues and eigenvectors of the hessian.
+
+        Note that the eigenvectors are mass weighted.
 
         Parameters
         ----------
@@ -248,20 +255,18 @@ class Vibrations:
             Mass weighted eigenvectors of the Hessian given as a list of numpy
             arrays, where each array is a normalized displacement for the
             corresponding eigenfrequency.
-
         """
         if symmetrize_hessian:
             hessian = self.get_symmetrized_hessian(hessian=hessian)
         elif hessian is None:
             hessian = copy.deepcopy(self.hessian)
 
-        assert hasattr(self, "hessian") and hessian is not None, (
-            "Hessian must be given to calculate the Eigenvalues!"
-        )
+        if not hasattr(self, "hessian") or hessian is None:
+            raise ValueError("Hessian must be given to calculate the Eigenvalues!")
 
-        M = 1 / self.get_mass_tensor()
+        M = 1 / self.get_mass_tensor()  # noqa: N806
 
-        omega2, X = np.linalg.eig(M * hessian)
+        omega2, X = np.linalg.eig(M * hessian)  # noqa: N806
 
         # only real valued eigen modes
         if only_real:
@@ -271,7 +276,7 @@ class Vibrations:
             mask = np.logical_and(real_mask, min_mask)
 
             omega2 = np.real(omega2[mask])
-            X = np.real(X[:, mask])
+            X = np.real(X[:, mask])  # noqa: N806
 
         eigenvectors = [column.reshape(-1, 3) for column in X.T]
 
@@ -285,45 +290,41 @@ class Vibrations:
 
         # Convert eigenvector to Cartesian coordinates
         if eigenvectors_to_cartesian:
-            m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T
+            m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
 
             for index in range(len(eigenvectors)):
                 eigenvectors[index] /= m
 
         return omega2, eigenvectors
 
-    def get_eigenvalues_in_Hz(
-        self, omega2: Union[None, npt.NDArray[np.float64]] = None
+    def get_eigenvalues_in_Hz(  # noqa: N802
+        self, omega2: npt.NDArray[np.float64] | None = None
     ) -> npt.NDArray[np.float64]:
         """
         Determine angular vibration frequencies in Hz.
 
         Parameters
         ----------
-        omega2 : Union[None, np.array]
+        omega2 : npt.NDArray[np.float64] | None, default=None
             Eigenvalues of the mass weighted hessian.
 
         Returns
         -------
         omega_SI : np.array
             Array of the eigenfrequencies in Hz.
-
         """
         if omega2 is None:
             omega2 = self.get_eigenvalues_and_eigenvectors()[0]
-            # omega2 = self.eigenvalues
 
         omega = np.sign(omega2) * np.sqrt(np.abs(omega2))  # pyright:ignore
 
         conversion = np.sqrt(
             (units.EV_IN_JOULE) / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
         )
-        omega_SI = omega * conversion
-
-        return omega_SI
+        return omega * conversion
 
     def get_eigenvalues_in_inverse_cm(
-        self, omega2: Union[None, npt.NDArray[np.float64]] = None
+        self, omega2: npt.NDArray[np.float64] | None = None
     ) -> npt.NDArray[np.float64]:
         """
         Determine vibration frequencies in cm^-1.
@@ -337,22 +338,17 @@ class Vibrations:
         -------
         f_inv_cm : np.array
             Array of the eigenfrequencies in cm^(-1).
-
         """
-        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
-        f_inv_cm = omega_SI * units.INVERSE_CM_IN_HZ / (2 * np.pi)
+        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)  # noqa: N806
+        return omega_SI * units.INVERSE_CM_IN_HZ / (2 * np.pi)
 
-        return f_inv_cm
-
-    def get_eigenvalues_in_eV(
-        self, omega2: Union[None, npt.NDArray[np.float64]] = None
+    def get_eigenvalues_in_eV(  # noqa: N802
+        self, omega2: npt.NDArray[np.float64] | None = None
     ) -> npt.NDArray[np.float64]:
-        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
-        eV = omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
+        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)  # noqa: N806
+        return omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
 
-        return eV
-
-    def get_atom_type_index(self):
+    def get_atom_type_index(self) -> npt.NDArray[np.int64]:
         n_atoms = len(self)  # pyright:ignore
 
         # Tolerance for accepting equivalent atoms in super cell
@@ -372,11 +368,9 @@ class Vibrations:
                 coordinates_atom_j = self.coords[j]  # pyright:ignore
 
                 difference_in_cell_coordinates = np.around(
-                    (
-                        np.dot(
-                            primitive_cell_inverse.T,
-                            (coordinates_atom_j - coordinates_atom_i),
-                        )
+                    np.dot(
+                        primitive_cell_inverse.T,
+                        (coordinates_atom_j - coordinates_atom_i),
                     )
                 )
 
@@ -392,9 +386,7 @@ class Vibrations:
                 if separation < tolerance and masses[i] == masses[j]:
                     atom_type_index[j] = atom_type_index[i]
 
-        atom_type_index = np.array(atom_type_index, dtype=int)
-
-        return atom_type_index
+        return np.array(atom_type_index, dtype=int)
 
     def get_velocity_mass_average(
         self, velocities: npt.NDArray[np.float64]
@@ -410,7 +402,6 @@ class Vibrations:
         -------
         velocities_mass_average : np.array
             Velocities weighted by atomic masses.
-
         """
         velocities_mass_average = np.zeros_like(velocities)
 
@@ -445,14 +436,13 @@ class Vibrations:
 
         if wave_vector.shape[0] != coordinates.shape[1]:
             print("Warning!! Q-vector and coordinates dimension do not match")
-            exit()
+            sys.exit()
 
         # Projection onto the wave vector
         for i in range(number_of_atoms):
             # Projection on atom
-            if project_on_atom > -1:
-                if atom_type[i] != project_on_atom:
-                    continue
+            if project_on_atom > -1 and atom_type[i] != project_on_atom:
+                continue
 
             for k in range(number_of_dimensions):
                 velocities_projected[:, atom_type[i], k] += velocities[
@@ -467,13 +457,14 @@ class Vibrations:
 
     def get_normal_mode_decomposition(
         self,
-        velocities: npt.NDArray[np.float64],
+        velocities: npt.NDArray,
         use_numba: bool = True,
-    ) -> npt.NDArray[np.float64]:
+    ) -> npt.NDArray:
         """
-        Calculate the normal-mode-decomposition of the velocities. This is done
-        by projecting the atomic velocities onto the vibrational eigenvectors.
-        See equation 10 in: https://doi.org/10.1016/j.cpc.2017.08.017
+        Calculate the normal-mode-decomposition of the velocities.
+
+        This is done by projecting the atomic velocities onto the vibrational
+        eigenvectors. See equation 10 in: https://doi.org/10.1016/j.cpc.2017.08.017
 
         Parameters
         ----------
@@ -487,19 +478,16 @@ class Vibrations:
         velocities_projected : npt.NDArray[np.float64]
             Velocities projected onto the eigenvectors structured as follows:
             [number of time steps, number of frequencies]
-
         """
         velocities = np.array(velocities, dtype=np.complex128)
 
         velocities_mass_averaged = self.get_velocity_mass_average(velocities)
 
-        velocities_projected = vu.get_normal_mode_decomposition(
+        return vu.get_normal_mode_decomposition(
             velocities_mass_averaged,
             self.eigenvectors,
             use_numba=use_numba,
         )
-
-        return velocities_projected
 
     def get_cross_spectrum(
         self,
@@ -510,8 +498,10 @@ class Vibrations:
         bootstrapping_overlap: int = 0,
         cutoff_at_last_maximum: bool = True,
         window_function: str = "hann",
-    ):
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
+        PLACEHOLDE.
+
         Parameters
         ----------
         velocities : npt.NDArray[np.float64]
@@ -524,7 +514,7 @@ class Vibrations:
         bootstrapping_blocks : int, optional
             DESCRIPTION. The default is 1.
         bootstrapping_overlap : int, optional
-            DESCRIOTION. The default is 0.
+            DESCRIPTION. The default is 0.
 
         Returns
         -------
@@ -532,7 +522,6 @@ class Vibrations:
             DESCRIPTION.
         cross_spectrum : np.array
             DESCRIPTION.
-
         """
         index_0, index_1 = index_pair
 
@@ -558,10 +547,11 @@ class Vibrations:
         bootstrapping_blocks: int = 1,
         bootstrapping_overlap: int = 0,
         model_order: int = 15,
-        processes=1,
-        frequency_cutoff=None,
-        dirname="cross_spectrum",
-    ):
+        processes: int = 1,
+        frequency_cutoff: float | None = None,
+        dirname: Path = Path("cross_spectrum"),
+    ) -> None:
+        """TODO."""
         velocities_proj = self.get_normal_mode_decomposition(velocities)
 
         n_points = len(self.eigenvectors)
@@ -572,7 +562,7 @@ class Vibrations:
                 velocities_proj[:, 0],
                 time_step,
                 model_order,
-                n_freqs=int(len(velocities_proj)),
+                n_freqs=len(velocities_proj),
             )[0]
         else:
             frequencies = vu.get_cross_spectrum(
@@ -583,16 +573,16 @@ class Vibrations:
                 bootstrapping_overlap=bootstrapping_overlap,
             )[0]
 
-        if not os.path.isdir(dirname):
-            os.mkdir(dirname)
+        if not dirname.is_dir():
+            dirname.mkdir()
 
         cutoff = -1
         if frequency_cutoff is not None:
             f_inv_cm = frequencies * units.INVERSE_CM_IN_HZ
-            L = f_inv_cm < frequency_cutoff
+            L = f_inv_cm < frequency_cutoff  # noqa: N806
             cutoff = np.sum(L)
 
-        np.savetxt(os.path.join(dirname, "frequencies.csv"), frequencies[:cutoff])
+        np.savetxt(dirname / "frequencies.csv", frequencies[:cutoff])
 
         index = []
         for index_0 in range(n_points):
@@ -610,7 +600,7 @@ class Vibrations:
             bootstrapping_blocks=bootstrapping_blocks,
             bootstrapping_overlap=bootstrapping_overlap,
             model_order=model_order,
-            cutoff=cutoff,
+            cutoff=cutoff,  # pyright: ignore
             dirname=dirname,
         )
 
@@ -619,15 +609,15 @@ class Vibrations:
 
 
 def _output_cross_spectrum(
-    index,
-    velocities_proj,
-    time_step,
-    use_mem,
-    bootstrapping_blocks,
-    bootstrapping_overlap,
-    model_order,
-    cutoff,
-    dirname,
+    index: npt.NDArray,
+    velocities_proj: npt.NDArray,
+    time_step: float,
+    use_mem: bool,
+    bootstrapping_blocks: int,
+    bootstrapping_overlap: int,
+    model_order: int,
+    cutoff: int,
+    dirname: Path,
 ) -> None:
     index_0 = index[0]
     index_1 = index[1]
@@ -638,7 +628,7 @@ def _output_cross_spectrum(
             velocities_proj[:, index_1],
             time_step,
             model_order,
-            n_freqs=int(len(velocities_proj)),
+            n_freqs=len(velocities_proj),
         )[1]
     else:
         cross_spectrum = vu.get_cross_spectrum(
@@ -650,18 +640,22 @@ def _output_cross_spectrum(
         )[1]
 
     np.savetxt(
-        os.path.join(dirname, f"cross_spectrum_{index_0}_{index_1}.csv"),
+        dirname / f"cross_spectrum_{index_0}_{index_1}.csv",
         cross_spectrum[:cutoff],
     )
 
 
-class AimsVibrations(Vibrations, AimsGeometry):
-    def __init__(self, filename=None):
+class AimsVibrations(Vibrations, AimsGeometry):  # pyright: ignore
+    """TODO."""
+
+    def __init__(self, filename: str | None = None):
         Vibrations.__init__(self)
         AimsGeometry.__init__(self, filename=filename)
 
 
-class VaspVibrations(Vibrations, VaspGeometry):
-    def __init__(self, filename=None):
+class VaspVibrations(Vibrations, VaspGeometry):  # pyright: ignore
+    """TODO."""
+
+    def __init__(self, filename: str | None = None):
         Vibrations.__init__(self)
         VaspGeometry.__init__(self, filename=filename)
