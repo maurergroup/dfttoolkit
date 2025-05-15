@@ -67,7 +67,7 @@ class TestFile:
 
 class DummyParser(Parser):
     """
-    Use dummy classes to test the Parser class
+    Use dummy classes to test the Parser class.
 
     As it is an abstract class it cannot be instantiated directly.
     """
@@ -75,16 +75,20 @@ class DummyParser(Parser):
     def __init__(self, binary, **kwargs):
         super().__init__(self._supported_files, **kwargs)
 
-        self._binary = binary
+        # print(vars(self))
+
         self._name = "name"
+        self._binary = binary
 
         match self._format:
             case "arbitrary_format_1":
+                self.path = 'tests/fixtures/base_test_files/test.arb_fmt'
                 self._extension = ".arb_fmt"
                 self.lines = ["This is a Parser test file!"]
                 self.data = b""
                 self._check_binary(False)
             case "arbitrary_format_2":
+                self.path = 'tests/fixtures/base_test_files/test.csc'
                 self._extension = ".csc"
                 self.lines = []
                 self.data = b"This is a Parser test file!"

@@ -42,11 +42,12 @@ class File:
     data: bytes = field(init=False)
 
     def __post_init__(self):
+        self._path = Path(self.path)
+
         # Do not run init code for DummyParser in test_base.TestParser
         if "arbitrary_format" in self._format:
             return
 
-        self._path = Path(self.path)
         if not self._path.is_file():
             raise FileNotFoundError("Path not found.")
 

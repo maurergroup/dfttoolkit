@@ -19,6 +19,7 @@ spglib = "^2.5.0"
 networkx = "^3.3"
 numba = ">=0.60,<0.62"
 click = "^8.1.7"
+matplotlib = "^3.10.3"
 
 [tool.poetry.group.dev]
 optional = true

@@ -51,7 +51,7 @@ class TestAimsOutput:
             ]
         )
 
-        if self._aims_fixture_no in [13]:
+        if self._aims_fixture_no == 13:
             geom_steps = self.ao.get_geometry_steps_of_optimisation()
             assert np.allclose(geom_steps[-1].coords, positions)
 

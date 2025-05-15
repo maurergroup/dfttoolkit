@@ -59,13 +59,7 @@ class Cube(Parser):
             [int(i.split()[0]) for i in self.lines[3:5]], dtype=np.int64
         )
 
-        self._dV = np.abs(
-            get_triple_product(
-                self.grid_vectors[0, :],
-                self.grid_vectors[1, :],
-                self.grid_vectors[2, :],
-            )
-        )
+        self._calculate_cube_vectors()
 
         # Get atoms
         atom_Z = np.zeros(self._n_atoms, dtype=int)  # noqa: N806
@@ -107,9 +101,27 @@ class Cube(Parser):
         return " ".join(self.lines[0:1])
 
     @property
+    def cube_vectors(self): ...
+
+    @property
     def dV(self) -> npt.NDArray:  # noqa: N802
         """Volume of the cube file."""
         return self._dV
+
+    @property
+    def dv1(self) -> npt.NDArray:
+        """First voxel dimension of the cube file."""
+        return self._dv1
+
+    @property
+    def dv2(self) -> npt.NDArray:
+        """Second voxel dimension of the cube file."""
+        return self._dv2
+
+    @property
+    def dv3(self) -> npt.NDArray:
+        """Third voxel dimension of the cube file."""
+        return self._dv3
 
     @property
     def geometry(self) -> Geometry:
@@ -120,6 +132,10 @@ class Cube(Parser):
     def grid(self) -> npt.NDArray:
         """Grid data of the cube file."""
         return self._grid
+
+    @grid.setter
+    def grid(self, grid: npt.NDArray) -> None:
+        self._grid = grid
 
     @property
     def grid_vectors(self) -> npt.NDArray:
@@ -153,9 +169,74 @@ class Cube(Parser):
 
     def __add__(self, other: Self):
         new_cube = copy.deepcopy(self)
-        new_cube.data += other.data
+        new_cube.grid += other.grid
 
         return new_cube
+
+    def __sub__(self, other: Self):
+        new_cube = copy.deepcopy(self)
+        new_cube.grid -= other.grid
+
+        return new_cube
+
+    def __isub__(self, other: Self):
+        self.grid -= other.grid
+
+        return self
+
+    def __mul__(self, other: Self):
+        new_cube = copy.deepcopy(self)
+
+        if isinstance(other, (float, int)):
+            new_cube.grid *= other
+        else:
+            new_cube.grid *= other.data
+
+        return new_cube
+
+    def __imul__(self, other: Self):
+        if isinstance(other, (float, int)):
+            self.grid *= other
+        else:
+            self.grid *= other.data
+
+        return self
+
+    def _calculate_cube_vectors(self) -> None:
+        self._cube_vectors = ((self.grid_vectors.T) * self.shape).T
+
+        self._dV = np.abs(
+            get_triple_product(
+                self.grid_vectors[0, :],
+                self.grid_vectors[1, :],
+                self.grid_vectors[2, :],
+            )
+        )
+
+        self._dv1 = np.linalg.norm(self.grid_vectors[0, :])
+        self._dv2 = np.linalg.norm(self.grid_vectors[1, :])
+        self._dv3 = np.linalg.norm(self.grid_vectors[2, :])
+
+    # def get_periodic_replica(self, periodic_replica):
+    #     new_cube = copy.deepcopy(self)
+
+    #     # add geometry
+    #     geom = copy.deepcopy(self.geometry)
+    #     geom.lattice_vectors = self.cube_vectors
+    #     new_geom = geom.get_periodic_replica(periodic_replica)
+    #     new_cube.geom = new_geom
+    #     new_cube.n_atoms = new_geom.n_atoms
+
+    #     # add data
+    #     new_cube.data = np.tile(self.data, periodic_replica)
+
+    #     # add lattice vectors
+    #     new_shape = self.shape * np.array(periodic_replica)
+    #     new_cube.shape = new_shape
+    #     new_cube._calculate_cube_vectors()
+    #     new_cube.N_poins = len(new_cube.data)
+
+    #     return new_cube
 
     def get_integrated_projection_on_axis(
         self, axis: Literal[0, 1, 2]
