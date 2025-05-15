@@ -1,5 +1,5 @@
 import copy
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -101,7 +101,9 @@ class Cube(Parser):
         return " ".join(self.lines[0:1])
 
     @property
-    def cube_vectors(self): ...
+    def cube_vectors(self) -> npt.NDArray[np.int64]:
+        """Cube vectors of the cube file."""
+        return self._cube_vectors
 
     @property
     def dV(self) -> npt.NDArray:  # noqa: N802
@@ -109,17 +111,17 @@ class Cube(Parser):
         return self._dV
 
     @property
-    def dv1(self) -> npt.NDArray:
+    def dv1(self) -> np.floating[Any]:
         """First voxel dimension of the cube file."""
         return self._dv1
 
     @property
-    def dv2(self) -> npt.NDArray:
+    def dv2(self) -> np.floating[Any]:
         """Second voxel dimension of the cube file."""
         return self._dv2
 
     @property
-    def dv3(self) -> npt.NDArray:
+    def dv3(self) -> np.floating[Any]:
         """Third voxel dimension of the cube file."""
         return self._dv3
 
@@ -127,6 +129,12 @@ class Cube(Parser):
     def geometry(self) -> Geometry:
         """Atoms represented in the cube file."""
         return self._geom
+
+    @geometry.setter
+    def geometry(self, geometry: Geometry) -> None:
+        self._geom = geometry
+        self._atoms = geometry.get_as_ase()
+        self._n_atoms = len(geometry)
 
     @property
     def grid(self) -> npt.NDArray:
@@ -217,26 +225,25 @@ class Cube(Parser):
         self._dv2 = np.linalg.norm(self.grid_vectors[1, :])
         self._dv3 = np.linalg.norm(self.grid_vectors[2, :])
 
-    # def get_periodic_replica(self, periodic_replica):
-    #     new_cube = copy.deepcopy(self)
+    def get_periodic_replica(self, periodic_replica:tuple) -> Self:
+        new_cube = copy.deepcopy(self)
 
-    #     # add geometry
-    #     geom = copy.deepcopy(self.geometry)
-    #     geom.lattice_vectors = self.cube_vectors
-    #     new_geom = geom.get_periodic_replica(periodic_replica)
-    #     new_cube.geom = new_geom
-    #     new_cube.n_atoms = new_geom.n_atoms
+        # add geometry
+        geom = copy.deepcopy(self.geometry)
+        geom.lattice_vectors = self.cube_vectors
+        new_geom = geom.get_periodic_replica(periodic_replica)
+        new_cube.geometry = new_geom
 
-    #     # add data
-    #     new_cube.data = np.tile(self.data, periodic_replica)
+        # add data
+        new_cube.grid = np.tile(self.grid, periodic_replica)
 
-    #     # add lattice vectors
-    #     new_shape = self.shape * np.array(periodic_replica)
-    #     new_cube.shape = new_shape
-    #     new_cube._calculate_cube_vectors()
-    #     new_cube.N_poins = len(new_cube.data)
+        # add lattice vectors
+        new_shape = self.shape * np.array(periodic_replica)
+        new_cube._shape = new_shape
+        new_cube._calculate_cube_vectors()
+        new_cube._n_points = len(new_cube.grid)
 
-    #     return new_cube
+        return new_cube
 
     def get_integrated_projection_on_axis(
         self, axis: Literal[0, 1, 2]
