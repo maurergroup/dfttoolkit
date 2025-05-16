@@ -70,68 +70,40 @@ class PeriodicTable:
         raise TypeError("This class cannot be instantiated.")
 
     @classmethod
-    def elements(cls, atomic_number: int | None = None) -> dict[str, Element]:
+    def elements(cls) -> dict[str, Element]:
         """
         Elements as a dictionary of their symbols mapped to element objects.
-
-        Parameters
-        ----------
-        atomic_number : int | None, optional
-            Atomic number of the element.
 
         Returns
         -------
         dict[str, Element]
-            Dictionary of elements or a single element if atomic_number is provided.
+            Dictionary of elements.
         """
-        if atomic_number is not None:
-            return cls._elements[atomic_number]
-
         return cls._elements
 
     @classmethod
-    def element_names(cls, atomic_number: int | None = None) -> list[str] | str:
+    def element_names(cls) -> list[str]:
         """
         Element names ordered by atomic number.
 
-        Parameters
-        ----------
-        atomic_number : int | None, optional
-            Atomic number of the element.
-
         Returns
         -------
-        list[str] | str
-            List of element names or a single name if atomic_number is provided.
+        list[str]
+            List of element names.
         """
-        element_names = [e.name for e in cls._elements.values()]
-
-        if atomic_number is not None:
-            return element_names[atomic_number]
-
-        return element_names
+        return [e.name for e in cls._elements.values()]
 
     @classmethod
-    def element_symbols(cls, atomic_number: int | None = None) -> list[str] | str:
+    def element_symbols(cls) -> list[str]:
         """
         Element symbols ordered by atomic number.
 
-        Parameters
-        ----------
-        atomic_number : int | None, optional
-            Atomic number of the element.
-
         Returns
         -------
-        list[str] | str
-            List of element symbols or a single symbol if atomic_number is provided.
+        list[str]
+            List of element symbols.
         """
-        element_symbols = list(cls._elements.keys())
-
-        if atomic_number is not None:
-            return element_symbols[atomic_number]
-
-        return element_symbols
+        return list(cls._elements.keys())
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:
@@ -149,6 +121,23 @@ class PeriodicTable:
             Instance of Element.
         """
         return cls._elements[symbol]
+
+    @classmethod
+    def get_symbol(cls, atomic_number: int) -> str:
+        """
+        Get the chemical symbol of an element.
+
+        Parameters
+        ----------
+        atomic_number : int
+            Atomic number of the element.
+
+        Returns
+        -------
+        str
+            Chemical symbol.
+        """
+        return cls.element_symbols()[atomic_number]
 
     @classmethod
     def get_name(cls, symbol: str) -> str:
