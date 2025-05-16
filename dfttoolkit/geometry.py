@@ -147,7 +147,7 @@ class Geometry:
 
     def add_top_comment(self, comment_string: str) -> None:
         """
-        Adds comments that are saved at the top of the geometry file.
+        Add comments that are saved at the top of the geometry file.
 
         Parameters
         ----------
@@ -157,13 +157,11 @@ class Geometry:
         Returns
         -------
         None.
-
         """
         lines = comment_string.split("\n")
-        for l in lines:
-            if not l.startswith("#"):
-                l = "# " + l
-            self.comment_lines.append(l)
+        for line in lines:
+            commented_line = "# " + line if not line.startswith("#") else line
+            self.comment_lines.append(commented_line)
 
     ###########################################################################
     #                             OUTPUT PARSER                               #
@@ -588,10 +586,13 @@ class Geometry:
         )
         self.remove_atoms(indices_to_remove)
 
-    def crop_to_unit_cell(self, lattice=None, frac_coord_factors=[0, 1]):
+    def crop_to_unit_cell(  # noqa: PLR0912
+        self, lattice=None, frac_coord_factors: list[int] | None = None
+    ) -> None:
         """
-        Removes all atoms that are outside the given unit cell. Similar to
-        self.crop() but allows for arbitrary unit cells
+        Remove all atoms that are outside the given unit cell.
+
+        Similar to `self.crop()` but allows for arbitrary unit cells
 
         Parameters
         ----------
@@ -608,6 +609,8 @@ class Geometry:
         # Atoms that have fractional coordinates outside the defined frac_coord
         # factors are removed. Per default frac_coord_factors=[0,1]
 
+        if frac_coord_factors is None:
+            frac_coord_factors = [0, 1]
         if lattice is None:
             lattice = self.lattice_vectors
         frac_coords = utils.get_fractional_coords(self.coords, lattice)
@@ -636,25 +639,23 @@ class Geometry:
 
         # generate all possible translation vectors that could map an atom of
         # the unit cell into itsself
-        prim_lat_vec = []
-        for i in range(3):
-            prim_lat_vec.append(
-                [init_geom.lattice_vectors[i], -init_geom.lattice_vectors[i]]
-            )
+        prim_lat_vec = [
+            [init_geom.lattice_vectors[i], -init_geom.lattice_vectors[i]]
+            for i in range(3)
+        ]
         self_mapping_translation_vectors = []
 
-        for i in prim_lat_vec:
-            for sign in range(2):
-                self_mapping_translation_vectors.append(i[sign])
+        self_mapping_translation_vectors.extend(
+            i[sign] for i in prim_lat_vec for sign in range(2)
+        )
 
         for i in range(3):
             for sign0 in range(2):
-                for k in range(3):
+                for j in range(3):
                     for sign1 in range(2):
-                        if i != k:
-                            # print(f'i {i} k {k} sign0 {sign0} sign1 {sign1}')
+                        if i != j:
                             single_addition_vector = (
-                                prim_lat_vec[i][sign0] + prim_lat_vec[k][sign1]
+                                prim_lat_vec[i][sign0] + prim_lat_vec[j][sign1]
                             )
                             self_mapping_translation_vectors.append(
                                 single_addition_vector
@@ -662,15 +663,15 @@ class Geometry:
 
         for i in range(3):
             for sign0 in range(2):
-                for k in range(3):
+                for j in range(3):
                     for sign1 in range(2):
-                        for l in range(3):
+                        for k in range(3):
                             for sign2 in range(2):
-                                if i != k and i != l and k != l:
+                                if i not in (j, k) and j != k:
                                     single_addition_vector = (
                                         prim_lat_vec[i][sign0]
-                                        + prim_lat_vec[k][sign1]
-                                        + prim_lat_vec[l][sign2]
+                                        + prim_lat_vec[j][sign1]
+                                        + prim_lat_vec[k][sign2]
                                     )
                                     self_mapping_translation_vectors.append(
                                         single_addition_vector
@@ -701,7 +702,7 @@ class Geometry:
 
         liste = doubleindices
         to_be_killed = []  # List of all atom indicess that are redundant
-        for i, liste_i in enumerate(liste):
+        for liste_i in liste:
             replacer = liste_i[0]
             to_be_replaced = liste_i[1]
             to_be_killed.append(to_be_replaced)
@@ -1867,11 +1868,11 @@ class Geometry:
 
         coords = self.coords - np.mean(self.coords, axis=0)
         diag_entry = np.sum(np.sum(coords**2, axis=1) * weights)
-        I = np.eye(3) * diag_entry
+        ident = np.eye(3) * diag_entry
         for i in range(self.n_atoms):
-            I -= weights[i] * np.outer(coords[i, :], coords[i, :])
+            ident -= weights[i] * np.outer(coords[i, :], coords[i, :])
 
-        vals, vecs = scipy.linalg.eigh(I)
+        vals, vecs = scipy.linalg.eigh(ident)
         sort_ind = np.argsort(vals)
 
         return vals[sort_ind], vecs[:, sort_ind]
@@ -4793,9 +4794,7 @@ class XYZGeometry(Geometry):
         for index in range(self.n_atoms):
             element = self.species[index]
             x, y, z = self.coords[index]
-            text += (
-                f"{element}    {x:-4.8f}    {y:-4.8f}    {z:-4.8f}" + "\n"
-            )
+            text += f"{element}    {x:-4.8f}    {y:-4.8f}    {z:-4.8f}" + "\n"
         return text
 
 
