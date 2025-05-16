@@ -97,8 +97,6 @@ class AimsOutput(Output):
         """
         Extract the geometry file from the aims output.
 
-        Return as a Geometry object.
-
         Returns
         -------
         AimsGeometry

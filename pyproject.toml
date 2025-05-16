@@ -3,14 +3,14 @@ name = "dfttoolkit"
 version = "0.3.0"
 description = "A collection of python modules and libraries for several DFT codes to handle input and output."
 authors = [
-    "Lukas Hoermann <lukas.hoermann@warwick.ac.uk>",
-    "Dylan Morgan <dylan.morgan@warwick.ac.uk",
+  "Lukas Hoermann <lukas.hoermann@warwick.ac.uk>",
+  "Dylan Morgan <dylan.morgan@warwick.ac.uk",
 ]
 license = "GPL-3.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.11,<3.13"
 numpy = ">=2,<2.1"
 scipy = "^1.13.0"
 ase = "^3.22.1"
@@ -20,6 +20,9 @@ networkx = "^3.3"
 numba = ">=0.60,<0.62"
 click = "^8.1.7"
 matplotlib = "^3.10.3"
+weas-widget = "^0.1.26"
+marimo = "^0.13.10"
+ipython = "^9.2.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -62,12 +65,9 @@ extensions = [
   "sphinx.ext.napoleon",
   "myst_parser",
 ]
-templates_path = ["_templates",]
-html_static_path = ["_static",]
-exclude_patterns = [
-  "build", 
-  ".DS_Store",
-]
+templates_path = ["_templates"]
+html_static_path = ["_static"]
+exclude_patterns = ["build", ".DS_Store"]
 
 # [tool.ruff]
 # line-length = 88
@@ -85,6 +85,4 @@ exclude_patterns = [
 [tool.pytest.ini_options]
 pythonpath = "dfttoolkit"
 testpaths = ["tests"]
-addopts = [
-    "--import-mode=importlib",
-]
+addopts = ["--import-mode=importlib"]

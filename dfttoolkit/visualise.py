@@ -1,10 +1,13 @@
+import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 from matplotlib import axes, figure
 from matplotlib.ticker import MaxNLocator
+from weas_widget import WeasWidget
 
-from dfttoolkit.output import AimsOutput
+from .cube import Cube
+from .output import AimsOutput
 
 
 class VisualiseAims(AimsOutput):
@@ -340,3 +343,77 @@ class VisualiseAims(AimsOutput):
             self._plot_ks_states_convergence(ax[i_subplot], ks_eigenvals, title)
 
         return fig
+
+
+class VisualiseCube(Cube):
+    """
+    Cube visualisation tools.
+
+    ...
+
+    Attributes
+    ----------
+    path : str
+        path to the .cube file
+    lines : list[str]
+        contents of the .cube file
+    atoms : Atom | Atoms
+        ASE atom or atoms object
+    volume : NDArray[float64]
+        volumetric data of the cube file
+
+    Parameters
+    ----------
+    cube : str
+        path to the .cube file
+    """
+
+    def __init__(self, cube: str):
+        super().__init__(cube=cube)
+
+    def weas_core_hole(self, viewer: WeasWidget | None = None, **kwargs) -> WeasWidget:
+        """
+        Visualise the core hole as an isosurface.
+
+        Parameters
+        ----------
+        viewer : WeasWidget | None, default=None
+            viewer instance
+        **kwargs
+            viewer settings keyword arguments
+
+        Returns
+        -------
+        WeasWidget
+            viewer instance
+        """
+        # Check if running in Jupyter
+        try:
+            from IPython import get_ipython  # pyright: ignore
+
+            if (
+                not mo.running_in_notebook()
+                or get_ipython().__class__.__name__ != "ZMQInteractiveShell"
+            ):
+                raise NotImplementedError(
+                    "The core_hole method is only available in a Jupyter session."
+                )
+
+        except (ImportError, AttributeError):
+            return False
+
+        # Create the viewer
+        if viewer is None:
+            ch_viewer = WeasWidget(**kwargs)
+        else:
+            ch_viewer = viewer
+
+        ch_viewer.from_ase(self.atoms)
+        ch_viewer.avr.model_style = 1  # Ball and stick
+        ch_viewer.avr.iso.volumetric_data = {"values": self.volume}
+        ch_viewer.avr.iso.settings = {
+            "positive": {"isovalue": -0.03, "color": "red"},
+            "negative": {"isovalue": 0.03, "color": "blue"},
+        }
+
+        return ch_viewer

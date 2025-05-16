@@ -2,10 +2,10 @@ import copy
 from pathlib import Path
 from typing import Any, Literal, Self
 
+import ase.io.cube
 import numpy as np
 import numpy.typing as npt
-from ase import Atom, Atoms
-from ase.io import cube
+from ase import Atoms
 from scipy.ndimage.interpolation import shift
 
 from .base import Parser
@@ -37,7 +37,6 @@ class Cube(Parser):
     grid_vectors
     n_atoms
     n_points
-    origin
     shape
     volume
     path: str
@@ -46,25 +45,25 @@ class Cube(Parser):
         contents of the cube file
     """
 
-    def __init__(self, **kwargs: str):
+    def __init__(self, cube: str):
         # Parse file information and perform checks
-        super().__init__(self._supported_files, **kwargs)
+        super().__init__(self._supported_files, cube=cube)
 
         # Check that the file is a cube file and in the correct format
         self._check_binary(False)
 
         # Parse the cube data here rather than in base.File.__post_init__ so we can call
-        # ASE's cube.read_cube()
+        # ASE's read_cube()
         with self._path.open() as f:
-            _cf = cube.read_cube(f)
+            _cf = ase.io.cube.read_cube(f)
             self.lines = f.readlines()
             self.data = b""
             self._binary = False
 
         self._atoms = _cf["atoms"]
         self._n_atoms = len(self._atoms)
-        self._volume = _cf["volume"]
         self._origin = _cf["origin"]
+        self._volume = _cf["datas"]
 
         # Centre the atoms to cube origin
         self._atoms.translate(-self._origin)  # pyright: ignore[reportOperatorIssue]
@@ -81,7 +80,7 @@ class Cube(Parser):
         self._calculate_cube_vectors()
 
         # Get atoms
-        atom_Z = np.zeros(self._n_atoms, dtype=int)  # noqa: N806
+        atom_Z = np.zeros(self._n_atoms, dtype=int)
         atom_pos = np.zeros((self._n_atoms, 3))
         for i in range(self._n_atoms):
             spl_atom_line = self.lines[6 + i].split()
@@ -110,7 +109,7 @@ class Cube(Parser):
         pass
 
     @property
-    def atoms(self) -> Atom | Atoms:
+    def atoms(self) -> Atoms:
         """Atoms present in the cube file."""
         return self._atoms
 
@@ -182,7 +181,7 @@ class Cube(Parser):
     @property
     def origin(self) -> npt.NDArray[np.float64]:
         """Origin of the cube file."""
-        return self._origin
+        return self._origin  # pyright: ignore
 
     @property
     def shape(self) -> npt.NDArray[np.int64]:
@@ -192,7 +191,7 @@ class Cube(Parser):
     @property
     def volume(self) -> npt.NDArray[np.float64]:
         """Volume of the cube file."""
-        return self._volume
+        return self._volume  # pyright: ignore
 
     def __add__(self, other: Self):
         new_cube = copy.deepcopy(self)
@@ -266,7 +265,7 @@ class Cube(Parser):
 
     def save_to_file(self, name: str | Path) -> None:
         """
-        Saves cube in cube file format
+        Save cube file.
 
         Parameters
         ----------
@@ -609,7 +608,7 @@ class Cube(Parser):
         z_indices = np.argmin(delta, axis=2)
 
         # get the z-values that correspond to this indices
-        v1_vec, v2_vec, v3_vec = self.get_voxel_coordinates()
+        _, _, v3_vec = self.get_voxel_coordinates()
 
         # create an array of the shape of indices with the heights
         # (repeat the v3_vec array to get to the shape of indices)
@@ -681,7 +680,7 @@ class Cube(Parser):
         xy_periodic: bool = True,
     ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
         """
-        Returns value of closest data point in cube grid.
+        Get the value of the closest data point in cube grid.
 
         Parameters
         ----------
@@ -865,7 +864,7 @@ class Cube(Parser):
         self, adsorption_geometry: Geometry
     ) -> None:
         """
-        Computes distance between cube file molecule and its local adsorption geometry.
+        Compute distance between cube file molecule and its local adsorption geometry.
 
         Parameters
         ----------
@@ -907,7 +906,7 @@ class Cube(Parser):
         plane_points: int = 100,
     ) -> npt.NDArray:
         """
-        Retruns the cubefile values on a given plane
+        Retruns the cubefile values on a given plane.
 
         Parameters
         ----------
@@ -961,7 +960,7 @@ class Cube(Parser):
         output_overlap_cube: bool = False,
     ) -> float | tuple[float, Self]:
         """
-        Calculates the overlap integral of some quantity with another cubefile.
+        Calculate the overlap integral of some quantity with another cubefile.
 
         NOTE: this is written to work with the standard FHI-aims voxels in Angstrom³
         NOTE: the two orbitals should describe the same exact volume of space!

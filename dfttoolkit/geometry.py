@@ -230,16 +230,15 @@ class Geometry:
         coords = np.array(coords)
         self.add_atoms(coords, species_list, constrain_relax)
 
-    def get_as_ase(self) -> None:
+    def get_as_ase(self) -> ase.Atoms:
         """
         Convert geometry file to ASE object.
 
         Returns
         -------
-        None.
-
+        ase.Atoms
+            ASE atoms object
         """
-        # atoms_string = ""
         atom_coords = []
         atom_numbers = []
         atom_constraints = []
@@ -258,7 +257,7 @@ class Geometry:
         c = FixAtoms(indices=atom_constraints)
         ase_system.set_constraint(c)
 
-        if not np.sum(self.lattice_vectors) == 0.0:
+        if np.sum(self.lattice_vectors) != 0.0:
             ase_system.pbc = [1, 1, 1]
 
         if self.energy is not None:
@@ -4397,16 +4396,16 @@ class AimsGeometry(Geometry):
         # write down symmetry_params and related data
         if is_fractional:
             if self.symmetry_params is not None:
-                l = "symmetry_params "
+                k = "symmetry_params "
                 for p in self.symmetry_params:
-                    l += f"{p} "
-                l += "\n"
-                text += "\n" + l
+                    k += f"{p} "
+                k += "\n"
+                text += "\n" + k
             if self.n_symmetry_params is not None:
-                l = "symmetry_n_params "
+                k = "symmetry_n_params "
                 for n in self.n_symmetry_params:
-                    l += f"{n} "
-                text += l + "\n"
+                    k += f"{n} "
+                text += k + "\n"
                 text += "\n"
             if self.symmetry_LVs is not None:
                 for i in range(3):
@@ -4693,9 +4692,9 @@ class XYZGeometry(Geometry):
             n_words = 0
             n_floats = 0
 
-            for l in split_line:
-                n_words_new = len(re.findall("[a-zA-Z]+", l))
-                n_floats_new = len(re.findall(r"-?[\d.]+(?:e-?\d+)?", l))
+            for j in split_line:
+                n_words_new = len(re.findall("[a-zA-Z]+", j))
+                n_floats_new = len(re.findall(r"-?[\d.]+(?:e-?\d+)?", j))
 
                 if n_words_new == 1 and n_floats_new == 1:
                     n_floats += 1
