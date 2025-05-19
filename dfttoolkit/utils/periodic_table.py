@@ -3,6 +3,8 @@ from typing import Any, ClassVar
 
 import yaml
 
+from .file_utils import classproperty
+
 
 class Element:
     """
@@ -69,8 +71,8 @@ class PeriodicTable:
         """Prevent instantiation of this class."""
         raise TypeError("This class cannot be instantiated.")
 
-    @classmethod
-    def elements(cls) -> dict[str, Element]:
+    @classproperty
+    def elements(cls) -> dict[str, Element]:  # noqa: N805
         """
         Elements as a dictionary of their symbols mapped to element objects.
 
@@ -81,8 +83,8 @@ class PeriodicTable:
         """
         return cls._elements
 
-    @classmethod
-    def element_names(cls) -> list[str]:
+    @classproperty
+    def element_names(cls) -> list[str]:  # noqa: N805
         """
         Element names ordered by atomic number.
 
@@ -93,8 +95,8 @@ class PeriodicTable:
         """
         return [e.name for e in cls._elements.values()]
 
-    @classmethod
-    def element_symbols(cls) -> list[str]:
+    @classproperty
+    def element_symbols(cls) -> list[str]:  # noqa: N805
         """
         Element symbols ordered by atomic number.
 

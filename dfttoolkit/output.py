@@ -29,7 +29,6 @@ class Output(Parser):
 
     def __init__(self, **kwargs: str):
         # Parse file information and perform checks
-
         super().__init__(self._supported_files, **kwargs)
 
         # Check that the files are in the correct format
@@ -47,7 +46,7 @@ class Output(Parser):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._format}={self._path})"
 
-    def __init_subclass__(cls, **kwargs: str):  # pyright: ignore[reportMissingSuperCall]
+    def __init_subclass__(cls, **kwargs: str):
         # Override the parent's __init_subclass__ without calling it
         pass
 

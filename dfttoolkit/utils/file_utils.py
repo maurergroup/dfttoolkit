@@ -1,6 +1,6 @@
 from collections.abc import Iterator, MutableMapping
 from pathlib import Path
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 from click import edit
 
@@ -53,6 +53,60 @@ class MultiDict(MutableMapping):
             for val in reversed(self._dict[key]):
                 yield key, val
 
+
+Param = ParamSpec("Param")
+RetType = TypeVar("RetType")
+T = TypeVar("T")
+C = TypeVar("C", bound=type)
+
+
+# class _ClassPropertyDescriptor(Generic[T]):
+class _ClassPropertyDescriptor:
+    """
+    Descriptor for creating class-level properties.
+
+    This class is not intended to be used directly. It is returned by the
+    `classproperty` decorator to enable properties that behave like `@property`, but
+    can be accessed directly on the class rather than an instance.
+
+    Parameters
+    ----------
+    func : TODO
+        A function that takes the class as its only argument and returns the value of
+        the property.
+    """
+
+    # def __init__(self, func:Callable[[type[C]], T]):
+    def __init__(self, func):  # noqa: ANN001
+        self.func = func
+
+    # def __get__(self, obj: Optional[Any], cls:type[C]) :
+    def __get__(self, obj, cls):  # noqa: ANN001
+        return self.func(cls)
+
+
+# def classproperty(func: Callable[[type[C], T]]) -> _ClassPropertyDescriptor[T]:
+def classproperty(func):  # noqa: ANN001, ANN201
+    """
+    Use as a decorator to define a class-level property.
+
+    This works like the built-in `@property` decorator, but allows the
+    property to be accessed directly on the class without requiring an
+    instance. Similar to `@classmethod`, but used to expose computed
+    attributes as properties.
+
+    Parameters
+    ----------
+    func : TODO
+        A method that takes the class as its only argument and returns the value
+        of the property.
+
+    Returns
+    -------
+    TODO
+        A descriptor that implements the class-level property.
+    """
+    return _ClassPropertyDescriptor(func)
 
 
 def aims_bin_path_prompt(change_bin: bool | str, save_dir: Path) -> str:
