@@ -1,3 +1,4 @@
+from typing import Generator
 import numpy as np
 import pytest
 from scipy.sparse import load_npz
@@ -16,11 +17,19 @@ class TestAimsOutput:
     @pytest.fixture(params=range(1, 14), autouse=True)
     def aims_out(self, cwd, request, aims_calc_dir) -> None:
         self.ao = AimsOutput(
-            aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{request.param!s}/aims.out"
+            aims_out=f"{cwd}/fixtures/{aims_calc_dir}/{request.param}/aims.out"
         )
 
     @pytest.fixture
-    def control_in(self, cwd, aims_calc_dir):
+    def control_in(self, cwd, aims_calc_dir) -> Generator:  # TODO: finish return type
+        """
+        Get lines from a control.in fixture.
+
+        Yields
+        ------
+        list[str]
+            lines from the control file
+        """
         with open(
             f"{cwd}/fixtures/{aims_calc_dir}/{self._aims_fixture_no}/control.in",
         ) as f:
@@ -513,4 +522,5 @@ class TestELSIOutput:
         )._getnnz() == 0
 
 
-# ruff: noqa: S101
+
+# ruff: noqa: ANN001, S101

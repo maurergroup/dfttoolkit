@@ -149,8 +149,8 @@ class Vibrations:
         H : np.array
             Hessian.
         """
-        N = len(self) * 3  # pyright:ignore  # noqa: N806
-        H = np.zeros([N, N])  # noqa: N806
+        N = len(self) * 3  # pyright:ignore
+        H = np.zeros([N, N])
 
         if not np.allclose(self.coors, self.vibration_coors[0]):  # pyright:ignore
             raise ValueError(
@@ -159,12 +159,12 @@ class Vibrations:
             )
 
         coords_0 = self.vibration_coors[0].flatten()
-        F_0 = self.vibration_forces[0].flatten()  # noqa: N806
+        F_0 = self.vibration_forces[0].flatten()
 
         n_forces = np.zeros(N, np.int64)
 
-        for c, F in zip(self.vibration_coors, self.vibration_forces):  # noqa: N806
-            dF = F.flatten() - F_0  # noqa: N806
+        for c, F in zip(self.vibration_coors, self.vibration_forces):
+            dF = F.flatten() - F_0
             dx = c.flatten() - coords_0
             ind = np.argmax(np.abs(dx))
             n_forces[ind] += 1
@@ -264,9 +264,9 @@ class Vibrations:
         if not hasattr(self, "hessian") or hessian is None:
             raise ValueError("Hessian must be given to calculate the Eigenvalues!")
 
-        M = 1 / self.get_mass_tensor()  # noqa: N806
+        M = 1 / self.get_mass_tensor()
 
-        omega2, X = np.linalg.eig(M * hessian)  # noqa: N806
+        omega2, X = np.linalg.eig(M * hessian)
 
         # only real valued eigen modes
         if only_real:
@@ -276,7 +276,7 @@ class Vibrations:
             mask = np.logical_and(real_mask, min_mask)
 
             omega2 = np.real(omega2[mask])
-            X = np.real(X[:, mask])  # noqa: N806
+            X = np.real(X[:, mask])
 
         eigenvectors = [column.reshape(-1, 3) for column in X.T]
 
@@ -339,13 +339,13 @@ class Vibrations:
         f_inv_cm : np.array
             Array of the eigenfrequencies in cm^(-1).
         """
-        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)  # noqa: N806
+        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
         return omega_SI * units.INVERSE_CM_IN_HZ / (2 * np.pi)
 
     def get_eigenvalues_in_eV(  # noqa: N802
         self, omega2: npt.NDArray[np.float64] | None = None
     ) -> npt.NDArray[np.float64]:
-        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)  # noqa: N806
+        omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
         return omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
 
     def get_atom_type_index(self) -> npt.NDArray[np.int64]:
@@ -560,7 +560,7 @@ class Vibrations:
             frequencies = vu.get_cross_spectrum_mem(
                 velocities_proj[:, 0],
                 velocities_proj[:, 0],
-                time_step,
+                time_step,  # pyright: ignore
                 model_order,
                 n_freqs=len(velocities_proj),
             )[0]
@@ -579,7 +579,7 @@ class Vibrations:
         cutoff = -1
         if frequency_cutoff is not None:
             f_inv_cm = frequencies * units.INVERSE_CM_IN_HZ
-            L = f_inv_cm < frequency_cutoff  # noqa: N806
+            L = f_inv_cm < frequency_cutoff  # pyright: ignore
             cutoff = np.sum(L)
 
         np.savetxt(dirname / "frequencies.csv", frequencies[:cutoff])
@@ -626,7 +626,7 @@ def _output_cross_spectrum(
         cross_spectrum = vu.get_cross_spectrum_mem(
             velocities_proj[:, index_0],
             velocities_proj[:, index_1],
-            time_step,
+            time_step,  # pyright: ignore
             model_order,
             n_freqs=len(velocities_proj),
         )[1]

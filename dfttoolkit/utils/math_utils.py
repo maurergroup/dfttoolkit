@@ -1,11 +1,14 @@
 from copy import deepcopy
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import scipy
 
 
-def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDArray:
+def get_rotation_matrix(
+    vec_start: npt.NDArray[np.float64], vec_end: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
     """
     Calculate the rotation matrix to align two unit vectors.
 
@@ -19,17 +22,18 @@ def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDA
 
     Parameters
     ----------
-    vec_start, vec_end : npt.NDArray[np.float64]
+    vec_start, vec_end : NDArray[float64]
         Two vectors that should be aligned. Both vectors must have a l2-norm of 1.
 
     Returns
     -------
-    R
+    NDArray[float64]
         The rotation matrix U as npt.NDArray with shape (3,3)
     """
-    assert np.isclose(np.linalg.norm(vec_start), 1) and np.isclose(
+    if not np.isclose(np.linalg.norm(vec_start), 1) and not np.isclose(
         np.linalg.norm(vec_end), 1
-    ), "vec_start and vec_end must be unit vectors!"
+    ):
+        raise ValueError("`vec_start` and `vec_end` args must be unit vectors")
 
     v = np.cross(vec_start, vec_end)
     c = np.dot(vec_start, vec_end)
@@ -39,20 +43,19 @@ def get_rotation_matrix(vec_start: npt.NDArray, vec_end: npt.NDArray) -> npt.NDA
 
 def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArray:
     """
-    Generates a rotation matrix around a given vector.
+    Generate a rotation matrix around a given vector.
 
     Parameters
     ----------
-    axis : npt.NDArray
+    axis : NDArray
         Axis around which the rotation is done.
     phi : float
         Angle of rotation around axis in radiants.
 
     Returns
     -------
-    R : npt.NDArray
+    R : NDArray
         Rotation matrix
-
     """
     axis_vec = np.array(axis, dtype=np.float64)
     axis_vec /= np.linalg.norm(axis_vec)
@@ -73,7 +76,7 @@ def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArra
 
 def get_rotation_matrix_around_z_axis(phi: float) -> npt.NDArray:
     """
-    Generates a rotation matrix around the z axis.
+    Generate a rotation matrix around the z axis.
 
     Parameters
     ----------
@@ -82,28 +85,25 @@ def get_rotation_matrix_around_z_axis(phi: float) -> npt.NDArray:
 
     Returns
     -------
-    npt.NDArray
+    NDArray
         Rotation matrix
-
     """
     return get_rotation_matrix_around_axis(np.array([0.0, 0.0, 1.0]), phi)
 
 
 def get_mirror_matrix(normal_vector: npt.NDArray) -> npt.NDArray:
     """
-    Generates a transformation matrix for mirroring through plane given by the
-    normal vector.
+    Generate a transformation matrix for mirroring through plane given by the normal.
 
     Parameters
     ----------
-    normal_vector : npt.NDArray
+    normal_vector : NDArray
         Normal vector of the mirror plane.
 
     Returns
     -------
-    M : npt.NDArray
+    M : NDArray
         Mirror matrix
-
     """
     n_vec = normal_vector / np.linalg.norm(normal_vector)
     eps = np.finfo(np.float64).eps
@@ -125,7 +125,7 @@ def get_angle_between_vectors(
     vector_1: npt.NDArray, vector_2: npt.NDArray
 ) -> npt.NDArray:
     """
-    Determines angle between two vectors.
+    Determine angle between two vectors.
 
     Parameters
     ----------
@@ -189,29 +189,44 @@ def get_cartesian_coords(
 
 
 def get_triple_product(a: npt.NDArray, b: npt.NDArray, c: npt.NDArray) -> npt.NDArray:
-    """Returns the triple product (DE: Spatprodukt): a*(bxc)."""
-    assert len(a) == 3
-    assert len(b) == 3
-    assert len(c) == 3
+    """
+    Get the triple product (DE: Spatprodukt): a*(bxc).
+
+    Parameters
+    ----------
+    a: NDArray
+        TODO
+    b: NDArray
+        TODO
+    c: NDArray
+        TODO
+
+    Returns
+    -------
+    NDarray
+        Triple product of each input vector
+    """
+    if len(a) != 3 or len(b) != 3 or len(c) != 3:
+        raise ValueError("Each vector must be of length 3")
+
     return np.dot(np.cross(a, b), c)
 
 
-def smooth_function(y: npt.NDArray, box_pts: int):
+def smooth_function(y: npt.NDArray, box_pts: int) -> npt.NDArray[np.floating[Any]]:
     """
     Smooths a function using convolution.
 
     Parameters
     ----------
-    y : TYPE
-        DESCRIPTION.
-    box_pts : TYPE
-        DESCRIPTION.
+    y : NDArray
+        TODO
+    box_pts : int
+        TODO
 
     Returns
     -------
-    y_smooth : TYPE
-        DESCRIPTION.
-
+    y_smooth : NDArray[floating[Any]]
+        TODO
     """
     box = np.ones(box_pts) / box_pts
     return np.convolve(y, box, mode="same")
@@ -227,22 +242,20 @@ def get_cross_correlation_function(
 
     Parameters
     ----------
-    signal_0 : 1D npt.NDArray
+    signal_0 : 1D NDArray
         First siganl for which the correlation function should be calculated.
-    signal_1 : 1D npt.NDArray
+    signal_1 : 1D NDArray
         Second siganl for which the correlation function should be calculated.
 
     Returns
     -------
-    correlation : npt.NDArray
+    correlation : NDArray
         Autocorrelation function from 0 to max_lag.
-
     """
     if detrend:
         signal_0 = scipy.signal.detrend(signal_0)
         signal_1 = scipy.signal.detrend(signal_1)
 
-    # cross_correlation = np.correlate(signal_0, signal_1, mode='same')
     cross_correlation = np.correlate(signal_0, signal_1, mode="full")
     cross_correlation = cross_correlation[cross_correlation.size // 2 :]
 
@@ -257,8 +270,9 @@ def get_autocorrelation_function_manual_lag(
 ) -> npt.NDArray:
     """
     Alternative method to determine the autocorrelation function for a given
-    signal that used numpy.corrcoef. This function allows to set the lag
-    manually.
+    signal that used numpy.corrcoef.
+
+    Allows the lag to be set manually.
 
     Parameters
     ----------
@@ -273,7 +287,6 @@ def get_autocorrelation_function_manual_lag(
     -------
     autocorrelation : npt.NDArray
         Autocorrelation function from 0 to max_lag.
-
     """
     lag = npt.NDArray(range(max_lag))
 
@@ -304,8 +317,6 @@ def get_fourier_transform(signal: npt.NDArray, time_step: float) -> tuple:
         Frequencs and absolute values of the fourier transform.
 
     """
-    # d = len(signal) * time_step
-
     f = scipy.fft.fftfreq(signal.size, d=time_step)
     y = scipy.fft.fft(signal)
 
@@ -315,14 +326,14 @@ def get_fourier_transform(signal: npt.NDArray, time_step: float) -> tuple:
 
 
 def lorentzian(
-    x: float | npt.NDArray, a: float, b: float, c: float
-) -> float | npt.NDArray:
+    x: float | npt.NDArray[np.float64], a: float, b: float, c: float
+) -> float | npt.NDArray[np.float64]:
     """
-    Returns a Lorentzian function.
+    Return a Lorentzian function.
 
     Parameters
     ----------
-    x : Union[float, npt.NDArray]
+    x : float | NDArray[float64]
         Argument x of f(x) --> y.
     a : float
         Maximum of Lorentzian.
@@ -333,15 +344,27 @@ def lorentzian(
 
     Returns
     -------
-    f : Union[float, npt.NDArray]
+    f : float | NDArray[float64]
         Outupt of a Lorentzian function.
-
     """
-    # f = c / (np.pi * b * (1.0 + ((x - a) / b) ** 2))  # +d
-    return c / (1.0 + ((x - a) / (b / 2.0)) ** 2)  # +d
+    return c / (1.0 + ((x - a) / (b / 2.0)) ** 2)
 
 
-def exponential(x: float | npt.NDArray, a: float, b: float) -> float | npt.NDArray:
+def exponential(
+    x: float | npt.NDArray[np.float64], a: float, b: float
+) -> float | npt.NDArray[np.float64]:
+    """
+    Return an exponential function.
+
+    Parameters
+    ----------
+    x : float | NDArray[float64]
+        Argument x of f(x) --> y
+    a : float
+        TODO
+    b : float
+        TODO
+    """
     return a * np.exp(x * b)
 
 
@@ -351,7 +374,7 @@ def double_exponential(
     return a * (np.exp(x * b) + np.exp(x * c))
 
 
-def gaussian_window(N, std=0.4):
+def gaussian_window(N: int, std: float = 0.4) -> npt.NDArray[np.float64]:
     """
     Generate a Gaussian window.
 
@@ -365,7 +388,7 @@ def gaussian_window(N, std=0.4):
 
     Returns
     -------
-    window : np.array
+    window : NDarray[float64]
         Gaussian window of length N.
 
     """
@@ -373,29 +396,30 @@ def gaussian_window(N, std=0.4):
     return np.exp(-0.5 * (n / std) ** 2)
 
 
-def apply_gaussian_window(data, std=0.4):
+def apply_gaussian_window(
+    data: npt.NDArray[np.float64], std: float = 0.4
+) -> npt.NDArray[np.float64]:
     """
     Apply a Gaussian window to an array.
 
     Parameters
     ----------
-    data : np.array
+    data : NDarray[float64]
         Input data array to be windowed.
     std : float
         Standard deviation of the Gaussian window.
 
     Returns
     -------
-    windowed_data : np.array
+    windowed_data : NDArray[float64]
         Windowed data array.
-
     """
     N = len(data)
     window = gaussian_window(N, std)
     return data * window
 
 
-def hann_window(N):
+def hann_window(N: int) -> npt.NDArray[np.float64]:
     """
     Generate a Hann window.
 
@@ -412,18 +436,18 @@ def hann_window(N):
     return 0.5 * (1 - np.cos(2 * np.pi * np.arange(N) / (N - 1)))
 
 
-def apply_hann_window(data):
+def apply_window(data: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     """
     Apply a Hann window to an array.
 
     Parameters
     ----------
-    data : np.ndarray
+    data : NDarray[float64]
         Input data array to be windowed.
 
     Returns
     -------
-    np.ndarray
+    NDarray[float64]
         Windowed data array.
     """
     N = len(data)
@@ -441,12 +465,12 @@ def norm_matrix_by_dagonal(matrix: npt.NDArray) -> npt.NDArray:
 
     Parameters
     ----------
-    matrix : npt.NDArray
+    matrix : NDArray
         Matrix that should be normed.
 
     Returns
     -------
-    matrix : npt.NDArray
+    matrix : NDArray
         Normed matrix.
 
     """
@@ -463,9 +487,9 @@ def norm_matrix_by_dagonal(matrix: npt.NDArray) -> npt.NDArray:
     return new_matrix
 
 
-def mae(delta: np.ndarray) -> np.floating:
+def mae(delta: npt.NDArray) -> np.floating:
     """
-    Calculated the mean absolute error from a list of value differnces.
+    Calculate the mean absolute error from a list of value differnces.
 
     Parameters
     ----------
@@ -476,12 +500,13 @@ def mae(delta: np.ndarray) -> np.floating:
     -------
     float
         mean absolute error
-
     """
     return np.mean(np.abs(delta))
 
 
-def rel_mae(delta: np.ndarray, target_val: np.ndarray) -> np.floating | np.float64 | float:
+def rel_mae(
+    delta: np.ndarray, target_val: np.ndarray
+) -> np.floating | np.float64 | float:
     """
     Calculated the relative mean absolute error from a list of value differnces,
     given the target values.
