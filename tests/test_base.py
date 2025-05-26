@@ -7,17 +7,19 @@ from dfttoolkit.utils.exceptions import UnsupportedFileError
 
 
 class TestFile:
+    """Test the File class."""
+
     @pytest.fixture(params=range(1, 13), scope="module")
     def aims_out_loc(self, cwd, request, aims_calc_dir) -> str:
         return f"{cwd}/fixtures/{aims_calc_dir}/{request.param!s}/aims.out"
 
     @pytest.fixture(scope="module")
-    def aims_out_lines(self, aims_out_loc):
+    def aims_out_lines(self, aims_out_loc) -> list[str]:
         with open(aims_out_loc) as f:
             return f.readlines()
 
     @pytest.fixture(scope="module")
-    def aims_out_file(self, aims_out_loc):
+    def aims_out_file(self, aims_out_loc) -> File:
         return File(aims_out_loc, "aims_out")
 
     @pytest.fixture(scope="module")
@@ -25,7 +27,7 @@ class TestFile:
         return f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.csc"
 
     @pytest.fixture(scope="module")
-    def elsi_csc_file(self, elsi_csc_loc):
+    def elsi_csc_file(self, elsi_csc_loc) -> File:
         return File(elsi_csc_loc, "elsi_csc")
 
     def test_file_not_found_error(self) -> None:
@@ -61,7 +63,7 @@ class TestFile:
             assert elsi_csc_file.data == f.read()
 
     def test_binary_file_str(self, elsi_csc_file) -> None:
-        with pytest.raises(OSError):
+        with pytest.raises(OSError, match="Is a binary file"):
             str(elsi_csc_file)
 
 
@@ -72,23 +74,21 @@ class DummyParser(Parser):
     As it is an abstract class it cannot be instantiated directly.
     """
 
-    def __init__(self, binary, **kwargs):
+    def __init__(self, binary, **kwargs: str):
         super().__init__(self._supported_files, **kwargs)
-
-        # print(vars(self))
 
         self._name = "name"
         self._binary = binary
 
         match self._format:
             case "arbitrary_format_1":
-                self.path = 'tests/fixtures/base_test_files/test.arb_fmt'
+                self.path = "tests/fixtures/base_test_files/test.arb_fmt"
                 self._extension = ".arb_fmt"
                 self.lines = ["This is a Parser test file!"]
                 self.data = b""
                 self._check_binary(False)
             case "arbitrary_format_2":
-                self.path = 'tests/fixtures/base_test_files/test.csc'
+                self.path = "tests/fixtures/base_test_files/test.csc"
                 self._extension = ".csc"
                 self.lines = []
                 self.data = b"This is a Parser test file!"
@@ -103,8 +103,11 @@ class DummyParser(Parser):
 
 
 class TestParser:
+    """Test the Parser class."""
+
     @pytest.fixture
-    def dummy_parser(self):
+    def dummy_parser(self) -> type[DummyParser]:
+        """Get a dummy parser class for testing."""
         return DummyParser
 
     @pytest.mark.parametrize(
@@ -148,32 +151,31 @@ class TestParser:
     )
     def test_parser_init(self, dummy_parser, kwargs, binary, expectation) -> None:
         with expectation as e:
-            # print(dummy_parser(binary, **kwargs))
             assert dummy_parser(binary, **kwargs) == e
 
     def test_no_cls_init(self) -> None:
         with pytest.raises(TypeError):
 
-            class DummyParser(Parser):
+            class DummyParser(Parser):  # pyright: ignore[reportUnusedClass]
                 @property
                 def _supported_files(self) -> dict:
                     return {"arbitrary_format": ".arb_format"}
 
     def test_no_supported_files_property(self) -> None:
         class DummyParser(Parser):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
+            def __init__(self, **kwargs: str):
+                super().__init__(self._supported_files, **kwargs)
 
                 self._check_binary(False)
 
         with pytest.raises(TypeError):
-            DummyParser()  # pyright: ignore
+            DummyParser()  # pyright: ignore[reportAbstractUsage]
 
     def test_no_check_binary(self) -> None:
         with pytest.raises(TypeError):
 
-            class DummyParser(Parser):
-                def __init__(self, **kwargs):
+            class DummyParser(Parser):  # pyright: ignore[reportUnusedClass]
+                def __init__(self, **kwargs: str):
                     super().__init__(self._supported_files, **kwargs)
 
                 @property
@@ -196,12 +198,12 @@ class TestParser:
             (
                 {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
                 True,
-                pytest.raises(ValueError),
+                pytest.raises(ValueError, match="name should be text format"),
             ),
             (
                 {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
                 False,
-                pytest.raises(ValueError),
+                pytest.raises(ValueError, match="name should be binary format"),
             ),
         ],
     )
@@ -211,4 +213,4 @@ class TestParser:
             assert dp._check_binary(binary) == e
 
 
-# ruff: noqa: S101
+# ruff: noqa: ANN001, S101, ERA001

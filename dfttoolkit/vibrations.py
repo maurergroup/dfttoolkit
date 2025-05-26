@@ -163,7 +163,7 @@ class Vibrations:
 
         n_forces = np.zeros(N, np.int64)
 
-        for c, F in zip(self.vibration_coors, self.vibration_forces):
+        for c, F in zip(self.vibration_coors, self.vibration_forces, strict=False):
             dF = F.flatten() - F_0
             dx = c.flatten() - coords_0
             ind = np.argmax(np.abs(dx))

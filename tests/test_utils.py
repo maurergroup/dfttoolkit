@@ -217,7 +217,8 @@ class TestMathUtils:
         assert np.isclose(mu.rel_mae(delta, xyz_1_arr * 2), 2 / 3)
 
 
-class TestPeriodicTable: ...
+class TestPeriodicTable: ...  # noqa: D101
+
 
 
 # ruff: noqa: ANN001, S101

@@ -1,4 +1,5 @@
 import shutil
+from collections.abc import Generator
 
 import numpy as np
 import pytest
@@ -7,6 +8,8 @@ from dfttoolkit.parameters import AimsControl
 
 
 class TestAimsControl:
+    """Test class for AimsControl."""
+
     @property
     def aims_fixture_no(self) -> int:
         return int(self.ac.path.split("/")[-2])
@@ -18,7 +21,7 @@ class TestAimsControl:
         )
 
     @pytest.fixture
-    def added_keywords_ref_files(self, cwd):
+    def added_keywords_ref_files(self, cwd) -> Generator[list[str], None, None]:
         with open(
             f"{cwd}/fixtures/manipulated_aims_files/add_keywords/"
             f"{self.aims_fixture_no}/control.in",
@@ -26,7 +29,7 @@ class TestAimsControl:
             yield f.readlines()
 
     @pytest.fixture
-    def removed_keywords_ref_files(self, cwd):
+    def removed_keywords_ref_files(self, cwd) -> Generator[list[str], None, None]:
         with open(
             f"{cwd}/fixtures/manipulated_aims_files/remove_keywords/"
             f"{self.aims_fixture_no}/control.in",
@@ -34,7 +37,7 @@ class TestAimsControl:
             yield f.readlines()
 
     @pytest.fixture
-    def cube_cell_ref_files(self, cwd):
+    def cube_cell_ref_files(self, cwd) -> Generator[list[str] | None, None, None]:
         if self.aims_fixture_no != 13:
             with open(
                 f"{cwd}/fixtures/manipulated_aims_files/cube_cell/"
@@ -113,7 +116,9 @@ class TestAimsControl:
 
         assert "".join(added_keywords_ref_files) == control_path.read_text()
 
-    def test_remove_keywords_and_save(self, tmp_dir, removed_keywords_ref_files) -> None:
+    def test_remove_keywords_and_save(
+        self, tmp_dir, removed_keywords_ref_files
+    ) -> None:
         control_path = tmp_dir / "control.in"
         shutil.copy(self.ac.path, control_path)
         ac = AimsControl(control_in=str(control_path))
@@ -126,3 +131,6 @@ class TestAimsControl:
             assert self.ac.check_periodic() is True
         else:
             assert self.ac.check_periodic() is False
+
+
+# ruff: noqa: ANN001, S101, ERA001

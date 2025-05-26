@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
 from fractions import Fraction
-from typing import Any, List, Tuple, Union
+from typing import Any, Collection
 
 import ase
 import matplotlib as mpl
@@ -33,23 +33,24 @@ from .utils.periodic_table import PeriodicTable
 
 class Geometry:
     """
-    This class represents a geometry file for (in principle) any DFT code.
+    Represent a geometry file for (in principle) any DFT code.
+
     In practice it has only been fully implemented for FHI-aims geometry.in
     files.
 
+    Parameters
+    ----------
+    Filename : str
+        Path to text file of geometry.
+
+    center: dict
+        atom indices and linear combination of them to define the center of
+        a molecule. Used only for mapping to first unit cell.
+        Example: if the center should be the middle between the first three
+        atoms, center would be {1:1/3,2:1/3,3:1/3}
     """
 
-    def __init__(self, filename: Union[str, None] = None):
-        """
-        Filename : str
-            Path to text file of geometry.
-
-        center: dict
-            atom indices and linear combination of them to define the center of
-            a molecule. Used only for mapping to first unit cell.
-            Example: if the center should be the middle between the first three
-            atoms, center would be {1:1/3,2:1/3,3:1/3}
-        """
+    def __init__(self, filename: str | None = None):
         self.species = []
         self.lattice_vectors = np.zeros([3, 3])
         self.comment_lines = []
@@ -63,8 +64,10 @@ class Geometry:
         self.energy = None
         self.forces = None
         self.hessian = None
-        self.geometry_parts = []  # list of lists: indices of each geometry part
-        self.geometry_part_descriptions = []  # list of strings:  name of each geometry part
+        # list of lists: indices of each geometry part
+        self.geometry_parts = []
+        # list of strings:  name of each geometry part
+        self.geometry_part_descriptions = []
         self.symmetry_axes = None
         self.inversion_index = None
         self.vacuum_level = None
@@ -74,8 +77,11 @@ class Geometry:
         self.symmetry_params = None
         self.n_symmetry_params = None
         self.symmetry_LVs = None
-        self.symmetry_frac_coords = None  # symmetry_frac_coords should have str values, not float, to include the parameters
-        self.original_lattice_vectors = None  # Save the original lattice vectors if the geometry is periodically replicated
+        # symmetry_frac_coords should have str values, not float, to include the
+        # parameters
+        self.symmetry_frac_coords = None
+        # Save the original lattice vectors if the geometry is periodically replicated
+        self.original_lattice_vectors = None
 
         if filename is None:
             self.n_atoms = 0
@@ -335,7 +341,7 @@ class Geometry:
 
     def add_geometry(self, geometry) -> None:
         """
-        Adds full geometry to initial geometry.
+        Add full geometry to initial geometry.
 
         Parameters
         ----------
@@ -390,9 +396,11 @@ class Geometry:
                 self.center = geometry.center.copy()
             # both have a center:
             elif self.center is not None and geometry.center is not None:
-                warnings.warn("Caution: The center of the first file will be used!")
+                warnings.warn(
+                    "Caution: The center of the first file will be used!", stacklevel=2
+                )
 
-    def add_multipoles(self, multipoles: Union[List[float], List[list]]) -> None:
+    def add_multipoles(self, multipoles: list[float] | list[list]) -> None:
         """
         Adds multipoles to the the geometry.
 
@@ -778,7 +786,7 @@ class Geometry:
         )
         self.remove_atoms(adsorbate_indices)
 
-    def remove_collisions(self, keep_latest: Union[bool, slice] = True) -> None:
+    def remove_collisions(self, keep_latest: bool | slice = True) -> None:
         """
         Removes all atoms that are in a collision group as given by
         GeometryFile.getCollidingGroups.
@@ -797,10 +805,7 @@ class Geometry:
         """
         indices = []
         if isinstance(keep_latest, bool):
-            if keep_latest:
-                selection = slice(None, -1, None)
-            else:
-                selection = slice(1, None, None)
+            selection = slice(None, -1, None) if keep_latest else slice(1, None, None)
         elif isinstance(keep_latest, slice):
             selection = keep_latest
         collisions = self.get_colliding_groups()
@@ -1158,37 +1163,32 @@ class Geometry:
     def align_main_axis_along_xyz(self) -> None:
         """Align coordinates of rodlike molecules along specified axis."""
         _, vecs = self.get_main_axes()
-        R = np.linalg.inv(vecs.T)  # noqa: N806
+        R = np.linalg.inv(vecs.T)
         self.coords = np.dot(self.coords, R)
 
     def transform(
         self,
         R: npt.NDArray[np.floating[Any]],
         t: npt.NDArray[np.float64] = np.array([0, 0, 0]),
-        rotation_center: Union[npt.NDArray[np.float64], None] = None,
-        atom_indices: Union[npt.NDArray[np.int64], None] = None,
+        rotation_center: npt.NDArray[np.float64] | None = None,
+        atom_indices: npt.NDArray[np.int64] | None = None,
     ) -> None:
         """
-        Performs a symmetry transformation of the coordinates by rotation and
-        translation. The transformation is applied as
-        x_new[3x1] = x_old[3x1] x R[3x3] + t[3x1]
+        Apply a symmetry transformation via rotation and translation of coordinates.
+
+        The transformation is applied as x_new[3x1] = x_old[3x1] x R[3x3] + t[3x1]
 
         Parameters
         ----------
         R : np.array
             Rotation matrix in Catesian coordinates.
         t : np.array, optional
-            Translation vector in Catesian coordinates. The default is np.array([0,0,0]).
+            Translation vector in Catesian coordinates - default is np.array([0,0,0])
         rotation_center : np.array | None, optional
             Centre of rotation. The default is None.
         atom_indices : np.array | None, optional
             List of indexes of atoms that should be transformed. The default is
             None.
-
-        Returns
-        -------
-        None
-
         """
         if atom_indices is None:
             atom_indices = np.arange(self.n_atoms)
@@ -1571,13 +1571,14 @@ class Geometry:
 
     def set_external_forces(
         self,
-        indices_of_atoms: Union[int, npt.NDArray[np.int64]],
+        indices_of_atoms: int | npt.NDArray[np.int64],
         external_force: npt.NDArray[np.float64],
     ) -> None:
         """
-        Sets a constraint for a few atoms in the system (identified by
-        'indices_of_atoms_to_constrain') for a geometry relaxation.
-        Since the relaxation constraint can be in any and/or all dimensions
+        Set a constraint for a few atoms in the system for a geometry relaxation.
+
+        These are identified by 'indices_of_atoms_to_constrain' for a geometry
+        relaxation. Since the relaxation constraint can be in any and/or all dimensions
         the second parameter, 'constraint_dim_flags', makes it possible to
         set which dimension(s) should be constrained for which molecule.
         By default all dimensions are to be constrained for all atoms are
@@ -1607,14 +1608,11 @@ class Geometry:
         self.external_force = np.zeros((len(self), 3))
 
     def remove_periodicity(self):
-        """
-        Makes geometry non-periodic by setting its lattice vectors to zero
-
-        """
+        """Make a geometry non-periodic by setting its lattice vectors to zero."""
         self.lattice_vectors = np.zeros((3, 3), dtype=float)
 
     def set_homogeneous_field(self, E):
-        """Field should be a numpy array (Ex, Ey, Ez) with the Field in V/A"""
+        """Field should be a numpy array (Ex, Ey, Ez) with the Field in V/A."""
         assert len(E) == 3, "Expected E-field components [Ex, Ey, Ez], but got " + str(
             E
         )
@@ -1623,7 +1621,7 @@ class Geometry:
     def free_homogeneous_field(self):
         self.homogeneous_field = np.array([0.0, 0.0, 0.0])
 
-    def set_initial_magnetic_moments(self, moments: List[float]) -> None:
+    def set_initial_magnetic_moments(self, moments: list[float]) -> None:
         self.initial_moment = moments
 
     ###############################################################################
@@ -1683,22 +1681,23 @@ class Geometry:
 
         warnings.warn(
             "Geometry.getReassembledMolecule could not reassemble \
-                      molecule. Returning original Geometry."
+                      molecule. Returning original Geometry.",
+            stacklevel=2,
         )
         return self
 
-    def get_scaled_copy(self, scaling_factor: Union[float, List]) -> object:
+    def get_scaled_copy(self, scaling_factor: float | list) -> object:
         """
-        Returns a copy of the geometry, scaled by scaling_factor.
+        Return a copy of the geometry, scaled by `scaling_factor`.
 
         Both the coordinates of the atoms and the length of the lattice vectors are
         affected
 
         Parameters
         ----------
-        scaling_factor : Union[float, Iterator]
+        scaling_factor : float | list
             Scaling factor for the geometry. If float, the volume of the geometry
-            will be scaled accordingly. If iterable, the length of the lattice vectors
+            will be scaled accordingly. If a list, the length of the lattice vectors
             will be scaled accordingly.
 
         Returns
@@ -1775,12 +1774,13 @@ class Geometry:
         fractional_coords = np.linalg.solve(lattice_vectors.T, self.coords.T)
         return fractional_coords.T
 
-    def get_fractional_lattice_vectors(self, lattice_vectors=None):
+    def get_fractional_lattice_vectors(
+        self, lattice_vectors: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.floating]:
         """
-        Calculate the fractional representation of lattice vectors of the
-        geometry file in another basis.
-        Useful to calculate epitaxy matrices
+        Compute fractional lattice vectors of a geometry in a different basis.
 
+        Useful to calculate epitaxy matrices.
         """
         fractional_coords = np.linalg.solve(lattice_vectors.T, self.lattice_vectors.T)
         return fractional_coords.T
@@ -1810,15 +1810,16 @@ class Geometry:
         return recip_lattice
 
     def get_main_axes(
-        self, weights: Union[str, npt.NDArray[np.float64]] = "unity"
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        self, weights: str | npt.NDArray[np.float64] = "unity"
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        Get main axes and eigenvalues of a molecule
+        Get main axes and eigenvalues of a molecule.
+
         https://de.wikipedia.org/wiki/Tr%C3%A4gheitstensor
 
         Parameters
         ----------
-        weights : Union[str, npt.NDArray[np.float64]] = "unity"
+        weights : str | npt.NDArray[np.float64], default = "unity"
             Specifies how the atoms are weighted.
             "unity": all same weight
             "Z": weighted by atomic number.
@@ -1848,26 +1849,29 @@ class Geometry:
 
         return vals[sort_ind], vecs[:, sort_ind]
 
-    def get_distance_between_all_atoms(self) -> npt.NDArray[np.float64]:
+    def get_distance_between_all_atoms(self) -> npt.NDArray[np.floating]:
         """
         Get the distance between all atoms in the current Geometry
         object. Gives an symmetric array where distances between atom i and j
         are denoted in the array elements (ij) and (ji).
 
         """
-        distances = scipy.spatial.distance.cdist(self.coords, self.coords)
-        return distances
+        return scipy.spatial.distance.cdist(self.coords, self.coords)
 
-    def get_closest_atoms(self, indices, species=None, n_closest=1):
+    def get_closest_atoms(
+        self,
+        indices: int | Collection[int],
+        species: list | None = None,
+        n_closest: int = 1,
+    ) -> list:
         """
-        Get the indices of the closest atom(s) for the given index or list of
-        indices
+        Get the indices of the closest atom(s) for the given index.
 
         Parameters
         ----------
-        index: int or iterable
+        index: int | Collection[int]
             atoms for which the closest indices are  to be found
-        species: None or list of species identifiers
+        species: list | None
             species to consider for closest atoms. This allows to get only the
             closest atoms of the same or another species
         n_closest: int
@@ -1875,7 +1879,7 @@ class Geometry:
 
         Returns
         -------
-        closest_atoms_list: list or list of lists
+        closest_atoms_list: list
             closest atoms for each entry in index
         """
         all_distances = self.get_distance_between_all_atoms()
@@ -1884,7 +1888,8 @@ class Geometry:
             species_to_consider = list(set(self.species))
         else:
             assert isinstance(species, list), (
-                "species must be a list of species identifiers or None if all atoms should be probed"
+                "species must be a list of species identifiers or None if all atoms "
+                "should be probed"
             )
             species_to_consider = species
 
@@ -1913,39 +1918,39 @@ class Geometry:
             return closest_atoms_list[0]
         return closest_atoms_list
 
-    def get_distance_between_two_atoms(self, atom_indices: list) -> np.float64:
-        """Get the distance between two atoms in the current Geometry
-        object.
-        """
+    def get_distance_between_two_atoms(self, atom_indices: list) -> np.floating:
+        """Get the distance between two atoms in the current Geometry."""
         atom1 = self.coords[atom_indices[0], :]
         atom2 = self.coords[atom_indices[1], :]
         vec = atom2 - atom1
-        dist = np.linalg.norm(vec)
 
-        return dist
+        return np.linalg.norm(vec)
 
-    def get_volume_of_unit_cell(self) -> np.float64:
+    def get_volume_of_unit_cell(self) -> npt.NDArray[np.float64]:
         """
         Calcualtes the volume of the unit cell.
 
         Returns
         -------
-        volume : float
+        volume : npt.NDArray[np.float64]
             Volume of the unit cell.
-
         """
         a1 = self.lattice_vectors[0]
         a2 = self.lattice_vectors[1]
         a3 = self.lattice_vectors[2]
-        volume = np.cross(a1, a2).dot(a3)
-        return volume
+
+        return np.cross(a1, a2).dot(a3)
 
     def get_geometric_center(
-        self, ignore_center_attribute=False, indices=None
+        self,
+        ignore_center_attribute: bool = False,
+        indices: Collection[int] | None = None,
     ) -> npt.NDArray[np.float64]:
         """
-        Returns the center of the geometry. If the attribute *center* is set,
-        it is used as the definition for the center of the geometry.
+        Get the center of the geometry.
+
+        If the attribute `center` is set, it is used as the definition for the center of
+        the geometry.
 
         Parameters
         ----------
@@ -1954,9 +1959,9 @@ class Geometry:
             Otherwise, the function returns the geometric center of the structure,
             i.e. the average over the position of all atoms.
 
-        indices: iterable of indices or None
-            indices of all atoms to consider when calculating the center. Useful to calculate centers of adsorbates only
-            if None, all atoms are used
+        indices: Collection[int] | None
+            indices of all atoms to consider when calculating the center. Useful to
+            calculate centers of adsorbates only. if None, all atoms are used.
 
         Returns
         -------
@@ -2163,22 +2168,22 @@ class Geometry:
 
     def get_area_in_atom_numbers(
         self,
-        substrate_indices: Union[npt.NDArray[np.float64], None] = None,
+        substrate_indices: npt.NDArray[np.float64] | None = None,
         substrate=None,
     ) -> float:
         """
-        Returns the area of the unit cell in terms of substrate atoms in the
-        topmost substrate layer. The substrate is determined by
-        default by the function self.getSubstrate(). For avoiding a faulty
-        substrate determination it can be either given through indices or
-        through the substrate geometry itself
+        Calculate the unit cell area using atoms in the topmost substrate layer.
+
+        By default, the substrate is determined using `self.getSubstrate()`. To avoid
+        incorrect automatic detection, the substrate can also be specified manually,
+        either by providing atom indices or by passing the substrate geometry directly.
 
         Parameters
         ----------
-        substrate_indices : Union[np.array, None], optional
-            List of indices of substrate atoms. The default is None.
-        substrate : TYPE, optional
-            Geometry of substrate. The default is None.
+        substrate_indices : npt.NDArray[np.float64] | None, default = None
+            List of indices of substrate atoms
+        substrate : TODO, default = None
+            Geometry of the substrate
 
         Returns
         -------
@@ -2197,28 +2202,23 @@ class Geometry:
         """
         Parameters
         ----------
-        Parameter for bond detection based on atom-distance : float, optional
-            DESCRIPTION. The default is 1.5.
+        Parameter for bond detection based on atom-distance : float, default = 1.5
+            TODO
 
         Returns
         -------
-        bond_lengths : npt.NDArray[np.float64]
+        bond_lengths : NDArray[float64]
             List of bond lengths for neighbouring atoms.
-
         """
         raise NotImplementedError
 
         # TODO write the below function
         neighbouring_atoms = self.get_all_neighbouring_atoms(bond_factor=bond_factor)
+        bond_lengths = [v[1] for v in neighbouring_atoms.values()]
 
-        bond_lengths = []
-        for v in neighbouring_atoms.values():
-            bond_lengths.append(v[1])
+        return np.array(bond_lengths)
 
-        bond_lengths = np.array(bond_lengths)
-        return bond_lengths
-
-    def get_number_of_atom_layers(self, threshold: float = 1e-2) -> Tuple[dict, float]:
+    def get_number_of_atom_layers(self, threshold: float = 1e-2) -> tuple[dict, float]:
         """
         Return the number of atom layers.
 
@@ -2246,25 +2246,25 @@ class Geometry:
 
     def get_unit_cell_parameters(
         self,
-    ) -> Tuple[np.float64, np.float64, np.float64, float, float, float]:
+    ) -> tuple[np.floating, np.floating, np.floating, float, float, float]:
         """
-        Determines unit cell parameters.
+        Determine the unit cell parameters.
 
         Returns
         -------
-        a : float
-            Length of lattice vector 1.
-        b : float
-            Length of lattice vector 2.
-        c : float
-            Length of lattice vector 3.
-        alpha : float
-            Angle between lattice vectors 1 and 2.
-        beta : float
-            Angle between lattice vectors 2 and 3.
-        gamma : float
-            Angle between lattice vectors 1 and 3.
-
+        tuple
+            float
+                Length of lattice vector 1.
+            float
+                Length of lattice vector 2.
+            float
+                Length of lattice vector 3.
+            float
+                Angle between lattice vectors 1 and 2.
+            float
+                Angle between lattice vectors 2 and 3.
+            float
+                Angle between lattice vectors 1 and 3.
         """
         cell = self.lattice_vectors
 
@@ -2383,35 +2383,36 @@ class Geometry:
         return np.array(indices_to_remove)
 
     def get_substrate_indices_from_parts(
-        self, do_warn: bool = True
-    ) -> Union[None, npt.NDArray[np.int64]]:
+        self, warn: bool = True
+    ) -> None | npt.NDArray[np.int64]:
         """
-        Returns indices of those atoms that a part of the substrate. The
-        definition of the substrate does NOT rely of it being a metal or the
-        height or something like that. Instead a geometry part named
-        'substrate' must be defined.
+        Get the indices of those atoms that a part of the substrate.
+
+        The definition of the substrate does NOT rely of it being a metal or the height.
+        Instead a geometry part named `substrate` must be defined.
 
         Parameters
         ----------
-        do_warn : boolean
+        warn : bool
             Can be set to False to suppress warnings
 
         Returns
         -------
-        substrate_indices : npt.NDArray[np.int64]
-
+        NDArray[int64]
+            TODO
         """
-        substrate_key = "substrate"  # should probably moved to a class variable, but first finished folder-read-write
+        # should probably moved to a class variable, but first finish folder-read-write
+        substrate_key = "substrate"
 
         if not hasattr(self, "geometry_parts") or not hasattr(
             self, "geometry_part_descriptions"
         ):
-            if do_warn:
+            if warn:
                 print("getSubstrate: geometry parts not defined")
             return None
 
         if substrate_key not in self.geometry_part_descriptions:
-            if do_warn:
+            if warn:
                 print(
                     "getSubstrate: geometry parts are defined, "
                     f"but part '{substrate_key}' not found"
@@ -2422,8 +2423,8 @@ class Geometry:
             substrate_key
         )
         substrate_indices = self.geometry_parts[index_of_geometry_parts_substrate]
-        substrate_indices = np.array(substrate_indices)
-        return substrate_indices
+
+        return np.array(substrate_indices)
 
     def get_indices_of_metal(self) -> npt.NDArray[np.int64]:
         """
@@ -2475,29 +2476,37 @@ class Geometry:
         return species_indices
 
     def get_substrate_indices(
-        self, primitive_substrate=None, dimension=2, threshold=0.3
+        self, primitive_substrate=None, dimension: int = 2, threshold: float = 0.3
     ) -> npt.NDArray[np.int64]:
         """
-        This method returns the indices of all atoms that are part of the substrate.
-        Often these are simply all metal atoms of the geometry.
-        But the substrate can also be organic in which case it can't be picked by being a metal.
-        And there might be multiple adsorbate layers in which case only the molecules of the highest layer
-        shall be counted as adsorbates and the others are part of the substrate.
+        Get the indices of all atoms that are part of the substrate.
 
-        dimension: int      only used if primitive_substrate is not None
-        threshold: float    only used if primitive_substrate is not None
+        Often these are simply all metal atoms of the geometry, But the substrate can
+        also be organic in which case it can't be picked by being a metal. There might
+        also be multiple adsorbate layers in which case only the molecules of the
+        highest layer shall be counted as adsorbates and the others are part of the
+        substrate.
+
+        Parameters
+        ----------
+        primitive_substrate: TODO | None
+            TODO
+        dimension: int, default = 2
+            TODO
+        threshold: float, default = 0.3
+            TODO
 
         Returns
         -------
-        indices of all substrate atoms: npt.NDArray[np.int64]
-
+        indices of all substrate atoms: NDArray[int64]
         """
-        # case 1: if a primitive_substrate was passed, use that one for the decision
+        # Case 1: if a primitive_substrate was passed, use that one for the decision
         # (copied from self.removeSubstrate)
 
         substrate_indices = []
 
-        # case 2: if no substrate was passed but a geometry_parts "substrate" is defined in geometry_parts, use that one
+        # Case 2: if no substrate was passed but a geometry_parts "substrate" is defined
+        # in geometry_parts, use that one
         substrate_indices_from_parts = self.get_substrate_indices_from_parts(
             do_warn=False
         )
@@ -2519,11 +2528,13 @@ class Geometry:
             substrate_indices = substrate_indices_from_parts
 
         else:
-            # case 3: if neither a substrate was passed, nor a geometry_parts "substrate" is defined,
-            #            use a fallback solution: assume that the substrate (and nothing else) is a metal
+            # Case 3: if neither a substrate was passed, nor a geometry_parts
+            # `substrate` is defined, use a fallback solution: assume that the substrate
+            # (and nothing else) is a metal
             warnings.warn(
                 "Geometry.getIndicesOfAdsorbates: Substrate is not explicitly defined. "
-                "Using fallback solution of counting all metal atoms as substrate."
+                "Using fallback solution of counting all metal atoms as substrate.",
+                stacklevel=2,
             )
             substrate_indices = self.get_indices_of_metal()
 
@@ -2531,7 +2542,8 @@ class Geometry:
 
     def get_adsorbate_indices(self, primitive_substrate=None) -> npt.NDArray[np.int64]:
         """
-        This method returns the indices of all atoms that are NOT part of the substrate.
+        Get the indices of all atoms that are NOT part of the substrate.
+
         In a classical organic monolayer on a metal substrate these are simply all molecules.
         But the substrate can also be organic in which case it can't be picked by being a metal.
         And there might be multiple adsorbate layers in which case only the molecules of the highest layer
@@ -3032,7 +3044,7 @@ class Geometry:
                         if (abs(h) < shell) and (abs(j) < shell) and (abs(k) < shell):
                             continue
 
-                        for new_species, coord in zip(atomic_numbers, scaled_positions):
+                        for new_species, coord in zip(atomic_numbers, scaled_positions, strict=False):
                             new_coord = coord.dot(lattice) + np.array([h, j, k]).dot(
                                 lattice
                             )
@@ -3104,10 +3116,10 @@ class Geometry:
     def get_slab(
         self,
         layers: int,
-        surface: Union[npt.NDArray[np.int64], None] = None,
+        surface: npt.NDArray[np.int64] | None = None,
         threshold: float = 1e-6,
-        surface_replica: Tuple[int, int] = (1, 1),
-        vacuum_height: Union[float, None] = None,
+        surface_replica: tuple[int, int] = (1, 1),
+        vacuum_height: float | None = None,
         bool_shift_slab_to_bottom: bool = False,
     ) -> "Geometry":
         """
@@ -3245,12 +3257,13 @@ class Geometry:
     def get_periodic_replica(
         self,
         replications: tuple,
-        lattice: Union[npt.NDArray[np.float64], None] = None,
-        explicit_replications: Union[list, None] = None,
+        lattice: npt.NDArray[np.float64] | None = None,
+        explicit_replications: list | None = None,
     ):
         """
-        Return a new geometry file that is a periodic replica of the original
-        file. Repeats the geometry N-1 times in all given directions:
+        Get a new geometry file that is a periodic replica of the original file.
+
+        Repeats the geometry N-1 times in all given directions:
         (1,1,1) returns the original file
 
         Parameters
@@ -3426,11 +3439,11 @@ class Geometry:
         layer_indices: list,
         threshold: float = 1e-2,
         primitive_substrate=None,
-        substrate_indices: Union[None, npt.NDArray[np.int64]] = None,
+        substrate_indices: npt.NDArray[np.int64] | None = None,
     ):
         """
         Get substrate layer by indices. The substrate is determined by
-        default by the function self.get_substrate. For avoiding a faulty
+        default by the function `self.get_substrate`. For avoiding a faulty
         substrate determination it can be either given through indices or
         through the substrate geometry itself.
 
@@ -3438,12 +3451,12 @@ class Geometry:
         ----------
         layer_indices : list
             List of indices of layers that shall be returned.
-        threshold : float, optional
-            DESCRIPTION. The default is 1e-2.
-        primitive_substrate : TYPE, optional
-            DESCRIPTION. The default is None.
-        substrate_indices : Union[None, list], optional
-            List of indices of substrate atoms. The default is None.
+        threshold : float, default=1e-2
+            TODO
+        primitive_substrate : TODO
+            TODO
+        substrate_indices : TODO
+            List of indices of substrate atoms
 
         Returns
         -------

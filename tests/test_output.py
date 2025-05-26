@@ -22,7 +22,7 @@ class TestAimsOutput:
         )
 
     @pytest.fixture
-    def control_in(self, cwd, aims_calc_dir) -> Generator:  # TODO: finish return type
+    def control_in(self, cwd, aims_calc_dir) -> Generator[list[str], None, None]:
         """
         Get lines from a control.in fixture.
 
@@ -212,7 +212,7 @@ class TestAimsOutput:
             ),
         }
 
-        if self._aims_fixture_no  == 13:
+        if self._aims_fixture_no == 13:
             assert np.allclose(
                 self.ao.get_forces_without_vdw(), forces[self._aims_fixture_no]
             )
@@ -399,7 +399,7 @@ class TestAimsOutput:
 
             # Check for both spin states
             for spin_eval, spin in zip(
-                ["su_eigenvalues", "sd_eigenvalues"], [spin_up, spin_down]
+                ["su_eigenvalues", "sd_eigenvalues"], [spin_up, spin_down], strict=False
             ):
                 for key in ref_data[spin_eval][self._aims_fixture_no - 2]:
                     # Check the values are within tolerance and that keys match
@@ -511,17 +511,18 @@ class TestELSIOutput:
         )
 
     def test_read_elsi_as_csc_to_array(self) -> None:
+        eo_csc_format_false = self.eo_csc.read_elsi_as_csc(csc_format=False)
+        assert isinstance(eo_csc_format_false, np.ndarray)
         assert np.allclose(
-            self.eo_csc.read_elsi_as_csc(csc_format=False).all(),
+            eo_csc_format_false.all(),
             self.eo_npz.toarray().all(),
             atol=1e-8,
         )
 
-        eo_csc = self.eo_csc.read_elsi_as_csc(csc_format=True)
-
-        assert not isinstance(eo_csc, np.ndarray)
+        eo_csc_format_true = self.eo_csc.read_elsi_as_csc(csc_format=True)
+        assert not isinstance(eo_csc_format_true, np.ndarray)
         assert np.allclose(
-            eo_csc.toarray().all(),
+            eo_csc_format_true.toarray().all(),
             self.eo_npz.toarray().all(),
         )
 

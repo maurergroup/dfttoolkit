@@ -1543,7 +1543,7 @@ class ELSIOutput(Output):
 
     def read_elsi_as_csc(
         self, csc_format: bool = False
-    ) -> sp.csc_matrix | npt.NDArray[np.float64]:
+    ) -> sp.csc_array | npt.NDArray[np.float64]:
         """
         Get a CSC matrix from an ELSI output file.
 
@@ -1554,7 +1554,7 @@ class ELSIOutput(Output):
 
         Returns
         -------
-        csc_matrix | NDArray
+        csc_array | NDArray
             The CSC matrix or numpy array
         """
         header = self.get_elsi_csc_header()

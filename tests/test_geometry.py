@@ -5,6 +5,7 @@ from dfttoolkit.geometry import AimsGeometry
 
 
 class TestAimsGeometry:
+    """Test the AimsGeometry class."""
 
     @pytest.fixture(autouse=True)
     def geometry(self) -> None:
@@ -82,3 +83,6 @@ class TestAimsGeometry:
     def test_get_number_of_electrons(self) -> None:
         n_electrons = self.ap_geom.get_number_of_electrons()
         assert n_electrons == 145
+
+
+# ruff: noqa: ANN001, S101, ERA001

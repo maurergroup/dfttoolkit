@@ -213,7 +213,7 @@ class Cube(Parser):
     def __mul__(self, other: Self):
         new_cube = copy.deepcopy(self)
 
-        if isinstance(other, (float, int)):
+        if isinstance(other, float | int):
             new_cube.grid *= other
         else:
             new_cube.grid *= other.data
@@ -221,7 +221,7 @@ class Cube(Parser):
         return new_cube
 
     def __imul__(self, other: Self):
-        if isinstance(other, (float, int)):
+        if isinstance(other, float | int):
             self.grid *= other
         else:
             self.grid *= other.data
