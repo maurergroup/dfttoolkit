@@ -7,7 +7,7 @@ authors = [
   { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
   { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11, <3.14"
 dependencies = [
   "ase>=3.22.1",
   "click>=8.2.1",
@@ -66,6 +66,7 @@ addopts = ["--import-mode=importlib"]
 
 [tool.ruff]
 line-length = 88
+extend-exclude = ["dfttoolkit/geometry.py", "docs/", "tutorials/"]
 
 [tool.ruff.analyze]
 detect-string-imports = true
@@ -75,7 +76,7 @@ detect-string-imports = true
 docstring-code-format = true
 
 [tool.ruff.lint]
-# select = ['E4', 'E7', 'E9', 'F']  # Default
+# select = ['E4', 'E7', 'E9', 'F']  # Default
 select = [
   'E1',
   'E4',
@@ -121,6 +122,7 @@ ignore = [
   'ANN401',
   'D100',
   'D102',
+  'D104',
   'D105',
   'D206',
   'D300',
@@ -135,10 +137,13 @@ ignore = [
   'TRY003',
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/test_*.py" = ["ANN001", "S101", "ERA001"]
+
 [tool.ruff.lint.pycodestyle]
-# Limit docstrings to have the same number of characters as the code
+# Limit docstrings to have the same number of characters as the code
 max-doc-length = 88
-# Do not trigger line-too-long warnings for comments starting with task notes (eg. TODO)
+# Do not trigger line-too-long warnings for comments starting with task notes (eg. TODO)
 ignore-overlong-task-comments = true
 
 [tool.ruff.lint.pydocstyle]
