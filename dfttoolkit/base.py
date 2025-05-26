@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import FunctionType, MethodType
-from typing import override
 
 from .utils.exceptions import UnsupportedFileError
 
@@ -68,7 +67,6 @@ class File:
                 self.data = b""
                 self._binary = False
 
-    @override
     def __str__(self) -> str:
         if len(self.lines) == 0:
             raise OSError("Is a binary file")
