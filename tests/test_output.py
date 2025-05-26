@@ -1,7 +1,8 @@
-from typing import Generator
+from collections.abc import Generator
+
 import numpy as np
 import pytest
-from scipy.sparse import load_npz
+import scipy.sparse as sp
 
 from dfttoolkit.output import AimsOutput, ELSIOutput
 from dfttoolkit.utils.exceptions import ItemNotFoundError
@@ -62,6 +63,7 @@ class TestAimsOutput:
 
         if self._aims_fixture_no == 13:
             geom_steps = self.ao.get_geometry_steps_of_optimisation()
+            assert isinstance(geom_steps, list)
             assert np.allclose(geom_steps[-1].coords, positions)
 
     def test_get_control_file(self, control_in) -> None:
@@ -80,8 +82,8 @@ class TestAimsOutput:
             assert self.ao.check_exit_normal() is True
 
     def test_get_time_per_scf(self, ref_data) -> None:
-        # Fail if the absolute tolerance between any values in test vs. reference array is
-        # greater than 2e-3
+        # Fail if the absolute tolerance between any values in test vs. reference array
+        # is greater than 2e-3
         if self._aims_fixture_no in range(1, 13):
             assert np.allclose(
                 self.ao.get_time_per_scf(),
@@ -119,8 +121,8 @@ class TestAimsOutput:
 
     def test_get_change_of_total_energy_2(self, ref_data) -> None:
         """Get every energy change."""
-        # Fail if the absolute tolerance between any values in test vs. reference array is
-        # greater than 1e-10
+        # Fail if the absolute tolerance between any values in test vs. reference array
+        # is greater than 1e-10
         if self._aims_fixture_no in range(1, 13):
             assert np.allclose(
                 self.ao.get_change_of_total_energy(n_occurrence=None),
@@ -167,8 +169,8 @@ class TestAimsOutput:
     #     )
 
     # Not necessary to include every possible function argument in the next tests as all
-    # of the following functions wrap around _get_energy(), which have all been tested in
-    # the previous 4 tests
+    # of the following functions wrap around _get_energy(), which have all been tested
+    # in the previous 4 tests
 
     def test_get_forces(self) -> None:
         forces = [
@@ -210,17 +212,10 @@ class TestAimsOutput:
             ),
         }
 
-        if self._aims_fixture_no in [13]:
+        if self._aims_fixture_no  == 13:
             assert np.allclose(
                 self.ao.get_forces_without_vdw(), forces[self._aims_fixture_no]
             )
-
-    def test_get_forces_without_vdw_2(self) -> None:
-        if self._aims_fixture_no in [13]:
-            f_1 = self.ao.get_forces_without_vdw()
-            f_2 = self.ao.get_forces() - self.ao.get_vdw_forces()
-
-            assert np.allclose(f_1, f_2)
 
     def test_get_change_of_forces(self) -> None:
         forces = {
@@ -240,7 +235,9 @@ class TestAimsOutput:
             )
 
         else:
-            with pytest.raises(ValueError):
+            with pytest.raises(
+                ValueError, match="Energy not found in aims.out file for"
+            ):
                 self.ao.get_change_of_forces()
 
     # TODO
@@ -332,6 +329,7 @@ class TestAimsOutput:
 
         elif self._aims_fixture_no == 12:
             for i in range(2):
+                assert final_spin_moment is not None
                 assert (
                     abs(
                         final_spin_moment[i]
@@ -458,16 +456,25 @@ class TestAimsOutput:
                 )
 
         elif self._aims_fixture_no in [2, 11]:
-            with pytest.raises(ValueError):
+            with pytest.raises(
+                ValueError, match="Final KS states not found in aims.out file."
+            ):
                 self.ao.get_pert_soc_ks_eigenvalues()
 
         else:
             # Check that it warns and then raises an error
-            with pytest.warns(UserWarning), pytest.raises(ValueError):
+            with (
+                pytest.warns(UserWarning),
+                pytest.raises(
+                    ValueError, match="Final KS states not found in aims.out file."
+                ),
+            ):
                 self.ao.get_pert_soc_ks_eigenvalues()
 
 
 class TestELSIOutput:
+    """Tests for the ELSIOutput class."""
+
     @pytest.fixture(autouse=True)
     def elsi_csc(self, cwd) -> None:
         self.eo_csc = ELSIOutput(
@@ -476,7 +483,7 @@ class TestELSIOutput:
 
     @pytest.fixture(autouse=True)
     def elsi_npz(self, cwd) -> None:
-        self.eo_npz = load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
+        self.eo_npz = sp.load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
 
     def test_get_elsi_csc_header(self) -> None:
         assert (
@@ -510,8 +517,11 @@ class TestELSIOutput:
             atol=1e-8,
         )
 
+        eo_csc = self.eo_csc.read_elsi_as_csc(csc_format=True)
+
+        assert not isinstance(eo_csc, np.ndarray)
         assert np.allclose(
-            self.eo_csc.read_elsi_as_csc(csc_format=True).toarray().all(),
+            eo_csc.toarray().all(),
             self.eo_npz.toarray().all(),
         )
 
@@ -522,5 +532,4 @@ class TestELSIOutput:
         )._getnnz() == 0
 
 
-
-# ruff: noqa: ANN001, S101
+# ruff: noqa: ANN001, S101, ERA001

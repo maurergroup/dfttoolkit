@@ -8,8 +8,7 @@ from ase.io import aims
 
 class CustomAims(Aims):
     """
-    A custom FHI-aims calculator which addresses bugs in the default ASE
-    implementation.
+    Custom FHI-aims calculator which addresses bugs in the default ASE implementation.
 
     Please refer to the ASE calculator for the documentation:
     https://wiki.fysik.dtu.dk/ase/ase/calculators/FHI-aims.html#module-ase.calculators.aims
@@ -58,3 +57,6 @@ class CustomAims(Aims):
         self.write_control(atoms, os.path.join(self.directory, "control.in"))
         self.write_species(atoms, os.path.join(self.directory, "control.in"))
         self.parameters.write(os.path.join(self.directory, "parameters.ase"))
+
+
+# ruff: noqa: PTH118, ANN001, ANN002, ANN003

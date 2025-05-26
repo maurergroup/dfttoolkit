@@ -97,7 +97,7 @@ class Parser(File, ABC):
         key = next(iter(provided_keys))
 
         if key not in supported_files:
-            raise UnsupportedFileError(provided_keys, list(supported_files.keys()))
+            raise UnsupportedFileError(key, supported_files.keys())
 
         # Check if the provided file is a valid file type
         # TODO: change so pathlib.Path is used in all child classes
@@ -123,7 +123,7 @@ class Parser(File, ABC):
             msg = f"{cls.__name__} must implement __init__"
             raise TypeError(msg)
 
-        if not isinstance(init_obj, (FunctionType, MethodType)):
+        if not isinstance(init_obj, FunctionType | MethodType):
             msg = f"{cls.__name__}.__init__ is not a function or method"
             raise TypeError(msg)
 

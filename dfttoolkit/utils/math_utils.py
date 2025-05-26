@@ -54,7 +54,7 @@ def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArra
 
     Returns
     -------
-    R : NDArray
+    NDArray
         Rotation matrix
     """
     axis_vec = np.array(axis, dtype=np.float64)
@@ -102,7 +102,7 @@ def get_mirror_matrix(normal_vector: npt.NDArray) -> npt.NDArray:
 
     Returns
     -------
-    M : NDArray
+    NDArray
         Mirror matrix
     """
     n_vec = normal_vector / np.linalg.norm(normal_vector)
@@ -129,14 +129,13 @@ def get_angle_between_vectors(
 
     Parameters
     ----------
-    vector_1 : npt.NDArray
-    vector_2 : npt.NDArray
+    vector_1 : NDArray
+    vector_2 : NDArray
 
     Returns
     -------
-    angle : float
+    float
         Angle in radiants.
-
     """
     return (
         np.dot(vector_1, vector_2) / np.linalg.norm(vector_1) / np.linalg.norm(vector_2)
@@ -151,7 +150,7 @@ def get_fractional_coords(
 
     Parameters
     ----------
-    cartesian_coords: [N x N_dim] numpy array
+    cartesian_coords: NDArray
         Cartesian coordinates of atoms (can be Nx2 or Nx3)
     lattice_vectors: [N_dim x N_dim] numpy array:
         Matrix of lattice vectors: Each ROW corresponds to one lattice vector!
@@ -160,7 +159,6 @@ def get_fractional_coords(
     -------
     fractional_coords: [N x N_dim] numpy array
         Fractional coordinates of atoms
-
     """
     fractional_coords = np.linalg.solve(lattice_vectors.T, cartesian_coords.T)
     return fractional_coords.T
@@ -174,14 +172,14 @@ def get_cartesian_coords(
 
     Parameters
     ----------
-    frac_coords: [N x N_dim] numpy array
+    frac_coords: NDArray
         Fractional coordinates of atoms (can be Nx2 or Nx3)
-    lattice_vectors: [N_dim x N_dim] numpy array:
+    lattice_vectors: NDArray
         Matrix of lattice vectors: Each ROW corresponds to one lattice vector!
 
     Returns
     -------
-    cartesian_coords: [N x N_dim] numpy array
+    NDArray
         Cartesian coordinates of atoms
 
     """
@@ -242,14 +240,14 @@ def get_cross_correlation_function(
 
     Parameters
     ----------
-    signal_0 : 1D NDArray
+    signal_0 : NDArray
         First siganl for which the correlation function should be calculated.
-    signal_1 : 1D NDArray
+    signal_1 : NDArray
         Second siganl for which the correlation function should be calculated.
 
     Returns
     -------
-    correlation : NDArray
+    NDArray
         Autocorrelation function from 0 to max_lag.
     """
     if detrend:
@@ -269,16 +267,15 @@ def get_autocorrelation_function_manual_lag(
     signal: npt.NDArray, max_lag: int
 ) -> npt.NDArray:
     """
-    Alternative method to determine the autocorrelation function for a given
-    signal that used numpy.corrcoef.
+    Alternative method for autocorrelation of a signal using numpy.corrcoef.
 
     Allows the lag to be set manually.
 
     Parameters
     ----------
-    signal : 1D npt.NDArray
+    signal : NDArray
         Siganl for which the autocorrelation function should be calculated.
-    max_lag : Union[None, int]
+    max_lag : int | None
         Autocorrelation will be calculated for a range of 0 to max_lag,
         where max_lag is the largest lag for the calculation of the
         autocorrelation function
@@ -289,31 +286,31 @@ def get_autocorrelation_function_manual_lag(
         Autocorrelation function from 0 to max_lag.
     """
     lag = npt.NDArray(range(max_lag))
-
     autocorrelation = np.array([np.nan] * max_lag)
 
     for i in lag:
         corr = 1.0 if i == 0 else np.corrcoef(signal[i], signal[:-i])[0][1]
-
         autocorrelation[i] = corr
 
     return autocorrelation
 
 
-def get_fourier_transform(signal: npt.NDArray, time_step: float) -> tuple:
+def get_fourier_transform(
+    signal: npt.NDArray, time_step: float
+) -> tuple[npt.NDArray, npt.NDArray]:
     """
     Calculate the fourier transform of a given siganl.
 
     Parameters
     ----------
-    signal : 1D npt.NDArray
+    signal : NDArray
         Siganl for which the autocorrelation function should be calculated.
     time_step : float
         Time step of the signal in seconds.
 
     Returns
     -------
-    (npt.NDArray, npt.NDArray)
+    tuple[NDArray, NDArray]
         Frequencs and absolute values of the fourier transform.
 
     """
@@ -371,6 +368,7 @@ def exponential(
 def double_exponential(
     x: float | npt.NDArray, a: float, b: float, c: float
 ) -> float | npt.NDArray:
+    """TODO."""
     return a * (np.exp(x * b) + np.exp(x * c))
 
 
@@ -430,7 +428,7 @@ def hann_window(N: int) -> npt.NDArray[np.float64]:
 
     Returns
     -------
-    np.ndarray
+    NDArray
         Hann window of length N.
     """
     return 0.5 * (1 - np.cos(2 * np.pi * np.arange(N) / (N - 1)))
@@ -472,7 +470,6 @@ def norm_matrix_by_dagonal(matrix: npt.NDArray) -> npt.NDArray:
     -------
     matrix : NDArray
         Normed matrix.
-
     """
     diagonal = np.array(np.diagonal(matrix))
     L = diagonal == 0.0
@@ -493,7 +490,7 @@ def mae(delta: npt.NDArray) -> np.floating:
 
     Parameters
     ----------
-    delta : np.ndarray
+    delta : NDArray
         Array containing differences
 
     Returns
@@ -505,57 +502,53 @@ def mae(delta: npt.NDArray) -> np.floating:
 
 
 def rel_mae(
-    delta: np.ndarray, target_val: np.ndarray
+    delta: npt.NDArray, target_val: npt.NDArray
 ) -> np.floating | np.float64 | float:
     """
-    Calculated the relative mean absolute error from a list of value differnces,
-    given the target values.
+    Compute relative MAE from value differences and corresponding target values.
 
     Parameters
     ----------
-    delta : np.ndarray
+    delta : NDArray
         Array containing differences
-    target_val : np.ndarray
+    target_val : NDArray
         Array of target values against which the difference should be compared
 
     Returns
     -------
     float
         relative mean absolute error
-
     """
     target_norm = np.mean(np.abs(target_val))
     return np.mean(np.abs(delta)).item() / (target_norm + 1e-9)
 
 
-def rmse(delta: np.ndarray) -> float:
+def rmse(delta: npt.NDArray) -> float:
     """
-    Calculated the root mean sqare error from a list of value differnces.
+    Calculate the root mean sqare error from a list of value differnces.
 
     Parameters
     ----------
-    delta : np.ndarray
+    delta : NDArray
         Array containing differences
 
     Returns
     -------
     float
         root mean square error
-
     """
     return np.sqrt(np.mean(np.square(delta)))
 
 
-def rel_rmse(delta: np.ndarray, target_val: np.ndarray) -> float:
+def rel_rmse(delta: npt.NDArray, target_val: npt.NDArray) -> float:
     """
-    Calculated the relative root mean sqare error from a list of value differnces,
-    given the target values.
+    Calculate the relative root mean sqare error from a list of value differences.
 
     Parameters
     ----------
-    delta : np.ndarray
+    delta : NDArray
         Array containing differences
-    target_val : np.ndarray
+    target_val : NDArray
         Array of target values against which the difference should be compared
 
     Returns
@@ -568,24 +561,25 @@ def rel_rmse(delta: np.ndarray, target_val: np.ndarray) -> float:
     return np.sqrt(np.mean(np.square(delta))) / (target_norm + 1e-9)
 
 
-def get_moving_average(signal: npt.NDArray[np.float64], window_size: int):
+def get_moving_average(
+    signal: npt.NDArray[np.float64], window_size: int
+) -> tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]]:
     """
     Cacluated the moving average and the variance around the moving average.
 
     Parameters
     ----------
-    signal : npt.NDArray[np.float64]
+    signal : NDArray[float64]
         Signal for which the moving average should be calculated.
     window_size : int
         Window size for the mocing average.
 
     Returns
     -------
-    moving_avg : TYPE
+    npt.NDArray[floating]
         Moving average.
-    variance : TYPE
+    npt.NDArray[floating]
         Variance around the moving average.
-
     """
     moving_avg = np.convolve(signal, np.ones(window_size) / window_size, mode="valid")
     variance = np.array(
@@ -599,15 +593,16 @@ def get_moving_average(signal: npt.NDArray[np.float64], window_size: int):
 
 
 def get_maxima_in_moving_interval(
-    function_values, interval_size, step_size, filter_value
-):
+    function_values: npt.NDArray, interval_size: int, step_size: int, filter_value: int
+) -> npt.NDArray:
     """
-    Moves an interval along the function and filters out all points smaller
-    than filter_value time the maximal value in the interval.
+    Slide an interval along the function, filtering out points below a threshold.
+
+    Points smaller than filter_value times the maximum within the interval are removed.
 
     Parameters
     ----------
-    function_values : array-like
+    function_values : NDArray
         1D array of function values.
     interval_size : int
         Size of the interval (number of points).
@@ -616,9 +611,8 @@ def get_maxima_in_moving_interval(
 
     Returns
     -------
-        np.ndarray: Filtered array where points outside the threshold are set
-        to NaN.
-
+    NDArray
+        Filtered array where points outside the threshold are set to NaN.
     """
     # Convert input to a NumPy array
     function_values = np.asarray(function_values)
@@ -646,7 +640,22 @@ def get_maxima_in_moving_interval(
     return np.array(list(set(filtered_indices)))
 
 
-def get_pearson_correlation_coefficient(x, y):
+def get_pearson_correlation_coefficient(x: npt.NDArray, y: npt.NDArray) -> np.floating:
+    """
+    TODO.
+
+    Parameters
+    ----------
+    x : npt.NDArray
+        First array of data points.
+    y : npt.NDArray
+        Second array of data points.
+
+    Returns
+    -------
+    floating
+        Pearson correlation coefficient between x and y.
+    """
     mean_x = np.mean(x)
     mean_y = np.mean(y)
     std_x = np.std(x)
@@ -655,15 +664,44 @@ def get_pearson_correlation_coefficient(x, y):
     return np.mean((x - mean_x) * (y - mean_y)) / std_x / std_y
 
 
-def get_t_test(x, y):
-    r = get_pearson_correlation_coefficient(x, y)
+def get_t_test(x: npt.NDArray, y: npt.NDArray) -> np.floating:
+    """
+    Calculate the t-test statistic for two sets of data.
 
+    Parameters
+    ----------
+    x : NDArray
+        First array of data points.
+    y : NDArray
+        Second array of data points.
+
+    Returns
+    -------
+    floating
+        t-test statistic for the two sets of data.
+    """
+    r = get_pearson_correlation_coefficient(x, y)
     n = len(x)
 
     return np.abs(r) * np.sqrt((n - 2) / (1 - r**2))
 
 
-def probability_density(t, n):
+def probability_density(t: float, n: int) -> float:
+    """
+    Probability density function for the t-distribution.
+
+    Parameters
+    ----------
+    t : float
+        The t-value for which the probability density is calculated.
+    n : int
+        The number of data points in the sample.
+
+    Returns
+    -------
+    float
+        The probability density at the given t-value.
+    """
     degrees_of_freedom = n - 2
 
     return (
@@ -676,22 +714,39 @@ def probability_density(t, n):
     )
 
 
-def get_significance(x, t):
+def get_significance(x: npt.NDArray, t: float) -> float:
+    """
+    Calculate the significance of a t-test statistic.
+
+    Parameters
+    ----------
+    x : npt.NDArray
+        Array of data points.
+    t : float
+        t-test statistic value.
+
+    Returns
+    -------
+    float
+        The significance level of the t-test statistic.
+    """
     n = len(x)
 
     return scipy.integrate.quad(probability_density, -np.inf, t, args=(n))[0]
 
 
-def squared_exponential_kernel(x1_vec, x2_vec, tau):
+def squared_exponential_kernel(
+    x1_vec: npt.NDArray, x2_vec: npt.NDArray, tau: float
+) -> npt.NDArray[np.float64]:
     """
-    A simlpe squared exponential kernel to determine a similarity measure.
+    Return a simple squared exponential kernel to determine a similarity measure.
 
     Parameters
     ----------
-    x1_vec : np.array
+    x1_vec : NDArray
         Descriptor for first set of data of shape
         [data points, descriptor dimensions].
-    x2_vec : np.array
+    x2_vec : NDArray
         Descriptor for second set of data of shape
         [data points, descriptor dimensions].
     tau : float
@@ -699,9 +754,8 @@ def squared_exponential_kernel(x1_vec, x2_vec, tau):
 
     Returns
     -------
-    K : np.array
+    NDArray[float64]
         Matrix contianing pairwise kernel values.
-
     """
     # Ensure inputs are at least 2D (n_samples, n_features)
     x1 = np.atleast_2d(x1_vec)
@@ -722,26 +776,22 @@ def squared_exponential_kernel(x1_vec, x2_vec, tau):
 
 
 class GPR:
-    def __init__(self, x, y, tau, sigma):
-        """
-        A very simple GPR designed for interpolation and smoothing of data.
+    """
+    A simple Gaussian Process Regression (GPR) model for interpolation and smoothing.
 
-        Parameters
-        ----------
-        x : np.array
-            Descriptor of shape [data points, descriptor dimensions].
-        y : np.array
-            Data to be learned.
-        tau : float
-            Correlation length for the descriptor.
-        sigma : float
-            Uncertainity of the input data.
+    Parameters
+    ----------
+    x : NDArray
+        Descriptor of shape [data points, descriptor dimensions].
+    y : NDArray
+        Data to be learned.
+    tau : float
+        Correlation length for the descriptor.
+    sigma : float
+        Uncertainty of the input data.
+    """
 
-        Returns
-        -------
-        None.
-
-        """
+    def __init__(self, x: npt.NDArray, y: npt.NDArray, tau: float, sigma: float):
         K1 = squared_exponential_kernel(x, x, tau)
 
         self.K1_inv = np.linalg.inv(K1 + np.eye(len(x)) * sigma)
@@ -750,10 +800,23 @@ class GPR:
         self.tau = tau
         self.sigma = sigma
 
-    def __call__(self, x):
+    def __call__(self, x: npt.NDArray) -> npt.NDArray:
         return self.predict(x)
 
-    def predict(self, x):
+    def predict(self, x: npt.NDArray) -> npt.NDArray:
+        """
+        TODO.
+
+        Parameters
+        ----------
+        x : NDArray
+            TODO
+
+        Returns
+        -------
+        NDArray
+            TODO
+        """
         K2 = squared_exponential_kernel(x, self.x, self.tau)
         y_test0 = K2.dot(self.K1_inv)
 

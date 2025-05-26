@@ -5,9 +5,9 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse as sp
 
-from dfttoolkit.base import Parser
-from dfttoolkit.geometry import AimsGeometry
-from dfttoolkit.utils.exceptions import ItemNotFoundError
+from .base import Parser
+from .geometry import AimsGeometry
+from .utils.exceptions import ItemNotFoundError
 
 
 class Output(Parser):
@@ -142,7 +142,6 @@ class AimsOutput(Output):
         -------
         geometry_files : list
             List of geometry objects.
-
         """
         geometry_files = [self.get_geometry()]  # append initial geometry
         geometry_lines = []
@@ -312,16 +311,16 @@ class AimsOutput(Output):
 
         Parameters
         ----------
-        n_occurrence : Union[int, None]
+        n_occurrence : int | None
             If there are multiple energies in a file (e.g. during a geometry
             optimization) this parameters allows to select which energy is returned.
             If set to -1 the last one is returned (e.g. result of a geometry
             optimization), if set to None, all values will be returned as a numpy array.
         search_string : str
             string to be searched in the output file
-        token_nr : Union[int, None]
+        token_nr : int | None
             take n-th element of found line
-        energy_invalid_indicator : Union[list, int, str, None] = None
+        energy_invalid_indicator : list | int | str | None = None
             In some cases an energy value can be found in the output file although it is
             invalid -> ignore this value. For example, a line having
             'restarting mixer to attempt better convergence' indicates that this
@@ -333,7 +332,7 @@ class AimsOutput(Output):
 
         Returns
         -------
-        energies : float | npt.NDArray[np.float64]
+        energies : float | NDArray[float64]
             Energies that have been grepped
         """
         skip_next_energy = False  # only relevant if energy_invalid_indicator != None
@@ -457,7 +456,7 @@ class AimsOutput(Output):
     def get_energy_corrected(
         self,
         n_occurrence: int | None = -1,
-        skip_E_after_mixer: bool = True,  # noqa: N803
+        skip_E_after_mixer: bool = True,
         all_scfs: bool = False,
         energy_invalid_indicator: list[str] | None = None,
     ) -> float | npt.NDArray[np.float64]:
@@ -503,7 +502,7 @@ class AimsOutput(Output):
     def get_total_energy_T0(  # noqa: N802
         self,
         n_occurrence: None | int = -1,
-        skip_E_after_mixer: bool = True,  # noqa: N803
+        skip_E_after_mixer: bool = True,
         energy_invalid_indicator: list[str] | None = None,
     ) -> float | npt.NDArray[np.float64]:
         if energy_invalid_indicator is None:
@@ -523,7 +522,7 @@ class AimsOutput(Output):
     def get_energy_uncorrected(
         self,
         n_occurrence: None | int = -1,
-        skip_E_after_mixer: bool = True,  # noqa: N803
+        skip_E_after_mixer: bool = True,
         energy_invalid_indicator: list[str] | None = None,
     ) -> float | npt.NDArray[np.float64]:
         """
@@ -991,7 +990,7 @@ class AimsOutput(Output):
 
         Returns
         -------
-        Union[tuple, None]
+        tuple | None
             The final spin moment of the calculation, if it exists
         """
         n, s, j = None, None, None
@@ -1263,7 +1262,15 @@ class AimsOutput(Output):
                 eigenvalues["occupation"][scf_iter][i] = float(values[1])
                 eigenvalues["eigenvalue_eV"][scf_iter][i] = float(values[3])
 
-    def get_all_ks_eigenvalues(self) -> dict | tuple[dict, dict]:
+    def get_all_ks_eigenvalues(
+        self,
+    ) -> (
+        dict[str, npt.NDArray[np.int64 | np.float64]]
+        | tuple[
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+        ]
+    ):
         """
         Get all Kohn-Sham eigenvalues from a calculation.
 
@@ -1356,8 +1363,17 @@ class AimsOutput(Output):
 
         raise ValueError("Could not determine if calculation was spin polarised.")
 
-    def get_final_ks_eigenvalues(self) -> dict | tuple[dict, dict]:
-        """Get the final Kohn-Sham eigenvalues from a calculation.
+    def get_final_ks_eigenvalues(
+        self,
+    ) -> (
+        dict[str, npt.NDArray[np.int64 | np.float64]]
+        | tuple[
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+        ]
+    ):
+        """
+        Get the final Kohn-Sham eigenvalues from a calculation.
 
         Returns
         -------
@@ -1538,7 +1554,7 @@ class ELSIOutput(Output):
 
         Returns
         -------
-        Tuple[sp.csc_matrix, np.ndarray]
+        csc_matrix | NDArray
             The CSC matrix or numpy array
         """
         header = self.get_elsi_csc_header()

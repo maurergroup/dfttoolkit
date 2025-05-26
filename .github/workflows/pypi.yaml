@@ -19,19 +19,22 @@ permissions:
 jobs:
   release-build:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - name: Build release distributions
         run: |
-          # NOTE: put your own distribution build steps here.
-          poetry build
-
+          uv build
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
@@ -40,20 +43,16 @@ jobs:
 
   pypi-publish:
     runs-on: ubuntu-latest
-
     needs:
       - release-build
-
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
-
     # Dedicated environments with protections for publishing are strongly recommended.
     environment:
       name: pypi
       # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
       url: https://pypi.org/project/dfttoolkit/
-
     steps:
       - name: Retrieve release distributions
         uses: actions/download-artifact@v4

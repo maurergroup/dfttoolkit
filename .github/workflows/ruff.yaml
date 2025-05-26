@@ -12,21 +12,19 @@ on:
 jobs:
   ruff-lint:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
+      - uses: astral-sh/ruff-action@v3
         with:
           src: "./dfttoolkit"
-          args: "check --fix --show-fixes --config ./pyproject.toml"
+          args: "check --diff --output-format github --config ./pyproject.toml --no-preview"
 
   ruff-format:
     runs-on: ubuntu-latest
     needs: ruff-lint
-
     steps:
       - uses: actions/checkout@v4
-      - uses: chartboost/ruff-action@v1
+      - uses: astral-sh/ruff-action@v3
         with:
           src: "./dfttoolkit"
-          args: "format --config ./pyproject.toml"
+          args: "format --check --target-version py311 --config ./pyproject.toml"

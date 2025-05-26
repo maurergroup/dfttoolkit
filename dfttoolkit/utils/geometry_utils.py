@@ -1,10 +1,11 @@
 from dfttoolkit.geometry import XYZGeometry
 
 
-def read_xyz_animation(filename) -> list:
+def read_xyz_animation(filename: str) -> list[str]:
     """
-    Reads an XYZ animation file, i.e. an XYZ file containing serveral
-    geometries.
+    Read an XYZ animation file.
+
+    i.e. an XYZ file containing serveral geometries.
 
     Parameters
     ----------
@@ -13,9 +14,8 @@ def read_xyz_animation(filename) -> list:
 
     Returns
     -------
-    list
+    list[str]
         list of XYZGeometries
-
     """
     text_list = []
     geometry_text = ""

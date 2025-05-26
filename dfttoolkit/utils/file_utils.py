@@ -9,7 +9,7 @@ class MultiDict(MutableMapping):
     """
     Dictionary that can assign 'multiple values' to a single key.
 
-    Very basic implementation that works by having each value as a list, and appending
+    Primitive implementation that works by having each value as a list, and appending
     new values to the list
     """
 

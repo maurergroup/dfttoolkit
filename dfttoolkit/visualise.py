@@ -204,7 +204,11 @@ class VisualiseAims(AimsOutput):
     @staticmethod
     def _plot_ks_states_convergence(
         ax: axes.Axes,
-        ks_eigenvals: dict | tuple[npt.NDArray, npt.NDArray],
+        ks_eigenvals: dict[str, npt.NDArray[np.int64 | np.float64]]
+        | tuple[
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+            dict[str, npt.NDArray[np.int64 | np.float64]],
+        ],
         title: str | None = None,
     ) -> None:
         """
@@ -371,7 +375,9 @@ class VisualiseCube(Cube):
     def __init__(self, cube: str):
         super().__init__(cube=cube)
 
-    def weas_core_hole(self, viewer: WeasWidget | None = None, **kwargs) -> WeasWidget:
+    def weas_core_hole(
+        self, viewer: WeasWidget | None = None, **kwargs: str
+    ) -> WeasWidget:
         """
         Visualise the core hole as an isosurface.
 
@@ -403,10 +409,7 @@ class VisualiseCube(Cube):
             return False
 
         # Create the viewer
-        if viewer is None:
-            ch_viewer = WeasWidget(**kwargs)
-        else:
-            ch_viewer = viewer
+        ch_viewer = WeasWidget(**kwargs) if viewer is None else viewer
 
         ch_viewer.from_ase(self.atoms)
         ch_viewer.avr.model_style = 1  # Ball and stick

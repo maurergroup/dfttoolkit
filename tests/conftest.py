@@ -23,7 +23,7 @@ def pytest_addoption(parser) -> None:
     )
 
 
-def multidict_constructor(loader, node):
+def multidict_constructor(loader: yaml.Loader, node: yaml.SequenceNode) -> MultiDict:
     """PyYaml constructor to read MultiDict objects."""
     return MultiDict(*loader.construct_sequence(node))
 
@@ -33,7 +33,7 @@ yaml.FullLoader.add_constructor("!MultiDict", multidict_constructor)
 
 
 @pytest.fixture(scope="session")
-def run_aims(request):
+def run_aims(request) -> bool | str:
     return request.config.getoption("--run-aims")
 
 
@@ -52,7 +52,9 @@ def aims_calc_dir(run_aims):
     elif run_aims is not False:
         cwd = os.path.dirname(os.path.realpath(__file__))
         binary = aims_bin_path_prompt(run_aims, cwd)
-        subprocess.run(["bash", f"{cwd}/run_aims.sh", binary, str(run_aims)], check=False)
+        subprocess.run(
+            ["bash", f"{cwd}/run_aims.sh", binary, str(run_aims)], check=False
+        )
         yield "custom_bin_aims_calcs"
     else:
         yield "default_aims_calcs"

@@ -1,8 +1,7 @@
-
 import numpy as np
 import numpy.typing as npt
 
-from dfttoolkit.output import AimsOutput
+from .output import AimsOutput
 
 
 class BenchmarkAims(AimsOutput):
@@ -13,7 +12,7 @@ class BenchmarkAims(AimsOutput):
 
     Attributes
     ----------
-    benchmark_dirs : List[str]
+    benchmark_dirs : list[str]
         The paths to the aims.out files.
     """
 
@@ -31,7 +30,7 @@ class BenchmarkAims(AimsOutput):
 
         Returns
         -------
-        List[np.ndarray]
+        list[NDArray[float64]]
             The average time taken per SCF iteration for each benchmark.
         """
         benchmark_timings = []

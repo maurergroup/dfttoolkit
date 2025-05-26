@@ -1,15 +1,28 @@
 import copy
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
-from ase import units
+from ase import Atoms, units
 from ase.io.trajectory import Trajectory
 
 import dfttoolkit.utils.vibrations_utils as vu
-from dfttoolkit.geometry import Geometry
+
+from .geometry import Geometry
 
 
 class MDTrajectory:
+    """
+    TODO.
+
+    Parameters
+    ----------
+    filename : str
+        name of the trajectory file
+    cutoff_end : int, default=0
+        TODO
+    """
+
     def __init__(self, filename: str, cutoff_end: int = 0):
         traj_0 = Trajectory(filename)
         self.traj = []
@@ -19,15 +32,12 @@ class MDTrajectory:
         self.geom = Geometry()
         self.geom.get_from_ase_atoms_object(self.traj[0])
 
-    def __add__(self, other_traj):
+    def __add__(self, other_traj: Self):
         traj = copy.deepcopy(self)
         traj += other_traj
         return traj
 
-        self.traj = self.traj + other_traj.traj
-        return None
-
-    def __iadd__(self, other_traj):
+    def __iadd__(self, other_traj: Self):
         self.traj = self.traj + other_traj.traj
         return self
 
@@ -110,13 +120,14 @@ class MDTrajectory:
         use_numba: bool = True,
     ) -> npt.NDArray[np.float64]:
         """
-        Calculate the normal-mode-decomposition of the velocities. This is done
-        by projecting the atomic velocities onto the vibrational eigenvectors.
-        See equation 10 in: https://doi.org/10.1016/j.cpc.2017.08.017.
+        Calculate the normal-mode-decomposition of the velocities.
+
+        This is done by projecting the atomic velocities onto the vibrational
+        eigenvectors. See equation 10 in https://doi.org/10.1016/j.cpc.2017.08.017.
 
         Parameters
         ----------
-        projection_vectors : npt.NDArray[np.float64]
+        projection_vectors : NDArray[float64]
             Array containing the vectors onto which the velocities should be
             projected. Normally you will want this to be the eigenvectors
             return by dfttoolkit.vibration.get_eigenvalues_and_eigenvectors.
@@ -124,20 +135,20 @@ class MDTrajectory:
             Wheter the velocities should be mass weighted. If you do
             normal-mode-decomposition with eigenvectors than this should be
             True. The default is True.
-        steps : int, optional
+        steps : int, default=1
             Read every nth step. The default is 1 -> all steps are read. If for
             instance steps=5 every 5th step is read.
-        cutoff_start : int, optional
+        cutoff_start : int, default=0
             Cutoff n stept at the beginning of the trajectory. The default is 0.
-        cutoff_end : int, optional
+        cutoff_end : int, default=0
             Cutoff n stept at the end of the trajectory. The default is 0.
-        use_numba : bool
+        use_numba : bool, default=True
             Use numba for projection. Usually faster, but if your numbe
             installation is wonky, it may produce falty results.
 
         Returns
         -------
-        velocities_projected : npt.NDArray[np.float64]
+        velocities_projected : NDArray[float64]
             Velocities projected onto the eigenvectors structured as follows:
             [number of time steps, number of frequencies]
 
@@ -156,7 +167,6 @@ class MDTrajectory:
             projection_vectors,
             use_numba=use_numba,
         )
-
 
     def get_kinetic_energies(
         self, steps: int = 1, cutoff_start: int = 0, cutoff_end: int = 0
@@ -186,7 +196,6 @@ class MDTrajectory:
         velocities_norm = np.linalg.norm(velocities, axis=2)
 
         return 0.5 * velocities_norm**2
-
 
     def get_temperature(
         self, steps: int = 1, cutoff_start: int = 0, cutoff_end: int = 0
@@ -251,7 +260,20 @@ class MDTrajectory:
 
         return np.array(total_energy, dtype=np.float64)
 
-    def get_coords(self, atoms):
+    def get_coords(self, atoms: Atoms) -> npt.NDArray[np.float64]:
+        """
+        Get atomic coordinates from an ASE atoms object.
+
+        Parameters
+        ----------
+        atoms : ase.Atoms
+            ASE atoms object.
+
+        Returns
+        -------
+        NDArray[float64]
+            Atomic coordinates.
+        """
         unconstrained_atoms = atoms.constraints[0].index
 
         coords = []
@@ -263,29 +285,27 @@ class MDTrajectory:
 
     def get_atomic_displacements(
         self,
-        coords_0=None,
+        coords_0: npt.NDArray[np.float64] | None = None,
         steps: int = 1,
         cutoff_start: int = 0,
         cutoff_end: int = 0,
     ) -> npt.NDArray[np.float64]:
         """
-        Get atomic atomic displacements with respect to the first time step
-        along an MD trajectory.
+        Get atomic atomic displacements with respect to the first time step.
 
         Parameters
         ----------
-        steps : int, optional
+        steps : int, default=1
             Read every nth step. The default is 1 -> all steps are read. If for
             instance steps=5 every 5th step is read.
-        cutoff_start : int, optional
+        cutoff_start : int, default=0
             Cutoff n stept at the beginning of the trajectory. The default is 0.
-        cutoff_end : int, optional
+        cutoff_end : int, default=0
             Cutoff n stept at the end of the trajectory. The default is 0.
 
         Returns
         -------
-        atomic_displacements : npt.NDArray[np.float64]
-
+        atomic_displacements : NDArray[float64]
         """
         atomic_displacements = []
 

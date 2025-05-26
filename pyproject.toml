@@ -1,64 +1,54 @@
-[tool.poetry]
+[project]
 name = "dfttoolkit"
 version = "0.3.0"
 description = "A collection of python modules and libraries for several DFT codes to handle input and output."
-authors = [
-  "Lukas Hoermann <lukas.hoermann@warwick.ac.uk>",
-  "Dylan Morgan <dylan.morgan@warwick.ac.uk",
-]
-license = "GPL-3.0"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.11,<3.13"
-numpy = ">=2,<2.1"
-scipy = "^1.13.0"
-ase = "^3.22.1"
-pyyaml = "^6.0.1"
-spglib = "^2.5.0"
-networkx = "^3.3"
-numba = ">=0.60,<0.62"
-click = "^8.1.7"
-matplotlib = "^3.10.3"
-weas-widget = "^0.1.26"
-marimo = "^0.13.10"
-ipython = "^9.2.0"
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-ruff = ">=0.3.5,<0.10.0"
-pyright = "^1.1.373"
-ptpython = "^3.0.26"
-pytest = "^8.2.0"
-pytest-cov = "^5.0.0"
-coveralls = "^4.0.1"
-interrogate = "^1.7.0"
-pyyaml = "^6.0.2"
-
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-sphinx = ">=7.4.7,<9.0.0"
-furo = "^2024.7.18"
-# sphinx-rtd-theme = "^2.0.0"
-# piccolo-theme = "^0.23.0"
-sphinx-pyproject = "^0.3.0"
-myst-parser = ">=3.0.1,<5.0.0"
+authors = [
+  { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
+  { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
+]
+requires-python = ">=3.11"
+dependencies = [
+  "ase>=3.22.1",
+  "click>=8.2.1",
+  "ipython>=9.2.0",
+  "marimo>=0.13.11",
+  "matplotlib>=3.10.3",
+  "networkx>=3.4.2",
+  "numba>=0.61.2",
+  "numpy>=2.2.6",
+  "pyyaml>=6.0.2",
+  "scipy>=1.15.3",
+  "spglib>=2.6.0",
+  "weas-widget>=0.1.26",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+  "basedpyright>=1.29.2",
+  "coveralls>=4.0.1",
+  # "interrogate>=1.7.0",  TODO
+  "ptpython>=3.0.30",
+  "pytest>=8.3.5",
+  "pytest-cov>=6.1.1",
+  "ruff>=0.11.11",
+]
+docs = [
+  "furo>=2024.8.6",
+  "myst-parser>=4.0.1",
+  "sphinx>=8.2.3",
+  "sphinx-pyproject>=0.3.0",
+]
 
 [tool.sphinx-pyproject]
 project = "dfttoolkit"
 author = "Lukas Hoermann, Dylan Morgan"
 copyright = "2024-2025, Lukas Hoermann, Dylan Morgan"
 html_theme = "furo"
-# html_theme = "sphinx_rtd_theme"
-# html_theme = "piccolo_theme"
 extensions = [
   "sphinx.ext.autodoc",
   "sphinx.ext.viewcode",
@@ -69,20 +59,92 @@ templates_path = ["_templates"]
 html_static_path = ["_static"]
 exclude_patterns = ["build", ".DS_Store"]
 
-# [tool.ruff]
-# line-length = 88
-# indent-width = 4
-# target-version = "py310"
-
-# [tool.ruff.lint]
-# # select = ['']
-# ignore = ["E741", ]
-
-# [tool.pyright]
-# include = ["dfttoolkit"]
-# exclude = ["**/__pycache__"]
-
 [tool.pytest.ini_options]
 pythonpath = "dfttoolkit"
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.analyze]
+detect-string-imports = true
+
+[tool.ruff.format]
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
+
+[tool.ruff.lint]
+# select = ['E4', 'E7', 'E9', 'F']  # Default
+select = [
+  'E1',
+  'E4',
+  'E5',
+  'E7',
+  'E9',
+  'F',
+  'ERA',
+  'ANN',
+  'S',
+  'BLE',
+  'F',
+  'B',
+  'A',
+  'C4',
+  'T10',
+  'EM',
+  'EXE',
+  'ICN',
+  'LOG',
+  'G',
+  'I',
+  'INP',
+  'PIE',
+  'PYI',
+  'PT',
+  'RET',
+  'SIM',
+  'ARG',
+  'PTH',
+  'NPY',
+  'N',
+  'PERF',
+  'DOC',
+  'D',
+  'PL',
+  'UP',
+  'RUF',
+  'TRY',
+]
+ignore = [
+  'ANN204',
+  'ANN401',
+  'D100',
+  'D102',
+  'D105',
+  'D206',
+  'D300',
+  'E111',
+  'E114',
+  'E117',
+  'EM101',
+  'N803',
+  'N806',
+  'PLR2004',
+  'PTH123',
+  'TRY003',
+]
+
+[tool.ruff.lint.pycodestyle]
+# Limit docstrings to have the same number of characters as the code
+max-doc-length = 88
+# Do not trigger line-too-long warnings for comments starting with task notes (eg. TODO)
+ignore-overlong-task-comments = true
+
+[tool.ruff.lint.pydocstyle]
+# Use numpy-style docstrings.
+convention = "numpy"
+
+[tool.ruff.lint.pylint]
+# Maximum number of arguments allowed for a function or method definition
+max-args = 10

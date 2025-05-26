@@ -26,8 +26,9 @@ from ase.constraints import FixAtoms
 from scipy.spatial import distance_matrix
 
 import dfttoolkit.utils.math_utils as utils
-from dfttoolkit.utils import units
-from dfttoolkit.utils.periodic_table import PeriodicTable
+
+from .utils import units
+from .utils.periodic_table import PeriodicTable
 
 
 class Geometry:
