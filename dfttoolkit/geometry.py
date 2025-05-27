@@ -8,7 +8,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
 from fractions import Fraction
-from typing import Iterator, List, Tuple, Union
+from typing import Any, Collection
 
 import ase
 import matplotlib as mpl
@@ -26,29 +26,31 @@ from ase.constraints import FixAtoms
 from scipy.spatial import distance_matrix
 
 import dfttoolkit.utils.math_utils as utils
-import dfttoolkit.utils.units as units
-from dfttoolkit.utils.periodic_table import PeriodicTable
+
+from .utils import units
+from .utils.periodic_table import PeriodicTable
 
 
 class Geometry:
     """
-    This class represents a geometry file for (in principle) any DFT code.
+    Represent a geometry file for (in principle) any DFT code.
+
     In practice it has only been fully implemented for FHI-aims geometry.in
     files.
 
+    Parameters
+    ----------
+    Filename : str
+        Path to text file of geometry.
+
+    center: dict
+        atom indices and linear combination of them to define the center of
+        a molecule. Used only for mapping to first unit cell.
+        Example: if the center should be the middle between the first three
+        atoms, center would be {1:1/3,2:1/3,3:1/3}
     """
 
-    def __init__(self, filename: Union[str, None] = None):
-        """
-        filename : str
-            Path to text file of geometry.
-
-        center: dict
-            atom indices and linear combination of them to define the center of
-            a molecule. Used only for mapping to first unit cell.
-            Example: if the center should be the middle between the first three
-            atoms, center would be {1:1/3,2:1/3,3:1/3}
-        """
+    def __init__(self, filename: str | None = None):
         self.species = []
         self.lattice_vectors = np.zeros([3, 3])
         self.comment_lines = []
@@ -62,10 +64,10 @@ class Geometry:
         self.energy = None
         self.forces = None
         self.hessian = None
-        self.geometry_parts = []  # list of lists: indices of each geometry part
-        self.geometry_part_descriptions = (
-            []
-        )  # list of strings:  name of each geometry part
+        # list of lists: indices of each geometry part
+        self.geometry_parts = []
+        # list of strings:  name of each geometry part
+        self.geometry_part_descriptions = []
         self.symmetry_axes = None
         self.inversion_index = None
         self.vacuum_level = None
@@ -75,16 +77,17 @@ class Geometry:
         self.symmetry_params = None
         self.n_symmetry_params = None
         self.symmetry_LVs = None
-        self.symmetry_frac_coords = None  # symmetry_frac_coords should have str values, not float, to include the parameters
-        self.original_lattice_vectors = None  # Save the original lattice vectors if the geometry is periodically replicated
+        # symmetry_frac_coords should have str values, not float, to include the
+        # parameters
+        self.symmetry_frac_coords = None
+        # Save the original lattice vectors if the geometry is periodically replicated
+        self.original_lattice_vectors = None
 
         if filename is None:
             self.n_atoms = 0
             self.coords = np.zeros([self.n_atoms, 3])
         else:
             self.read_from_file(filename)
-
-        self.periodic_table = PeriodicTable
 
     def __eq__(self, other):
         if len(self) != len(other):
@@ -149,7 +152,7 @@ class Geometry:
 
     def add_top_comment(self, comment_string: str) -> None:
         """
-        Adds comments that are saved at the top of the geometry file.
+        Add comments that are saved at the top of the geometry file.
 
         Parameters
         ----------
@@ -159,19 +162,16 @@ class Geometry:
         Returns
         -------
         None.
-
         """
         lines = comment_string.split("\n")
-        for l in lines:
-            if not l.startswith("#"):
-                l = "# " + l
-            self.comment_lines.append(l)
+        for line in lines:
+            commented_line = "# " + line if not line.startswith("#") else line
+            self.comment_lines.append(commented_line)
 
     ###########################################################################
     #                             OUTPUT PARSER                               #
     ###########################################################################
     def save_to_file(self, filename, **kwargs):
-
         geometry_type = get_file_format_from_ending(filename)
 
         new_geometry = self.get_instance_of_other_type(geometry_type)
@@ -189,9 +189,11 @@ class Geometry:
     ###########################################################################
     #                          Data exchange with ASE                         #
     ###########################################################################
-    def get_from_ase_atoms_object(self, atoms) -> None:
+    def get_from_ase_atoms_object(self, atoms: ase.Atoms) -> None:
         """
-        Reads an ASE.Atoms object. Taken from ase.io.aims and adapted. Only basic features are implemented.
+        Read an ASE.Atoms object.
+
+        Taken from ase.io.aims and adapted. Only basic features are implemented.
 
         Parameters
         ----------
@@ -205,16 +207,14 @@ class Geometry:
 
         Returns
         -------
-        None.
-
+        None
         """
         if isinstance(atoms, (list, tuple)):
             if len(atoms) > 1:
                 raise RuntimeError(
-                    "Don't know how to save more than " "one image to FHI-aims input"
+                    "Don't know how to save more than one image to FHI-aims input"
                 )
-            else:
-                atoms = atoms[0]  # pyright:ignore
+            atoms = atoms[0]  # pyright:ignore
 
         if atoms.get_pbc().any():
             self.lattice_vectors = np.array(atoms.get_cell())
@@ -228,25 +228,24 @@ class Geometry:
 
         coords = []
         species_list = []
-        for i, atom in enumerate(atoms):
+        for atom in atoms:
             species = atom.symbol
             if isinstance(species, int):
-                species = self.periodic_table.get_chemical_symbol(species)
+                species = PeriodicTable.get_symbol(species)
             species_list.append(species)
             coords.append(atom.position)
         coords = np.array(coords)
         self.add_atoms(coords, species_list, constrain_relax)
 
-    def get_as_ase(self) -> None:
+    def get_as_ase(self) -> ase.Atoms:
         """
         Convert geometry file to ASE object.
 
         Returns
         -------
-        None.
-
+        ase.Atoms
+            ASE atoms object
         """
-        # atoms_string = ""
         atom_coords = []
         atom_numbers = []
         atom_constraints = []
@@ -254,9 +253,7 @@ class Geometry:
             # Do not export 'emptium" atoms
             if self.species[i] != "Em":
                 atom_coords.append(self.coords[i, :])
-                atom_numbers.append(
-                    self.periodic_table.get_atomic_number(self.species[i])
-                )
+                atom_numbers.append(PeriodicTable.get_atomic_number(self.species[i]))
 
                 if np.any(self.constrain_relax[i]):
                     atom_constraints.append(i)
@@ -267,7 +264,7 @@ class Geometry:
         c = FixAtoms(indices=atom_constraints)
         ase_system.set_constraint(c)
 
-        if not np.sum(self.lattice_vectors) == 0.0:
+        if np.sum(self.lattice_vectors) != 0.0:
             ase_system.pbc = [1, 1, 1]
 
         if self.energy is not None:
@@ -324,6 +321,8 @@ class Geometry:
             assert isinstance(cartesian_coords, np.ndarray)
             self.coords = cartesian_coords
         else:
+            # make sure that coords are 2D
+            cartesian_coords = np.atleast_2d(cartesian_coords)
             self.coords = np.concatenate((self.coords, cartesian_coords), axis=0)
         self.species += species
         self.n_atoms = self.coords.shape[0]
@@ -342,7 +341,7 @@ class Geometry:
 
     def add_geometry(self, geometry) -> None:
         """
-        Adds full geometry to initial geometry.
+        Add full geometry to initial geometry.
 
         Parameters
         ----------
@@ -397,9 +396,11 @@ class Geometry:
                 self.center = geometry.center.copy()
             # both have a center:
             elif self.center is not None and geometry.center is not None:
-                warnings.warn("Caution: The center of the first file will be used!")
+                warnings.warn(
+                    "Caution: The center of the first file will be used!", stacklevel=2
+                )
 
-    def add_multipoles(self, multipoles: Union[List[float], List[list]]) -> None:
+    def add_multipoles(self, multipoles: list[float] | list[list]) -> None:
         """
         Adds multipoles to the the geometry.
 
@@ -537,7 +538,6 @@ class Geometry:
         """
         Removes all atoms that are outside specified bounds.
 
-
         Parameters
         ----------
         xlim : tuple, optional
@@ -568,7 +568,6 @@ class Geometry:
         """
         Removes all atoms that are inside specified bounds.
 
-
         Parameters
         ----------
         xlim : tuple, optional
@@ -592,10 +591,13 @@ class Geometry:
         )
         self.remove_atoms(indices_to_remove)
 
-    def crop_to_unit_cell(self, lattice=None, frac_coord_factors=[0, 1]):
+    def crop_to_unit_cell(  # noqa: PLR0912
+        self, lattice=None, frac_coord_factors: list[int] | None = None
+    ) -> None:
         """
-        Removes all atoms that are outside the given unit cell. Similar to
-        self.crop() but allows for arbitrary unit cells
+        Remove all atoms that are outside the given unit cell.
+
+        Similar to `self.crop()` but allows for arbitrary unit cells
 
         Parameters
         ----------
@@ -612,6 +614,8 @@ class Geometry:
         # Atoms that have fractional coordinates outside the defined frac_coord
         # factors are removed. Per default frac_coord_factors=[0,1]
 
+        if frac_coord_factors is None:
+            frac_coord_factors = [0, 1]
         if lattice is None:
             lattice = self.lattice_vectors
         frac_coords = utils.get_fractional_coords(self.coords, lattice)
@@ -640,25 +644,23 @@ class Geometry:
 
         # generate all possible translation vectors that could map an atom of
         # the unit cell into itsself
-        prim_lat_vec = []
-        for i in range(3):
-            prim_lat_vec.append(
-                [init_geom.lattice_vectors[i], -init_geom.lattice_vectors[i]]
-            )
+        prim_lat_vec = [
+            [init_geom.lattice_vectors[i], -init_geom.lattice_vectors[i]]
+            for i in range(3)
+        ]
         self_mapping_translation_vectors = []
 
-        for i in prim_lat_vec:
-            for sign in range(2):
-                self_mapping_translation_vectors.append(i[sign])
+        self_mapping_translation_vectors.extend(
+            i[sign] for i in prim_lat_vec for sign in range(2)
+        )
 
         for i in range(3):
             for sign0 in range(2):
-                for k in range(3):
+                for j in range(3):
                     for sign1 in range(2):
-                        if i != k:
-                            # print(f'i {i} k {k} sign0 {sign0} sign1 {sign1}')
+                        if i != j:
                             single_addition_vector = (
-                                prim_lat_vec[i][sign0] + prim_lat_vec[k][sign1]
+                                prim_lat_vec[i][sign0] + prim_lat_vec[j][sign1]
                             )
                             self_mapping_translation_vectors.append(
                                 single_addition_vector
@@ -666,15 +668,15 @@ class Geometry:
 
         for i in range(3):
             for sign0 in range(2):
-                for k in range(3):
+                for j in range(3):
                     for sign1 in range(2):
-                        for l in range(3):
+                        for k in range(3):
                             for sign2 in range(2):
-                                if i != k and i != l and k != l:
+                                if i not in (j, k) and j != k:
                                     single_addition_vector = (
                                         prim_lat_vec[i][sign0]
-                                        + prim_lat_vec[k][sign1]
-                                        + prim_lat_vec[l][sign2]
+                                        + prim_lat_vec[j][sign1]
+                                        + prim_lat_vec[k][sign2]
                                     )
                                     self_mapping_translation_vectors.append(
                                         single_addition_vector
@@ -705,7 +707,7 @@ class Geometry:
 
         liste = doubleindices
         to_be_killed = []  # List of all atom indicess that are redundant
-        for i, liste_i in enumerate(liste):
+        for liste_i in liste:
             replacer = liste_i[0]
             to_be_replaced = liste_i[1]
             to_be_killed.append(to_be_replaced)
@@ -732,6 +734,9 @@ class Geometry:
 
         """
         metal_atoms = self.get_indices_of_metal()
+
+        print(type(metal_atoms))
+
         self.remove_atoms(metal_atoms)
 
     def remove_non_metallic_atoms(self) -> None:
@@ -781,7 +786,7 @@ class Geometry:
         )
         self.remove_atoms(adsorbate_indices)
 
-    def remove_collisions(self, keep_latest: Union[bool, slice] = True) -> None:
+    def remove_collisions(self, keep_latest: bool | slice = True) -> None:
         """
         Removes all atoms that are in a collision group as given by
         GeometryFile.getCollidingGroups.
@@ -800,10 +805,7 @@ class Geometry:
         """
         indices = []
         if isinstance(keep_latest, bool):
-            if keep_latest:
-                selection = slice(None, -1, None)
-            else:
-                selection = slice(1, None, None)
+            selection = slice(None, -1, None) if keep_latest else slice(1, None, None)
         elif isinstance(keep_latest, slice):
             selection = keep_latest
         collisions = self.get_colliding_groups()
@@ -818,7 +820,7 @@ class Geometry:
         self, lattice_vectors=None, dimensions=np.array(range(3))
     ) -> None:
         """
-        aps the coordinate of a geometry in multiples of the substrate lattice
+        Aps the coordinate of a geometry in multiples of the substrate lattice
         vectors to a point that is closest to the origin
 
         Parameters
@@ -837,9 +839,9 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         frac_coords = utils.get_fractional_coords(self.coords, lattice_vectors)
         # modulo 1 maps all coordinates to first unit cell
@@ -851,9 +853,9 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         offset = self.get_geometric_center()
         frac_offset = utils.get_fractional_coords(offset, lattice_vectors)
@@ -903,7 +905,7 @@ class Geometry:
 
     def move_adsorbates(self, shift, primitive_substrate=None):
         """
-        shifts the adsorbates in Cartesian coordinates
+        Shifts the adsorbates in Cartesian coordinates
         """
         adsorbates = self.get_adsorbates(primitive_substrate=primitive_substrate)
         adsorbates.coords += shift
@@ -994,18 +996,14 @@ class Geometry:
 
     def align_into_xy_plane(self, atom_indices):
         """
-        Rotates a planar molecule (defined by 3 atom indices) into the XY
-        plane. Double check results, use with caution
+        Rotates a planar molecule (defined by 3 atom indices) into the XY plane.
+
+        Double check results, use with caution
 
         Parameters
         ----------
         atom_indices
             Indices of atoms that should be aligned.
-
-        Returns
-        -------
-        None.
-
         """
         p1 = self.coords[atom_indices[0]]
         p2 = self.coords[atom_indices[1]]
@@ -1146,7 +1144,6 @@ class Geometry:
     def align_with_view_direction(
         self, view_direction: npt.NDArray[np.float64]
     ) -> None:
-
         view_direction /= np.linalg.norm(view_direction)
 
         vec_z = np.array([0.0, 0.0, -1.0])
@@ -1164,42 +1161,34 @@ class Geometry:
             self.align_cartiesian_axis_to_vector(-view_direction, 2)
 
     def align_main_axis_along_xyz(self) -> None:
-        """
-        Align coordinates of rodlike molecules along specified axis
-
-        """
-        vals, vecs = self.get_main_axes()
+        """Align coordinates of rodlike molecules along specified axis."""
+        _, vecs = self.get_main_axes()
         R = np.linalg.inv(vecs.T)
         self.coords = np.dot(self.coords, R)
 
     def transform(
         self,
-        R: npt.NDArray[np.float64],
+        R: npt.NDArray[np.floating[Any]],
         t: npt.NDArray[np.float64] = np.array([0, 0, 0]),
-        rotation_center: Union[npt.NDArray[np.float64], None] = None,
-        atom_indices: Union[npt.NDArray[np.int64], None] = None,
+        rotation_center: npt.NDArray[np.float64] | None = None,
+        atom_indices: npt.NDArray[np.int64] | None = None,
     ) -> None:
         """
-        Performs a symmetry transformation of the coordinates by rotation and
-        translation. The transformation is applied as
-        x_new[3x1] = x_old[3x1] x R[3x3] + t[3x1]
+        Apply a symmetry transformation via rotation and translation of coordinates.
+
+        The transformation is applied as x_new[3x1] = x_old[3x1] x R[3x3] + t[3x1]
 
         Parameters
         ----------
         R : np.array
             Rotation matrix in Catesian coordinates.
         t : np.array, optional
-            Translation vector in Catesian coordinates. The default is np.array([0,0,0]).
+            Translation vector in Catesian coordinates - default is np.array([0,0,0])
         rotation_center : np.array | None, optional
             Centre of rotation. The default is None.
         atom_indices : np.array | None, optional
             List of indexes of atoms that should be transformed. The default is
             None.
-
-        Returns
-        -------
-        None
-
         """
         if atom_indices is None:
             atom_indices = np.arange(self.n_atoms)
@@ -1307,18 +1296,14 @@ class Geometry:
 
     def average_with(self, other_geometries) -> None:
         """
-        Average self.coords with those of other_geometries and apply on self
+        Average self.coords with those of other_geometries and apply on self.
+
         ATTENTION: this can change bond lengths etc.!Ok n
 
         Parameters
         ----------
         other_geometries: List of Geometrys ... might be nice to accept list of
         coords too
-
-        Returns
-        -------
-        None
-
         """
         if len(other_geometries) > 0:
             offset = (
@@ -1339,17 +1324,12 @@ class Geometry:
 
     def reorder_atoms(self, inds: npt.NDArray[np.int64]) -> None:
         """
-        eorders Atoms with index list
+        Reorders Atoms with index list.
 
         Parameters
         ----------
         inds : npt.NDArray[np.int64]
             Array of indices with new order of atoms.
-
-        Returns
-        -------
-        None
-
         """
         self.coords = self.coords[inds, :]
         self.species = [self.species[i] for i in inds]
@@ -1368,16 +1348,8 @@ class Geometry:
             self.hessian = self.hessian[inds_hessian, :]
             self.hessian = self.hessian[:, inds_hessian]
 
-    def shift_to_bottom(self):
-        """
-        Shifts the coordiantes such that the coordinate with the samllest
-        z-value ists at (x, y, 0).
-
-        Returns
-        -------
-        None.
-
-        """
+    def shift_to_bottom(self) -> None:
+        """Shift coordinates so the one with smallest z sits at (x, y, 0)."""
         min_z = np.min(self.coords[:, -1])
         self.coords[:, -1] -= min_z
 
@@ -1599,13 +1571,14 @@ class Geometry:
 
     def set_external_forces(
         self,
-        indices_of_atoms: Union[int, npt.NDArray[np.int64]],
+        indices_of_atoms: int | npt.NDArray[np.int64],
         external_force: npt.NDArray[np.float64],
     ) -> None:
         """
-        Sets a constraint for a few atoms in the system (identified by
-        'indices_of_atoms_to_constrain') for a geometry relaxation.
-        Since the relaxation constraint can be in any and/or all dimensions
+        Set a constraint for a few atoms in the system for a geometry relaxation.
+
+        These are identified by 'indices_of_atoms_to_constrain' for a geometry
+        relaxation. Since the relaxation constraint can be in any and/or all dimensions
         the second parameter, 'constraint_dim_flags', makes it possible to
         set which dimension(s) should be constrained for which molecule.
         By default all dimensions are to be constrained for all atoms are
@@ -1621,7 +1594,6 @@ class Geometry:
         constrain_dim_flags : npt.NDArray[np.float64]
             Force that should act on a given atom.
         """
-
         self.external_force[indices_of_atoms, :] = external_force
 
     def free_all_external_forces(self) -> None:
@@ -1636,14 +1608,11 @@ class Geometry:
         self.external_force = np.zeros((len(self), 3))
 
     def remove_periodicity(self):
-        """
-        Makes geometry non-periodic by setting its lattice vectors to zero
-
-        """
+        """Make a geometry non-periodic by setting its lattice vectors to zero."""
         self.lattice_vectors = np.zeros((3, 3), dtype=float)
 
     def set_homogeneous_field(self, E):
-        """Field should be a numpy array (Ex, Ey, Ez) with the Field in V/A"""
+        """Field should be a numpy array (Ex, Ey, Ez) with the Field in V/A."""
         assert len(E) == 3, "Expected E-field components [Ex, Ey, Ez], but got " + str(
             E
         )
@@ -1651,6 +1620,9 @@ class Geometry:
 
     def free_homogeneous_field(self):
         self.homogeneous_field = np.array([0.0, 0.0, 0.0])
+
+    def set_initial_magnetic_moments(self, moments: list[float]) -> None:
+        self.initial_moment = moments
 
     ###############################################################################
     #                      Get Properties of the Geometry                         #
@@ -1668,7 +1640,6 @@ class Geometry:
         return not np.allclose(self.lattice_vectors, np.zeros([3, 3]))
 
     def get_reassembled_molecule(self, threshold: float = 2.0):
-
         geom_replica = self.get_periodic_replica(
             (1, 1, 1),
             explicit_replications=[[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
@@ -1680,15 +1651,12 @@ class Geometry:
         new_cluster = True
 
         while new_cluster:
-
             clusters = []
             new_cluster = False
 
             for pair in pairs:
-
                 in_culster = False
                 for ind, indices in enumerate(clusters):
-
                     for p in pair:
                         if p in indices:
                             clusters[ind] = set(list(indices) + list(pair))
@@ -1713,22 +1681,23 @@ class Geometry:
 
         warnings.warn(
             "Geometry.getReassembledMolecule could not reassemble \
-                      molecule. Returning original Geometry."
+                      molecule. Returning original Geometry.",
+            stacklevel=2,
         )
         return self
 
-    def get_scaled_copy(self, scaling_factor: Union[float, List]) -> object:
+    def get_scaled_copy(self, scaling_factor: float | list) -> object:
         """
-        Returns a copy of the geometry, scaled by scaling_factor.
+        Return a copy of the geometry, scaled by `scaling_factor`.
 
         Both the coordinates of the atoms and the length of the lattice vectors are
         affected
 
         Parameters
         ----------
-        scaling_factor : Union[float, Iterator]
+        scaling_factor : float | list
             Scaling factor for the geometry. If float, the volume of the geometry
-            will be scaled accordingly. If iterable, the length of the lattice vectors
+            will be scaled accordingly. If a list, the length of the lattice vectors
             will be scaled accordingly.
 
         Returns
@@ -1736,10 +1705,9 @@ class Geometry:
         scaled_geometry : Geometry
             Geometry object with scaled coordinates and lattice vectors
         """
-
-        assert hasattr(
-            self, "lattice_vectors"
-        ), "This function only works for geometries with a Unit Cell"
+        assert hasattr(self, "lattice_vectors"), (
+            "This function only works for geometries with a Unit Cell"
+        )
 
         if isinstance(scaling_factor, float):
             scaling_factors = [
@@ -1799,19 +1767,20 @@ class Geometry:
         if lattice_vectors is None:
             lattice_vectors = self.lattice_vectors
 
-        assert not np.allclose(
-            lattice_vectors, np.zeros([3, 3])
-        ), "Lattice vector must be defined in Geometry or given as function parameter"
+        assert not np.allclose(lattice_vectors, np.zeros([3, 3])), (
+            "Lattice vector must be defined in Geometry or given as function parameter"
+        )
 
         fractional_coords = np.linalg.solve(lattice_vectors.T, self.coords.T)
         return fractional_coords.T
 
-    def get_fractional_lattice_vectors(self, lattice_vectors=None):
+    def get_fractional_lattice_vectors(
+        self, lattice_vectors: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.floating]:
         """
-        Calculate the fractional representation of lattice vectors of the
-        geometry file in another basis.
-        Useful to calculate epitaxy matrices
+        Compute fractional lattice vectors of a geometry in a different basis.
 
+        Useful to calculate epitaxy matrices.
         """
         fractional_coords = np.linalg.solve(lattice_vectors.T, self.lattice_vectors.T)
         return fractional_coords.T
@@ -1841,15 +1810,16 @@ class Geometry:
         return recip_lattice
 
     def get_main_axes(
-        self, weights: Union[str, npt.NDArray[np.float64]] = "unity"
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        self, weights: str | npt.NDArray[np.float64] = "unity"
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         """
-        Get main axes and eigenvalues of a molecule
+        Get main axes and eigenvalues of a molecule.
+
         https://de.wikipedia.org/wiki/Tr%C3%A4gheitstensor
 
         Parameters
         ----------
-        weights : Union[str, npt.NDArray[np.float64]] = "unity"
+        weights : str | npt.NDArray[np.float64], default = "unity"
             Specifies how the atoms are weighted.
             "unity": all same weight
             "Z": weighted by atomic number.
@@ -1866,41 +1836,42 @@ class Geometry:
         if weights == "unity":
             weights = np.ones(self.n_atoms)
         elif weights == "Z":
-            weights = np.array(
-                [self.periodic_table.get_atomic_mass(s) for s in self.species]
-            )
+            weights = np.array([PeriodicTable.get_atomic_mass(s) for s in self.species])
 
         coords = self.coords - np.mean(self.coords, axis=0)
         diag_entry = np.sum(np.sum(coords**2, axis=1) * weights)
-        I = np.eye(3) * diag_entry
+        ident = np.eye(3) * diag_entry
         for i in range(self.n_atoms):
-            I -= weights[i] * np.outer(coords[i, :], coords[i, :])
+            ident -= weights[i] * np.outer(coords[i, :], coords[i, :])
 
-        vals, vecs = scipy.linalg.eigh(I)
+        vals, vecs = scipy.linalg.eigh(ident)
         sort_ind = np.argsort(vals)
 
         return vals[sort_ind], vecs[:, sort_ind]
 
-    def get_distance_between_all_atoms(self) -> npt.NDArray[np.float64]:
+    def get_distance_between_all_atoms(self) -> npt.NDArray[np.floating]:
         """
         Get the distance between all atoms in the current Geometry
         object. Gives an symmetric array where distances between atom i and j
         are denoted in the array elements (ij) and (ji).
 
         """
-        distances = scipy.spatial.distance.cdist(self.coords, self.coords)
-        return distances
+        return scipy.spatial.distance.cdist(self.coords, self.coords)
 
-    def get_closest_atoms(self, indices, species=None, n_closest=1):
+    def get_closest_atoms(
+        self,
+        indices: int | Collection[int],
+        species: list | None = None,
+        n_closest: int = 1,
+    ) -> list:
         """
-        Get the indices of the closest atom(s) for the given index or list of
-        indices
+        Get the indices of the closest atom(s) for the given index.
 
         Parameters
         ----------
-        index: int or iterable
+        index: int | Collection[int]
             atoms for which the closest indices are  to be found
-        species: None or list of species identifiers
+        species: list | None
             species to consider for closest atoms. This allows to get only the
             closest atoms of the same or another species
         n_closest: int
@@ -1908,18 +1879,18 @@ class Geometry:
 
         Returns
         -------
-        closest_atoms_list: list or list of lists
+        closest_atoms_list: list
             closest atoms for each entry in index
         """
-
         all_distances = self.get_distance_between_all_atoms()
 
         if species is None:
             species_to_consider = list(set(self.species))
         else:
-            assert isinstance(
-                species, list
-            ), "species must be a list of species identifiers or None if all atoms should be probed"
+            assert isinstance(species, list), (
+                "species must be a list of species identifiers or None if all atoms "
+                "should be probed"
+            )
             species_to_consider = species
 
         return_single_list = False
@@ -1945,41 +1916,41 @@ class Geometry:
 
         if return_single_list:  # can only be true if only a single index was specified
             return closest_atoms_list[0]
-        else:
-            return closest_atoms_list
+        return closest_atoms_list
 
-    def get_distance_between_two_atoms(self, atom_indices: list) -> np.float64:
-        """Get the distance between two atoms in the current Geometry
-        object."""
+    def get_distance_between_two_atoms(self, atom_indices: list) -> np.floating:
+        """Get the distance between two atoms in the current Geometry."""
         atom1 = self.coords[atom_indices[0], :]
         atom2 = self.coords[atom_indices[1], :]
         vec = atom2 - atom1
-        dist = np.linalg.norm(vec)
 
-        return dist
+        return np.linalg.norm(vec)
 
-    def get_volume_of_unit_cell(self) -> np.float64:
+    def get_volume_of_unit_cell(self) -> npt.NDArray[np.float64]:
         """
         Calcualtes the volume of the unit cell.
 
         Returns
         -------
-        volume : float
+        volume : npt.NDArray[np.float64]
             Volume of the unit cell.
-
         """
         a1 = self.lattice_vectors[0]
         a2 = self.lattice_vectors[1]
         a3 = self.lattice_vectors[2]
-        volume = np.cross(a1, a2).dot(a3)
-        return volume
+
+        return np.cross(a1, a2).dot(a3)
 
     def get_geometric_center(
-        self, ignore_center_attribute=False, indices=None
+        self,
+        ignore_center_attribute: bool = False,
+        indices: Collection[int] | None = None,
     ) -> npt.NDArray[np.float64]:
         """
-        Returns the center of the geometry. If the attribute *center* is set,
-        it is used as the definition for the center of the geometry.
+        Get the center of the geometry.
+
+        If the attribute `center` is set, it is used as the definition for the center of
+        the geometry.
 
         Parameters
         ----------
@@ -1988,16 +1959,15 @@ class Geometry:
             Otherwise, the function returns the geometric center of the structure,
             i.e. the average over the position of all atoms.
 
-        indices: iterable of indices or None
-            indices of all atoms to consider when calculating the center. Useful to calculate centers of adsorbates only
-            if None, all atoms are used
+        indices: Collection[int] | None
+            indices of all atoms to consider when calculating the center. Useful to
+            calculate centers of adsorbates only. if None, all atoms are used.
 
         Returns
-        --------
+        -------
         center : npt.NDArray[np.float64]
             Center of the geometry
         """
-
         if (
             not hasattr(self, "center")
             or self.center is None
@@ -2029,7 +1999,7 @@ class Geometry:
             species_helper.append(si_new)
 
         masses_np = np.array(
-            [self.periodic_table.get_atomic_mass(s) for s in species_helper],
+            [PeriodicTable.get_atomic_mass(s) for s in species_helper],
             dtype=np.float64,
         )
         center_of_mass = self.coords.T.dot(masses_np) / masses_np.sum()
@@ -2051,17 +2021,16 @@ class Geometry:
         See https://atztogo.github.io/spglib/python-spglib.html#get-symmetry
         for details
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         save_directory : str
             save directory in string format, file will be name symmetry.pickle
             (default = None --> symmetry is not saved)
 
-        Raises:
-        -------
+        Raises
+        ------
         ValueError: If lattice vectors are 0
         """
-
         if np.count_nonzero(self.lattice_vectors) == 0:
             print(
                 "Lattice vectors must not be 0! getSymmetry requires a unitcell-like"
@@ -2083,8 +2052,8 @@ class Geometry:
         return rotations, translations
 
     def get_atomic_numbers_of_atoms(self) -> npt.NDArray[np.float64]:
-        """Get the atomic numbers of all atoms in the geometry file"""
-        species = [self.periodic_table.get_atomic_number(s) for s in self.species]
+        """Get the atomic numbers of all atoms in the geometry file."""
+        species = [PeriodicTable.get_atomic_number(s) for s in self.species]
         return np.array(species)
 
     def get_number_of_electrons(self) -> float:
@@ -2100,14 +2069,13 @@ class Geometry:
         electrons = []
         for s in self.species:
             try:
-                if "_" in s:
-                    curr_species = s.split("_")[0]
-                else:
-                    curr_species = s
-                electrons.append(self.periodic_table.get_atomic_number(curr_species))
+                curr_species = s.split("_")[0] if "_" in s else s
+                electrons.append(PeriodicTable.get_atomic_number(curr_species))
 
             except KeyError:
-                KeyError("Species {} is not known".format(s))
+                msg = f"Species {s} is not known"
+                raise KeyError(msg)
+
         return np.sum(electrons)
 
     def get_atomic_masses(self) -> npt.NDArray[np.float64]:
@@ -2124,16 +2092,15 @@ class Geometry:
         masses = []
         for s in self.species:
             try:
-                if "_" in s:
-                    curr_species = s.split("_")[0]
-                else:
-                    curr_species = s
+                curr_species = s.split("_")[0] if "_" in s else s
 
-                mass = self.periodic_table.get_atomic_mass(curr_species)
+                mass = PeriodicTable.get_atomic_mass(curr_species)
                 masses.append(mass)
 
             except KeyError:
-                KeyError("Atomic mass for species {} is not known".format(s))
+                msg = f"Atomic mass for species {s} is not known"
+                raise KeyError(msg)
+
         return np.array(masses)
 
     def get_total_mass(self) -> float:
@@ -2149,7 +2116,7 @@ class Geometry:
         atomic_mass = 0
 
         for s in self.species:
-            atomic_mass += self.periodic_table.get_atomic_mass(s)
+            atomic_mass += PeriodicTable.get_atomic_mass(s)
 
         return atomic_mass
 
@@ -2193,30 +2160,30 @@ class Geometry:
             Area of the unit cell.
 
         """
-        a = deepcopy(self.lattice_vectors[0, :-1])
-        b = deepcopy(self.lattice_vectors[1, :-1])
+        a = deepcopy(self.lattice_vectors[0, :])
+        b = deepcopy(self.lattice_vectors[1, :])
         area = np.abs(np.cross(a, b)[-1])
 
         return area
 
     def get_area_in_atom_numbers(
         self,
-        substrate_indices: Union[npt.NDArray[np.float64], None] = None,
+        substrate_indices: npt.NDArray[np.float64] | None = None,
         substrate=None,
     ) -> float:
         """
-        Returns the area of the unit cell in terms of substrate atoms in the
-        topmost substrate layer. The substrate is determined by
-        default by the function self.getSubstrate(). For avoiding a faulty
-        substrate determination it can be either given through indices or
-        through the substrate geometry itself
+        Calculate the unit cell area using atoms in the topmost substrate layer.
+
+        By default, the substrate is determined using `self.getSubstrate()`. To avoid
+        incorrect automatic detection, the substrate can also be specified manually,
+        either by providing atom indices or by passing the substrate geometry directly.
 
         Parameters
         ----------
-        substrate_indices : Union[np.array, None], optional
-            List of indices of substrate atoms. The default is None.
-        substrate : TYPE, optional
-            Geometry of substrate. The default is None.
+        substrate_indices : npt.NDArray[np.float64] | None, default = None
+            List of indices of substrate atoms
+        substrate : TODO, default = None
+            Geometry of the substrate
 
         Returns
         -------
@@ -2235,29 +2202,23 @@ class Geometry:
         """
         Parameters
         ----------
-        Parameter for bond detection based on atom-distance : float, optional
-            DESCRIPTION. The default is 1.5.
+        Parameter for bond detection based on atom-distance : float, default = 1.5
+            TODO
 
         Returns
         -------
-        bond_lengths : npt.NDArray[np.float64]
+        bond_lengths : NDArray[float64]
             List of bond lengths for neighbouring atoms.
-
         """
-
         raise NotImplementedError
 
         # TODO write the below function
         neighbouring_atoms = self.get_all_neighbouring_atoms(bond_factor=bond_factor)
+        bond_lengths = [v[1] for v in neighbouring_atoms.values()]
 
-        bond_lengths = []
-        for v in neighbouring_atoms.values():
-            bond_lengths.append(v[1])
+        return np.array(bond_lengths)
 
-        bond_lengths = np.array(bond_lengths)
-        return bond_lengths
-
-    def get_number_of_atom_layers(self, threshold: float = 1e-2) -> Tuple[dict, float]:
+    def get_number_of_atom_layers(self, threshold: float = 1e-2) -> tuple[dict, float]:
         """
         Return the number of atom layers.
 
@@ -2285,25 +2246,25 @@ class Geometry:
 
     def get_unit_cell_parameters(
         self,
-    ) -> Tuple[np.float64, np.float64, np.float64, float, float, float]:
+    ) -> tuple[np.floating, np.floating, np.floating, float, float, float]:
         """
-        Determines unit cell parameters.
+        Determine the unit cell parameters.
 
         Returns
         -------
-        a : float
-            Length of lattice vector 1.
-        b : float
-            Length of lattice vector 2.
-        c : float
-            Length of lattice vector 3.
-        alpha : float
-            Angle between lattice vectors 1 and 2.
-        beta : float
-            Angle between lattice vectors 2 and 3.
-        gamma : float
-            Angle between lattice vectors 1 and 3.
-
+        tuple
+            float
+                Length of lattice vector 1.
+            float
+                Length of lattice vector 2.
+            float
+                Length of lattice vector 3.
+            float
+                Angle between lattice vectors 1 and 2.
+            float
+                Angle between lattice vectors 2 and 3.
+            float
+                Angle between lattice vectors 1 and 3.
         """
         cell = self.lattice_vectors
 
@@ -2319,18 +2280,20 @@ class Geometry:
 
     def get_spglib_cell(
         self,
-    ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.int64], list]:
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int64], list]:
         """
-        Returns the unit cell in a format that can be used in spglib (to find symmetries)
+        Returns the unit cell in a format that can be used in spglib.
+
+        Used to find symmetries
 
         return : tuple
             (lattice vectors, frac coordinates of atoms, atomic numbers)
         """
         coordinates = utils.get_fractional_coords(self.coords, self.lattice_vectors)
 
-        atom_number = []
-        for atom_name in self.species:
-            atom_number.append(self.periodic_table.get_atomic_number(atom_name))
+        atom_number = [
+            PeriodicTable.get_atomic_number(atom_name) for atom_name in self.species
+        ]
 
         return (self.lattice_vectors, coordinates, atom_number)
 
@@ -2341,8 +2304,8 @@ class Geometry:
         This is transformed such that it always points in the upper half of cartesian
         space
 
-        Returns:
-        --------
+        Returns
+        -------
         float
             angle between main axis and x axis in degree
         """
@@ -2385,11 +2348,11 @@ class Geometry:
 
     def get_cropping_indices(
         self,
-        xlim=(-np.inf, np.inf),
-        ylim=(-np.inf, np.inf),
-        zlim=(-np.inf, np.inf),
-        auto_margin=False,
-        inverse=False,
+        xlim: tuple[float, float] = (-np.inf, np.inf),
+        ylim: tuple[float, float] = (-np.inf, np.inf),
+        zlim: tuple[float, float] = (-np.inf, np.inf),
+        auto_margin: bool = False,
+        inverse: bool = False,
     ) -> npt.NDArray[np.int64]:
         """
         Gets indices of all atoms that are outside specified bounds.
@@ -2398,13 +2361,8 @@ class Geometry:
         :param inverse : if True, gets indices of all atoms INSIDE specified bounds
 
         """
-        assert len(xlim) == 2, "xlim must have a lower and an upper bound"
-        assert len(ylim) == 2, "ylim must have a lower and an upper bound"
-        assert len(zlim) == 2, "zlim must have a lower and an upper bound"
         if auto_margin:
-            margin = max(
-                [self.periodic_table.get_covalent_radius(s) for s in self.species]
-            )
+            margin = max([PeriodicTable.get_covalent_radius(s) for s in self.species])
             xlim = xlim[0] - margin, xlim[1] + margin
             ylim = ylim[0] - margin, ylim[1] + margin
             zlim = zlim[0] - margin, zlim[1] + margin
@@ -2422,43 +2380,42 @@ class Geometry:
                 i for i in range(self.n_atoms) if i not in indices_to_remove
             ]
 
-        indices_to_remove = np.array(indices_to_remove)
-
-        return indices_to_remove
+        return np.array(indices_to_remove)
 
     def get_substrate_indices_from_parts(
-        self, do_warn=True
-    ) -> Union[None, npt.NDArray[np.int64]]:
+        self, warn: bool = True
+    ) -> None | npt.NDArray[np.int64]:
         """
-        Returns indices of those atoms that a part of the substrate. The
-        definition of the substrate does NOT rely of it being a metal or the
-        height or something like that. Instead a geometry part named
-        'substrate' must be defined.
+        Get the indices of those atoms that a part of the substrate.
+
+        The definition of the substrate does NOT rely of it being a metal or the height.
+        Instead a geometry part named `substrate` must be defined.
 
         Parameters
         ----------
-        do_warn : boolean
+        warn : bool
             Can be set to False to suppress warnings
 
         Returns
         -------
-        substrate_indices : npt.NDArray[np.int64]
-
+        NDArray[int64]
+            TODO
         """
-        substrate_key = "substrate"  # should probably moved to a class variable, but first finished folder-read-write
+        # should probably moved to a class variable, but first finish folder-read-write
+        substrate_key = "substrate"
 
         if not hasattr(self, "geometry_parts") or not hasattr(
             self, "geometry_part_descriptions"
         ):
-            if do_warn:
+            if warn:
                 print("getSubstrate: geometry parts not defined")
             return None
 
         if substrate_key not in self.geometry_part_descriptions:
-            if do_warn:
+            if warn:
                 print(
                     "getSubstrate: geometry parts are defined, "
-                    "but part '{}' not found".format(substrate_key)
+                    f"but part '{substrate_key}' not found"
                 )
             return None
 
@@ -2466,28 +2423,27 @@ class Geometry:
             substrate_key
         )
         substrate_indices = self.geometry_parts[index_of_geometry_parts_substrate]
-        substrate_indices = np.array(substrate_indices)
-        return substrate_indices
+
+        return np.array(substrate_indices)
 
     def get_indices_of_metal(self) -> npt.NDArray[np.int64]:
         """
-        Gets indices of all atoms with atomic number > 18 and atomic numbers
-        3,4,11,12,13,14
+        Get indices of all metals.
+
+        These are atoms with atomic number > 18 and atomic numbers = 3,4,11,12,13,14
 
         Returns
         -------
         metal_atoms : npt.NDArray[np.int64]
             Inidices of metallic atoms.
-
         """
-        atom_inds = [self.periodic_table.get_atomic_number(s) for s in self.species]
+        atom_inds = [PeriodicTable.get_atomic_number(s) for s in self.species]
         metal_atoms = []
         for i, ind in enumerate(atom_inds):
             if (ind > 18) or (ind in [3, 4, 11, 12, 13, 14]):
                 metal_atoms.append(i)
 
-        metal_atoms = np.array(metal_atoms)
-        return metal_atoms
+        return np.array(metal_atoms, dtype=np.int64)
 
     def get_indices_of_molecules(self, substrate_species=None) -> npt.NDArray[np.int64]:
         """
@@ -2496,7 +2452,6 @@ class Geometry:
 
         If substrate_species is given indices of all atoms that are not of the
         substrate species are returned.
-
         """
         if substrate_species:
             substrate_indices = self.get_indices_of_species(substrate_species)
@@ -2504,8 +2459,7 @@ class Geometry:
             substrate_indices = self.get_indices_of_metal()
 
         molecules = [i for i in range(self.n_atoms) if i not in substrate_indices]
-        molecules = np.array(molecules)
-        return molecules
+        return np.array(molecules)
 
     def get_indices_of_species(self, species) -> npt.NDArray[np.int64]:
         """
@@ -2522,29 +2476,37 @@ class Geometry:
         return species_indices
 
     def get_substrate_indices(
-        self, primitive_substrate=None, dimension=2, threshold=0.3
+        self, primitive_substrate=None, dimension: int = 2, threshold: float = 0.3
     ) -> npt.NDArray[np.int64]:
         """
-        This method returns the indices of all atoms that are part of the substrate.
-        Often these are simply all metal atoms of the geometry.
-        But the substrate can also be organic in which case it can't be picked by being a metal.
-        And there might be multiple adsorbate layers in which case only the molecules of the highest layer
-        shall be counted as adsorbates and the others are part of the substrate.
+        Get the indices of all atoms that are part of the substrate.
 
-        dimension: int      only used if primitive_substrate is not None
-        threshold: float    only used if primitive_substrate is not None
+        Often these are simply all metal atoms of the geometry, But the substrate can
+        also be organic in which case it can't be picked by being a metal. There might
+        also be multiple adsorbate layers in which case only the molecules of the
+        highest layer shall be counted as adsorbates and the others are part of the
+        substrate.
+
+        Parameters
+        ----------
+        primitive_substrate: TODO | None
+            TODO
+        dimension: int, default = 2
+            TODO
+        threshold: float, default = 0.3
+            TODO
 
         Returns
         -------
-        indices of all substrate atoms: npt.NDArray[np.int64]
-
+        indices of all substrate atoms: NDArray[int64]
         """
-        # case 1: if a primitive_substrate was passed, use that one for the decision
+        # Case 1: if a primitive_substrate was passed, use that one for the decision
         # (copied from self.removeSubstrate)
 
         substrate_indices = []
 
-        # case 2: if no substrate was passed but a geometry_parts "substrate" is defined in geometry_parts, use that one
+        # Case 2: if no substrate was passed but a geometry_parts "substrate" is defined
+        # in geometry_parts, use that one
         substrate_indices_from_parts = self.get_substrate_indices_from_parts(
             do_warn=False
         )
@@ -2566,11 +2528,13 @@ class Geometry:
             substrate_indices = substrate_indices_from_parts
 
         else:
-            # case 3: if neither a substrate was passed, nor a geometry_parts "substrate" is defined,
-            #            use a fallback solution: assume that the substrate (and nothing else) is a metal
+            # Case 3: if neither a substrate was passed, nor a geometry_parts
+            # `substrate` is defined, use a fallback solution: assume that the substrate
+            # (and nothing else) is a metal
             warnings.warn(
                 "Geometry.getIndicesOfAdsorbates: Substrate is not explicitly defined. "
-                "Using fallback solution of counting all metal atoms as substrate."
+                "Using fallback solution of counting all metal atoms as substrate.",
+                stacklevel=2,
             )
             substrate_indices = self.get_indices_of_metal()
 
@@ -2578,7 +2542,8 @@ class Geometry:
 
     def get_adsorbate_indices(self, primitive_substrate=None) -> npt.NDArray[np.int64]:
         """
-        This method returns the indices of all atoms that are NOT part of the substrate.
+        Get the indices of all atoms that are NOT part of the substrate.
+
         In a classical organic monolayer on a metal substrate these are simply all molecules.
         But the substrate can also be organic in which case it can't be picked by being a metal.
         And there might be multiple adsorbate layers in which case only the molecules of the highest layer
@@ -2588,7 +2553,6 @@ class Geometry:
         -------
         indices of all adsorbate atoms: npt.NDArray[np.int64]
         """
-
         substrate_indices = self.get_substrate_indices(
             primitive_substrate=primitive_substrate
         )
@@ -2600,8 +2564,7 @@ class Geometry:
     def get_indices_of_all_atoms(self, species=None):
         if species is None:
             return [i for i in range(self.n_atoms)]
-        else:
-            return [i for i in range(self.n_atoms) if self.species[i] == species]
+        return [i for i in range(self.n_atoms) if self.species[i] == species]
 
     def get_atom_layers_indices(self, threshold: float = 1e-2) -> dict:
         """
@@ -2660,7 +2623,6 @@ class Geometry:
 
         # --- merge height-indices dicts ---
         for data in layers_by_species.values():
-
             for height, indices in data.items():
                 new = True
                 for new_height in layers_by_height.keys():
@@ -2700,8 +2662,8 @@ class Geometry:
         bond_thresholds = {}
         for pair in all_species_pairs:
             bond_thresholds[pair] = (
-                self.periodic_table.get_covalent_radius(pair[0])
-                + self.periodic_table.get_covalent_radius(pair[1])
+                PeriodicTable.get_covalent_radius(pair[0])
+                + PeriodicTable.get_covalent_radius(pair[1])
             ) * bond_factor
 
         neighbouring_atoms = {}
@@ -2734,7 +2696,7 @@ class Geometry:
 
         """
         masses_kg = [
-            units.ATOMIC_MASS_IN_KG * self.periodic_table.get_atomic_mass(s)
+            units.ATOMIC_MASS_IN_KG * PeriodicTable.get_atomic_mass(s)
             for s in self.species
         ]
 
@@ -2757,16 +2719,16 @@ class Geometry:
             I13 += -m * x * z
             I23 += -m * y * z
 
-        I = np.array(
+        ident = np.array(
             [[I11, I12, I13], [I12, I22, I23], [I13, I23, I33]],
             dtype=np.float64,
         )
 
-        moments, _ = np.linalg.eigh(I)
+        moments, _ = np.linalg.eigh(ident)
         return moments
 
-    def get_homogeneous_field(self):
-        """Field is a numpy array (Ex, Ey, Ez) with the Field in V/A"""
+    def get_homogeneous_field(self) -> npt.NDArray[Any] | None:
+        """Field is a numpy array (Ex, Ey, Ez) with the Field in V/A."""
         if not hasattr(self, "_homogeneous_field"):
             self.homogeneous_field = None
 
@@ -2815,10 +2777,8 @@ class Geometry:
             the values of the array correspond to the atoms in other_geometry
 
         """
-        assert len(self) == len(
-            other_geometry
-        ), "Geometries have different number of atoms {0} != {1}".format(
-            len(self), len(other_geometry)
+        assert len(self) == len(other_geometry), (
+            f"Geometries have different number of atoms {len(self)} != {len(other_geometry)}"
         )
 
         # Replicate other geometry to also search in neighbouring cells
@@ -2828,11 +2788,11 @@ class Geometry:
 
         # Get the atomic numbers of each geometry file: Later only compare matching atom types
         Z_values_1 = np.array(
-            [self.periodic_table.get_atomic_number(s) for s in self.species],
+            [PeriodicTable.get_atomic_number(s) for s in self.species],
             np.int64,
         )
         Z_values_2 = np.array(
-            [self.periodic_table.get_atomic_number(s) for s in other_geometry.species],
+            [PeriodicTable.get_atomic_number(s) for s in other_geometry.species],
             np.int64,
         )
         unique_Z = set(Z_values_1)
@@ -2864,8 +2824,8 @@ class Geometry:
 
         if get_distances:
             return transformation_indices, distances
-        else:
-            return transformation_indices
+
+        return transformation_indices
 
     def is_equivalent(
         self, geom, tolerance=0.01, check_neightbouring_cells=False
@@ -2876,8 +2836,8 @@ class Geometry:
         (but possibly in some permutation)
 
         :param check_neightbouring_cells: for periodic structures, recognizes two structures as equivalent, even if one\
-         of them has its atoms distributed in different unit cells compared to the other. More complete, but slower.  """
-
+         of them has its atoms distributed in different unit cells compared to the other. More complete, but slower.
+        """
         # Check that both geometries have same number of atoms
         # If not, they cannot be equivalent
         if geom.n_atoms != self.n_atoms:
@@ -2917,7 +2877,7 @@ class Geometry:
         check_neighbouring_cells=False,
     ):
         """
-            returns True if self can be transformed into geom by a translation
+            Returns True if self can be transformed into geom by a translation
                 (= without changing the geometry itself).
 
         Parameters
@@ -2960,8 +2920,7 @@ class Geometry:
 
         if get_translation:
             return is_equivalent, translation
-        else:
-            return is_equivalent
+        return is_equivalent
 
     ###########################################################################
     #                          Get Part of a Geometry                         #
@@ -2994,9 +2953,8 @@ class Geometry:
 
     def get_atoms_by_species(self, species) -> "Geometry":
         """
-        get new geometry file with specific atom species
+        Get new geometry file with specific atom species
         """
-
         L = np.array(self.species) == species
         atom_indices = np.where(L)[0]
         return self.get_atoms_by_indices(atom_indices)
@@ -3014,11 +2972,10 @@ class Geometry:
         threshold : float
             numerical threshold for symmetry operations
 
-        Returns:
-        --------
+        Returns
+        -------
         primitive_slab : Geometry
         """
-
         lattice, scaled_positions, atomic_numbers = spglib.standardize_cell(
             self.get_spglib_cell()
         )
@@ -3079,18 +3036,16 @@ class Geometry:
 
         # shellsize 100 such that the code does not run infinitely
         shellsize = 100
-        for shell in range(0, shellsize):
+        for shell in range(shellsize):
             add_next_shell = False
             for h in range(-shell, shell + 1):
-                for k in range(-shell, shell + 1):
-                    for l in range(-shell, shell + 1):
-
-                        if (abs(h) < shell) and (abs(k) < shell) and (abs(l) < shell):
+                for j in range(-shell, shell + 1):
+                    for k in range(-shell, shell + 1):
+                        if (abs(h) < shell) and (abs(j) < shell) and (abs(k) < shell):
                             continue
 
-                        for new_species, coord in zip(atomic_numbers, scaled_positions):
-
-                            new_coord = coord.dot(lattice) + np.array([h, k, l]).dot(
+                        for new_species, coord in zip(atomic_numbers, scaled_positions, strict=False):
+                            new_coord = coord.dot(lattice) + np.array([h, j, k]).dot(
                                 lattice
                             )
                             frac_new_coord = utils.get_fractional_coords(
@@ -3103,20 +3058,17 @@ class Geometry:
                             if not L1 and not L2:
                                 slab.add_atoms(
                                     [new_coord],
-                                    [
-                                        self.periodic_table.get_chemical_symbol(
-                                            new_species
-                                        )
-                                    ],
+                                    [PeriodicTable.get_symbol(new_species)],
                                 )
                                 add_next_shell = True
 
-            if not shell == 0 and not add_next_shell:
+            if shell != 0 and not add_next_shell:
                 break
 
             if shell == 100:
                 warnings.warn(
-                    "<Geometry.get_primitive_slab> could not build a correct slab."
+                    "<Geometry.get_primitive_slab> could not build a correct slab.",
+                    stacklevel=2,
                 )
 
         slab.align_lattice_vector_to_vector(np.array([0, 0, 1]), 2)
@@ -3126,7 +3078,7 @@ class Geometry:
         # break symmetry in z-direction
         scaled_slab_lattice[2, :] *= 2
         frac_coords = utils.get_fractional_coords(slab.coords, scaled_slab_lattice)
-        species = [self.periodic_table.get_atomic_number(s) for s in slab.species]
+        species = [PeriodicTable.get_atomic_number(s) for s in slab.species]
 
         (
             primitive_slab_lattice,
@@ -3137,8 +3089,7 @@ class Geometry:
         )
 
         primitive_slab_species = [
-            self.periodic_table.get_chemical_symbol(s)
-            for s in primitive_slab_atomic_numbers
+            PeriodicTable.get_symbol(s) for s in primitive_slab_atomic_numbers
         ]
         primitive_slab_coords = primitive_slab_scaled_positions.dot(
             primitive_slab_lattice
@@ -3154,21 +3105,21 @@ class Geometry:
         # Sanity check: primitive_slab must be reducable to the standard unit cell
         check_lattice, _, _ = spglib.standardize_cell(primitive_slab.get_spglib_cell())
 
-        assert np.allclose(
-            check_lattice, lattice
-        ), "<Geometry.get_primitive_slab> the slab that was constructed \
+        assert np.allclose(check_lattice, lattice), (
+            "<Geometry.get_primitive_slab> the slab that was constructed \
         could not be reduced to the original bulk unit cell. Something \
         must have gone wrong."
+        )
 
         return primitive_slab
 
     def get_slab(
         self,
         layers: int,
-        surface: Union[npt.NDArray[np.int64], None] = None,
+        surface: npt.NDArray[np.int64] | None = None,
         threshold: float = 1e-6,
-        surface_replica: Tuple[int, int] = (1, 1),
-        vacuum_height: Union[float, None] = None,
+        surface_replica: tuple[int, int] = (1, 1),
+        vacuum_height: float | None = None,
         bool_shift_slab_to_bottom: bool = False,
     ) -> "Geometry":
         """
@@ -3225,9 +3176,8 @@ class Geometry:
                     vac_height=vacuum_height,
                     bool_shift_to_bottom=bool_shift_slab_to_bottom,
                 )
-            else:
-                if bool_shift_slab_to_bottom:
-                    self.shift_to_bottom()
+            elif bool_shift_slab_to_bottom:
+                self.shift_to_bottom()
 
         return slab_new
 
@@ -3275,8 +3225,7 @@ class Geometry:
             G.add_nodes_from(set.union(*map(set, index_tuples)))  # adding single items
             atoms_to_remove = list(nx.connected_components(G))
             return [sorted(list(s)) for s in atoms_to_remove]
-        else:
-            return []
+        return []
 
     def get_cropped_geometry(
         self,
@@ -3308,12 +3257,13 @@ class Geometry:
     def get_periodic_replica(
         self,
         replications: tuple,
-        lattice: Union[npt.NDArray[np.float64], None] = None,
-        explicit_replications: Union[list, None] = None,
+        lattice: npt.NDArray[np.float64] | None = None,
+        explicit_replications: list | None = None,
     ):
         """
-        Return a new geometry file that is a periodic replica of the original
-        file. Repeats the geometry N-1 times in all given directions:
+        Get a new geometry file that is a periodic replica of the original file.
+
+        Repeats the geometry N-1 times in all given directions:
         (1,1,1) returns the original file
 
         Parameters
@@ -3385,7 +3335,6 @@ class Geometry:
         closer than the selected thresold to any atom of B
 
         """
-
         coords = deepcopy(self.coords)
         distances = distance_matrix(coords, coords)
         distances[distances <= threshold] = 1
@@ -3395,7 +3344,9 @@ class Geometry:
             already_scanned_lines_indices.append(line_index)
             line = matrix[line_index]
             links = np.nonzero(line)[0]
-            links = [l for l in links if l not in already_scanned_lines_indices]
+            links = [
+                link for link in links if link not in already_scanned_lines_indices
+            ]
             return links, already_scanned_lines_indices
 
         molecules_indices_sets = []
@@ -3415,10 +3366,10 @@ class Geometry:
             # as long as new links are found, adds the new lines to the present set
             while len(links) > 0:
                 new_links = []
-                for l in links:
-                    if l not in scanned_lines_indices:
+                for link in links:
+                    if link not in scanned_lines_indices:
                         new_links_part, scanned_lines_indices = scan_line(
-                            l, distances, scanned_lines_indices
+                            link, distances, scanned_lines_indices
                         )
                         new_links += new_links_part
                 links = set(new_links)
@@ -3488,11 +3439,11 @@ class Geometry:
         layer_indices: list,
         threshold: float = 1e-2,
         primitive_substrate=None,
-        substrate_indices: Union[None, npt.NDArray[np.int64]] = None,
+        substrate_indices: npt.NDArray[np.int64] | None = None,
     ):
         """
         Get substrate layer by indices. The substrate is determined by
-        default by the function self.get_substrate. For avoiding a faulty
+        default by the function `self.get_substrate`. For avoiding a faulty
         substrate determination it can be either given through indices or
         through the substrate geometry itself.
 
@@ -3500,12 +3451,12 @@ class Geometry:
         ----------
         layer_indices : list
             List of indices of layers that shall be returned.
-        threshold : float, optional
-            DESCRIPTION. The default is 1e-2.
-        primitive_substrate : TYPE, optional
-            DESCRIPTION. The default is None.
-        substrate_indices : Union[None, list], optional
-            List of indices of substrate atoms. The default is None.
+        threshold : float, default=1e-2
+            TODO
+        primitive_substrate : TODO
+            TODO
+        substrate_indices : TODO
+            List of indices of substrate atoms
 
         Returns
         -------
@@ -3606,8 +3557,7 @@ class Geometry:
 
         if return_symmetrical:
             return is_symmetric, symm_geometry
-        else:
-            return is_symmetric
+        return is_symmetric
 
     ###############################################################################
     #                                 Visualisation                               #
@@ -3760,7 +3710,6 @@ class Geometry:
         None
 
         """
-
         # default for lattice_linewidth (which is used to draw the lattice)
         if lattice_linewidth is None:
             lattice_linewidth = 2 * linewidth
@@ -3812,16 +3761,15 @@ class Geometry:
 
         orig_inds = [orig_inds[i] for i in inds]
         coords = orig_coords[inds]
-        #        constrain = orig_constrain[inds]
         species = [orig_species[i] for i in inds]
         n_atoms = len(species)
         circlesize = [
-            self.periodic_table.get_covalent_radius(s) * atom_scale for s in species
+            PeriodicTable.get_covalent_radius(s) * atom_scale for s in species
         ]
 
         # Specify atom colors by value list or default atom colors
         if value_list is None and color_list is None:
-            colors = [self.periodic_table.get_species_colors(s) for s in species]
+            colors = [PeriodicTable.get_species_colours(s) for s in species]
             colors = np.array(colors)
         elif color_list is not None:
             if len(color_list) == 1:
@@ -3837,15 +3785,15 @@ class Geometry:
                 ]  # converting all types of color inputs to rgba here
             colors = np.array(colors)
         elif value_list is not None:
-            assert (
-                len(value_list) == self.n_atoms
-            ), "Number of Values does not match number of atoms in geometry"
+            assert len(value_list) == self.n_atoms, (
+                "Number of Values does not match number of atoms in geometry"
+            )
             values = [value_list[i] for i in orig_inds]
 
             if minvalue is not None:
-                assert (
-                    maxvalue is not None
-                ), "Error! If minvalue is defined also maxvalue must be defined"
+                assert maxvalue is not None, (
+                    "Error! If minvalue is defined also maxvalue must be defined"
+                )
 
             if maxvalue is None and minvalue is None:
                 maxvalue = np.max(np.abs(value_list))
@@ -3889,7 +3837,6 @@ class Geometry:
         # make specified atoms brighter by adding color_offset to all rgb values
 
         if brightness_modifier is not None:
-
             # Check if brightness modifier is flat (i.e. a single value) or per atom (list of length n_atoms)
             if isinstance(brightness_modifier, float) or isinstance(
                 brightness_modifier, int
@@ -3905,9 +3852,9 @@ class Geometry:
                 )
                 brightness_modifier = [brightness_modifier[i] for i in orig_inds]
 
-            assert (
-                len(brightness_modifier) == n_atoms
-            ), "Something went wrong while reformatting brightness_modifier!"
+            assert len(brightness_modifier) == n_atoms, (
+                "Something went wrong while reformatting brightness_modifier!"
+            )
             for i in range(n_atoms):
                 # TODO fix the pyright errors
                 hls_color = np.array(
@@ -4021,7 +3968,6 @@ class Geometry:
                 # For this calculate the lengths and make the smaller limit longer so that the ratio fits
 
             if crop_ratio is not None:
-
                 len_xlim = ax_xmax - ax_xmin
                 len_ylim = ax_ymax - ax_ymin
                 curr_crop_ratio = len_xlim / len_ylim
@@ -4055,11 +4001,11 @@ class Geometry:
 
         if axis_labels:
             if axis_labels_format == "/":
-                ax.set_xlabel(r"{} / $\AA$".format(axnames[axes[0]]))
-                ax.set_ylabel(r"{} / $\AA$".format(axnames[axes[1]]))
+                ax.set_xlabel(rf"{axnames[axes[0]]} / $\AA$")
+                ax.set_ylabel(rf"{axnames[axes[1]]} / $\AA$")
             elif axis_labels_format == "[]":
-                ax.set_xlabel(r"{} [$\AA$]".format(axnames[axes[0]]))
-                ax.set_ylabel(r"{} [$\AA$]".format(axnames[axes[1]]))
+                ax.set_xlabel(rf"{axnames[axes[0]]} [$\AA$]")
+                ax.set_ylabel(rf"{axnames[axes[1]]} [$\AA$]")
 
         if show_colorbar and (value_list is not None):
             cbar = plt.colorbar(ax=ax)
@@ -4076,7 +4022,7 @@ class Geometry:
     #                            Protected Functions                              #
     ###############################################################################
     def _get_collision_indices(self, atom_distances, distance_threshold=1e-2):
-        """helper function for removeDuplicateAtoms
+        """Helper function for removeDuplicateAtoms
 
         Parameters
         ----------
@@ -4085,11 +4031,9 @@ class Geometry:
 
         Returns
         -------
-
         atoms_to_remove : list
             indices of atoms that can be removed due to collision
         """
-
         # get all distances between all atoms
         is_collision = atom_distances < distance_threshold
 
@@ -4098,7 +4042,6 @@ class Geometry:
 
         # loop over all atoms
         for i in range(self.n_atoms):
-
             # evaluate only if atom is not already on the black list
             if i not in colliding_atoms_list:
                 colliding_atoms_dict[i] = []
@@ -4219,7 +4162,7 @@ class AimsGeometry(Geometry):
                     )
 
         # c Read all constraints/ moments and spins
-        for i, l in enumerate(atom_line_ind):
+        for i, j in enumerate(atom_line_ind):
             constraints = [False, False, False]
             external_force = np.zeros(3)
             calculate_friction = False
@@ -4229,8 +4172,8 @@ class AimsGeometry(Geometry):
                 last_line = atom_line_ind[i + 1]
             else:
                 last_line = len(text_lines)
-            for j in range(l, last_line):
-                line = text_lines[j]
+            for k in range(j, last_line):
+                line = text_lines[k]
                 if not line.startswith("#"):
                     if "initial_moment" in line:
                         moment = float(line.split()[1])
@@ -4250,9 +4193,8 @@ class AimsGeometry(Geometry):
                         external_force[0] = float(line.split()[1])
                         external_force[1] = float(line.split()[2])
                         external_force[2] = float(line.split()[3])
-                    elif "calculate_friction" in line:
-                        if ".true." in line:
-                            calculate_friction = True
+                    elif "calculate_friction" in line and ".true." in line:
+                        calculate_friction = True
 
             self.constrain_relax.append(constraints)
             self.external_force.append(external_force)
@@ -4263,9 +4205,8 @@ class AimsGeometry(Geometry):
         # read the atom species and coordinates
         self.n_atoms = len(atom_lines)
         self.coords = np.zeros([self.n_atoms, 3])
-        for i, l in enumerate(atom_lines):
-            tokens = l.split()
-            # self.species.append(tokens[-1])
+        for i, line in enumerate(atom_lines):
+            tokens = line.split()
             self.species.append(tokens[4])
             self.coords[i, :] = [float(x) for x in tokens[1:4]]
 
@@ -4277,39 +4218,37 @@ class AimsGeometry(Geometry):
                     "Warning: Number of symmetry_LVs is: "
                     + str(len(symmetry_LVs_lines))
                 )
-            for i, l in enumerate(symmetry_LVs_lines):
-                l = l[11:]
-                terms = [t.strip() for t in l.split(",")]
+            for j in symmetry_LVs_lines:
+                line = j[11:]
+                terms = [t.strip() for t in line.split(",")]
                 self.symmetry_LVs.append(terms)
         if len(symmetry_frac_lines) != 0:
             self.symmetry_frac_coords = []
-            for i, l in enumerate(symmetry_frac_lines):
-                l = l[13:]
-                terms = [t.strip() for t in l.split(",")]
-                # self.species.append(tokens[-1])
+            for i in symmetry_frac_lines:
+                line = i[13:]
+                terms = [t.strip() for t in line.split(",")]
                 self.symmetry_frac_coords.append(terms)
 
         # read the hessian matrix if it is an own Hessian
         if is_own_hessian:
             # hessian has three coordinates for every atom
             self.hessian = np.zeros([self.n_atoms * 3, self.n_atoms * 3])
-            for i, l in enumerate(hessian_lines):
-                tokens = l.split()
+            for line in hessian_lines:
+                tokens = line.split()
                 ind_1 = int(tokens[1])
                 ind_2 = int(tokens[2])
                 value_line = np.array([float(x) for x in tokens[3:12]])
                 self.hessian[
                     (ind_1 - 1) * 3 : ind_1 * 3, (ind_2 - 1) * 3 : ind_2 * 3
                 ] = value_line.reshape((3, 3))
-            # self.hessian += np.tril(self.hessian.T, -1) # make symmetric hessian matrix
 
         if len(lattice_vector_lines) != 3 and len(lattice_vector_lines) != 0:
             print(
                 "Warning: Number of lattice vectors is: "
                 + str(len(lattice_vector_lines))
             )
-        for i, l in enumerate(lattice_vector_lines):
-            tokens = l.split()
+        for i, line in enumerate(lattice_vector_lines):
+            tokens = line.split()
             self.lattice_vectors[i, :] = [float(x) for x in tokens[1:4]]
 
         # convert to cartesian coordinates
@@ -4337,25 +4276,28 @@ class AimsGeometry(Geometry):
         So, if symmetry_params are found, is_fractional is overridden to true.
         """
         if is_fractional is None:
-
             if hasattr(self, "symmetry_params") and self.symmetry_params is not None:
                 is_fractional = True
             else:
                 is_fractional = False
-        elif is_fractional is False:
-            if hasattr(self, "symmetry_params") and self.symmetry_params is not None:
-                warnings.warn(
-                    "The symmetry parameters of your geometry will be lost. "
-                    "To keep them set is_fractional to True"
-                )
+        elif (
+            is_fractional is False
+            and hasattr(self, "symmetry_params")
+            and self.symmetry_params is not None
+        ):
+            warnings.warn(
+                "The symmetry parameters of your geometry will be lost. "
+                "To keep them set is_fractional to True",
+                stacklevel=2,
+            )
 
         text = ""
-        for l in self.comment_lines:
-            if l.startswith("#"):
-                text += l + "\n"
+        for line in self.comment_lines:
+            if line.startswith("#"):
+                text += line + "\n"
             else:
                 text += (
-                    "# " + l.lstrip() + "\n"
+                    "# " + line.lstrip() + "\n"
                 )  # str.lstrip() removes leading whitespace in comment line 'l'
 
         # If set, write 'center' dict ( see docstring of Geometry.__init__ ) to file
@@ -4367,19 +4309,21 @@ class AimsGeometry(Geometry):
             part_string = "# PARTS "
             part_dict = {}
             for part, name in zip(self.geometry_parts, self.geometry_part_descriptions):
-                if not name == "rest":
+                if name != "rest":
                     if name not in part_dict:
                         part_dict[name] = part
                     else:
                         warnings.warn(
-                            "Multiple equally named parts in file, renaming automatically!"
+                            "Multiple equally named parts in file, renaming "
+                            "automatically!",
+                            stacklevel=2,
                         )
                         part_dict[name + "_1"] = part
             part_string += str(part_dict) + "\n"
             text += part_string
 
         if hasattr(self, "vacuum_level") and (self.vacuum_level is not None):
-            text += "set_vacuum_level {: 15.10f}".format(self.vacuum_level) + "\n"
+            text += f"set_vacuum_level {self.vacuum_level: 15.10f}" + "\n"
 
         # Lattice vector relaxation constraints
         constrain_vectors = np.zeros([3, 3], dtype=bool)
@@ -4392,7 +4336,7 @@ class AimsGeometry(Geometry):
             for i in range(3):
                 line = "lattice_vector"
                 for j in range(3):
-                    line += "     {:.8f}".format(self.lattice_vectors[i, j])
+                    line += f"     {self.lattice_vectors[i, j]:.8f}"
                 text += line + "\n"
                 cr = "\tconstrain_relaxation "
                 if constrain_vectors.any():
@@ -4423,36 +4367,31 @@ class AimsGeometry(Geometry):
                 continue
             line = line_start
             for j in range(3):
-                line += "     {:.8f}".format(coords[n, j])
+                line += f"     {coords[n, j]:.8f}"
             line += " " + self.species[n]
             text += line + "\n"
             # backwards compatibilty for old-style constrain_relax
             if isinstance(self.constrain_relax[0], bool):
                 if self.constrain_relax[n]:
                     text += "constrain_relaxation .true.\n"
+            elif all(self.constrain_relax[n]):
+                text += "constrain_relaxation .true.\n"
             else:
-                if all(self.constrain_relax[n]):
-                    text += "constrain_relaxation .true.\n"
-                else:
-                    if self.constrain_relax[n][0]:
-                        text += "constrain_relaxation x\n"
-                    if self.constrain_relax[n][1]:
-                        text += "constrain_relaxation y\n"
-                    if self.constrain_relax[n][2]:
-                        text += "constrain_relaxation z\n"
+                if self.constrain_relax[n][0]:
+                    text += "constrain_relaxation x\n"
+                if self.constrain_relax[n][1]:
+                    text += "constrain_relaxation y\n"
+                if self.constrain_relax[n][2]:
+                    text += "constrain_relaxation z\n"
             if not len(self.initial_charge) == 0 and self.initial_charge[n] != 0.0:
-                text += "initial_charge {: .6f}\n".format(self.initial_charge[n])
+                text += f"initial_charge {self.initial_charge[n]: .6f}\n"
             if not len(self.initial_moment) == 0 and self.initial_moment[n] != 0.0:
-                text += "initial_moment {: .6f}\n".format(self.initial_moment[n])
+                text += f"initial_moment {self.initial_moment[n]: .6f}\n"
             if (
                 hasattr(self, "external_force")
                 and np.linalg.norm(self.external_force[n]) != 0.0
             ):
-                text += "external_force {: .6f} {: .6f} {: .6f}\n".format(
-                    self.external_force[n][0],
-                    self.external_force[n][1],
-                    self.external_force[n][2],
-                )
+                text += f"external_force {self.external_force[n][0]: .6f} {self.external_force[n][1]: .6f} {self.external_force[n][2]: .6f}\n"
             if hasattr(self, "calculate_friction") and self.calculate_friction[n]:
                 text += "calculate_friction .true.\n"
 
@@ -4460,27 +4399,27 @@ class AimsGeometry(Geometry):
             text += "# own_hessian\n# This is a self calculated Hessian, not from a geometry optimization!\n"
             for i in range(self.n_atoms):
                 for j in range(self.n_atoms):
-                    s = "hessian_block  {} {}".format(i + 1, j + 1)
+                    s = f"hessian_block  {i + 1} {j + 1}"
                     H_block = self.hessian[3 * i : 3 * (i + 1), 3 * j : 3 * (j + 1)]
                     # max_diff = np.max(np.abs(H_block-H_block.T))
                     # print("Max diff in H: {:.3f}".format(max_diff))
                     for h in H_block.flatten():
-                        s += "  {:.6f}".format(h)
+                        s += f"  {h:.6f}"
                     text += s + "\n"
 
         # write down symmetry_params and related data
         if is_fractional:
             if self.symmetry_params is not None:
-                l = "symmetry_params "
+                k = "symmetry_params "
                 for p in self.symmetry_params:
-                    l += "{} ".format(p)
-                l += "\n"
-                text += "\n" + l
+                    k += f"{p} "
+                k += "\n"
+                text += "\n" + k
             if self.n_symmetry_params is not None:
-                l = "symmetry_n_params "
+                k = "symmetry_n_params "
                 for n in self.n_symmetry_params:
-                    l += "{} ".format(n)
-                text += l + "\n"
+                    k += f"{n} "
+                text += k + "\n"
                 text += "\n"
             if self.symmetry_LVs is not None:
                 for i in range(3):
@@ -4507,8 +4446,8 @@ class VaspGeometry(Geometry):
         Read the VASP structure definition in the typical POSCAR format
         (also used by CONTCAR files, for example) from the file with the given filename
 
-        Returns:
-        --------
+        Returns
+        -------
         dic:
             The dictionary holds the following keys:
             systemname:
@@ -4549,7 +4488,6 @@ class VaspGeometry(Geometry):
             selective dynamics is on for this coordinate for the atom, else False.
             Only if selective is True.
         """
-
         lino = 0
         vecs = []
         scaling = 1.0
@@ -4658,7 +4596,7 @@ class VaspGeometry(Geometry):
             for i in range(3):
                 line = ""
                 for j in range(3):
-                    line += "     {:-4.8f}".format(self.lattice_vectors[i, j])
+                    line += f"     {self.lattice_vectors[i, j]:-4.8f}"
                 text += line.strip() + "\n"
 
         all_species = sorted(
@@ -4705,7 +4643,7 @@ class VaspGeometry(Geometry):
                 for j in range(3):
                     if j > 0:
                         line += "    "
-                    line += "{: 2.8f}".format(curr_coords[n, j])
+                    line += f"{curr_coords[n, j]: 2.8f}"
 
                 ## R.B. relax constraints
                 for j in range(3):
@@ -4726,7 +4664,6 @@ class XYZGeometry(Geometry):
         Reads a .xyz file. Designed to work with .xyz files produced by Avogadro
 
         """
-
         # to use add_atoms we need to initialize coords the same as for Geometry
         self.n_atoms = 0
         self.coords = np.zeros([self.n_atoms, 3])
@@ -4742,14 +4679,12 @@ class XYZGeometry(Geometry):
         started_parsing_atoms = False
 
         for ind, line in enumerate(fi):
-            if ind == 0:
-                if len(line.split()) == 1:
-                    read_natoms = int(line.split()[0])
-                    continue
+            if ind == 0 and len(line.split()) == 1:
+                read_natoms = int(line.split()[0])
+                continue
 
             # look for lattice vectors
             if "Lattice" in line:
-                # split_line = line.split('Lattice')[1]
                 split_line = line.split('"')[1]
 
                 lattice_parameters = re.findall(r"\d+\.\d+", split_line)
@@ -4766,20 +4701,14 @@ class XYZGeometry(Geometry):
                 if len(energy) > 0:
                     self.energy = np.float64(energy[0])
 
-            # words = re.findall('[a-zA-Z]+', line)
-            # numbers = re.findall('-?[\d.]+(?:e-?\d+)?', line)
-
-            # n_words = len( words )
-            # n_floats = len( numbers )
-
             split_line = line.split()
 
             n_words = 0
             n_floats = 0
 
-            for l in split_line:
-                n_words_new = len(re.findall("[a-zA-Z]+", l))
-                n_floats_new = len(re.findall(r"-?[\d.]+(?:e-?\d+)?", l))
+            for j in split_line:
+                n_words_new = len(re.findall("[a-zA-Z]+", j))
+                n_floats_new = len(re.findall(r"-?[\d.]+(?:e-?\d+)?", j))
 
                 if n_words_new == 1 and n_floats_new == 1:
                     n_floats += 1
@@ -4789,20 +4718,18 @@ class XYZGeometry(Geometry):
 
             # first few lines may be comments or properties
             if not started_parsing_atoms:
-                if n_words == 1 and (n_floats == 3 or n_floats == 6):
+                if n_words == 1 and (n_floats in {3, 6}):
                     continue
-                else:
-                    started_parsing_atoms = True
+                started_parsing_atoms = True
 
             else:
                 if split_line == []:
                     break
-                else:
-                    assert n_words == 1 and (n_floats == 3 or n_floats == 6), (
-                        "Bad atoms specification: "
-                        + str(split_line)
-                        + f"{n_words} {n_floats}"
-                    )
+                assert n_words == 1 and (n_floats in {3, 6}), (
+                    "Bad atoms specification: "
+                    + str(split_line)
+                    + f"{n_words} {n_floats}"
+                )
 
                 # write atoms
                 species.append(str(split_line[0]))
@@ -4833,9 +4760,7 @@ class XYZGeometry(Geometry):
         for index in range(self.n_atoms):
             element = self.species[index]
             x, y, z = self.coords[index]
-            text += (
-                "{}    {:-4.8f}    {:-4.8f}    {:-4.8f}".format(element, x, y, z) + "\n"
-            )
+            text += f"{element}    {x:-4.8f}    {y:-4.8f}    {z:-4.8f}" + "\n"
         return text
 
 
@@ -4847,7 +4772,7 @@ class XSFGeometry(Geometry):
         for i in range(3):
             line = ""
             for j in range(3):
-                line += "    {:.8f}".format(self.lattice_vectors[i, j])
+                line += f"    {self.lattice_vectors[i, j]:.8f}"
             text += line + "\n"
         text += "PRIMCOORD\n"
         # the 1 is mysterious but is needed for primcoord according to XSF docu
@@ -4857,9 +4782,9 @@ class XSFGeometry(Geometry):
                 raise NotImplementedError(
                     "Constrained relaxation not supported for XSF output file"
                 )
-            line = str(self.periodic_table.get_atomic_number(self.species[i]))
+            line = str(PeriodicTable.get_atomic_number(self.species[i]))
             for j in range(3):
-                line += "    {:.8f}".format(self.coords[i, j])
+                line += f"    {self.coords[i, j]:.8f}"
             text += line + "\n"
         return text
 
@@ -4868,18 +4793,14 @@ class XSFGeometry(Geometry):
 #                            Auxiliary Functions                              #
 ###############################################################################
 def get_file_format_from_ending(filename):
-    if filename.endswith(".in"):
+    if filename.endswith(".in") or filename.endswith(".next_step"):
         return "aims"
-    elif filename.endswith(".next_step"):
-        return "aims"
-    elif filename.endswith(".xsf"):
+    if filename.endswith(".xsf"):
         return "xsf"
-    elif filename.endswith(".molden"):
+    if filename.endswith(".molden"):
         return "molden"
-    elif filename.endswith("POSCAR"):
+    if filename.endswith("POSCAR") or filename.endswith("CONTCAR"):
         return "vasp"
-    elif filename.endswith("CONTCAR"):
-        return "vasp"
-    elif filename.endswith(".xyz"):
+    if filename.endswith(".xyz"):
         return "xyz"
     return None

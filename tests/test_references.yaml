@@ -45,6 +45,7 @@ control_params:
 - {default_initial_moment: '3', k_grid: 1 1 1, spin: collinear, xc: pbe}
 - {default_initial_moment: '1', k_grid: 8 8 8, relax_geometry: bfgs 5e-3,
   relax_unit_cell: full, spin: collinear, xc: pbe}
+- {'#': 'Geometry Optimisation', 'xc': 'hse06 0.11', 'hse_unit': 'bohr-1', '#periodic_hf': 'screening_threshold 1e-06', '#exx_band_structure_version': '1', '#split_atoms': '.false.', 'RI_method': 'lvl_fast', 'spin': 'none', 'charge': '0.0', 'relativistic': 'atomic_zora scalar', 'occupation_type': 'gaussian 0.05', 'sc_accuracy_etot': '1e-06', 'sc_accuracy_eev': '1e-03', 'sc_accuracy_rho': '1e-05', 'sc_accuracy_forces': '1e-03', 'sc_iter_limit': '200', 'compensate_multipole_errors': '.true.', '#use_local_index': '.true.', '#load_balancing': '.true.', 'relax_geometry': 'trm 1e-02', 'max_relaxation_steps': '200'}
 conv_params:
 - {charge_density: 0.0, sum_eigenvalues: 0.0, total_energy: 0.0, total_force: 0.0}
 - {charge_density: 1.0e-10, sum_eigenvalues: 1.0e-06, total_energy: 1.0e-12, total_force: 1.0e-08}
@@ -285,6 +286,55 @@ keywords:
   - !!python/tuple
     - relax_unit_cell
     - - full
+- !MultiDict
+  - !!python/tuple
+    - RI_method
+    - - lvl_fast
+  - !!python/tuple
+    - charge
+    - - '0.0'
+  - !!python/tuple
+    - compensate_multipole_errors
+    - - .true.
+  - !!python/tuple
+    - hse_unit
+    - - bohr-1
+  - !!python/tuple
+    - many_body_dispersion_nl
+    - - ''
+  - !!python/tuple
+    - max_relaxation_steps
+    - - '200'
+  - !!python/tuple
+    - occupation_type
+    - - gaussian 0.05
+  - !!python/tuple
+    - relativistic
+    - - atomic_zora scalar
+  - !!python/tuple
+    - relax_geometry
+    - - trm 1e-02
+  - !!python/tuple
+    - sc_accuracy_eev
+    - - 1e-03
+  - !!python/tuple
+    - sc_accuracy_etot
+    - - 1e-06
+  - !!python/tuple
+    - sc_accuracy_forces
+    - - 1e-03
+  - !!python/tuple
+    - sc_accuracy_rho
+    - - 1e-05
+  - !!python/tuple
+    - sc_iter_limit
+    - - '200'
+  - !!python/tuple
+    - spin
+    - - none
+  - !!python/tuple
+    - xc
+    - - hse06 0.11
 cube_keywords:
 - !MultiDict
   - !!python/tuple
@@ -643,8 +693,8 @@ sd_final_eigenvalues:
   - eigenvalue_eV: [-511.26229, -25.17408, -13.01777, -9.20487, -7.06934, 0.06781, 2.73329, 8.11554, 9.09515, 10.05984, 15.64508, 21.07207, 24.07901, 26.21958, 30.40399, 31.36216, 41.23286, 52.74284, 55.35239, 62.23204, 65.19631, 65.66469, 78.98849, 87.54032]
     occupation: [1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     state: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
-  - eigenvalue_eV: [-1789.7637, -1789.7637, -139.59944, -139.59237, -95.66937, -95.66937, -95.66937, -95.65344, -95.65344, -95.65344, -18.71614, -7.07698, -7.07698, -7.07698, -4.39444, -4.39444, -4.39444, -3.81246, 0.96338, 0.96338]
-    occupation: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+  - eigenvalue_eV: [-1789.49287, -1789.49287, -139.24422, -139.23783, -95.22378, -95.22378, -95.22378, -95.20959, -95.20959, -95.20959, -15.40638, -3.45417, -3.45417, -3.45417, -1.06391, -1.06391, -1.06391, -1.0479, 4.36358, 4.36358]
+    occupation: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     state: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
   - eigenvalue_eV: [-1789.50134, -1789.50134, -139.37423, -139.36744, -95.39673, -95.39673, -95.39673, -95.38154, -95.38154, -95.38154, -17.4242, -5.61913, -5.61913, -5.61913, -3.06503, -3.06503, -3.06503, -2.51157, 2.26142, 2.26142]
     occupation: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

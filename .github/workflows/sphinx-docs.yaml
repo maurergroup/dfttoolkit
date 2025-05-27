@@ -5,11 +5,9 @@ on:
   push:
     branches:
       - main
-      # - docs
   pull_request:
     branches:
       - main
-      # - docs
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -33,14 +31,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - uses: abatilo/actions-poetry@v2
+          python-version-file: "pyproject.toml"
       - name: Install the project dependencies
-        run: poetry install --with=docs
+        run: uv sync --group docs
       - name: Build HTML
-        run: cd docs && poetry run -- make html
+        run: cd docs && uv run -- make html
       - name: Upload artifacts
         uses: actions/upload-pages-artifact@v3
         with:

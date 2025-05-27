@@ -12,30 +12,28 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-  # Only run after linting has finished
-  # workflow_run:
-  #   workflows: ['ruff']
-  #   types: [completed]
-
 jobs:
   test:
     runs-on: ubuntu-latest
-    # TODO run on all supported versions of the project
-    # strategy:
-    #   matrix:
-    #     python-version: ["3.10", "3.11", "3.12"]
-
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-      - uses: abatilo/actions-poetry@v2
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - name: Install the project dependencies
-        run: poetry install --with=dev
+        run: uv sync --only-dev
       - name: Run the tests
-        run: poetry run -- pytest tests --cov=dfttoolkit --cov-report xml
+        run: uv run pytest tests --cov=dfttoolkit --cov-report xml
       - name: Coveralls
+        if: matrix.python-version == '3.13'
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

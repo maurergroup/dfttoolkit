@@ -1,29 +1,42 @@
 from os.path import join
 
 import numpy as np
+import numpy.typing as npt
 
-from dfttoolkit.geometry import AimsGeometry
+from .geometry import AimsGeometry
 
 
 class FrictionTensor:
-    def __init__(self, directroy):
-        self.geometry = AimsGeometry(join(directroy, "geometry.in"))
+    """
+    TODO.
+
+    ...
+
+    Attributes
+    ----------
+    friction_tensor
+    """
+
+    def __init__(self, directory: str):
+        self.geometry = AimsGeometry(join(directory, "geometry.in"))  # noqa: PTH118
         self.friction_tensor_raw = self.read_friction_tensor(
-            join(directroy, "friction_tensor.out")
+            join(directory, "friction_tensor.out")  # noqa: PTH118
         )
 
     @property
-    def friction_tensor(self):
+    def friction_tensor(self) -> npt.NDArray:
+        """TODO."""
         return self.friction_tensor_raw
 
     @friction_tensor.setter
-    def friction_tensor(self, friction_tensor_raw):
+    def friction_tensor(self, friction_tensor_raw: npt.NDArray) -> None:
         self.friction_tensor_raw = friction_tensor_raw
 
-    def read_friction_tensor(self, filename: str):
+    def read_friction_tensor(self, filename: str) -> npt.NDArray:
         """
-        Reads the friction tensor when given a calculation directroy; Saves a
-        full size firction tensor (elements for all atoms) where atom-pairs
+        Read the friction tensor when given a calculation directory.
+
+        Saves a full size friction tensor (elements for all atoms) where atom-pairs
         without friction are assigned a friction value of 0.
 
         Parameters
@@ -33,9 +46,8 @@ class FrictionTensor:
 
         Returns
         -------
-        friction_tensor : np.array
+        friction_tensor : NDArray
             Friction tensor for all atoms.
-
         """
         atom_indices = []
         friction_tensor_0 = []
@@ -45,23 +57,15 @@ class FrictionTensor:
 
         for line in lines:
             if "# n_atom" in line:
-                line = line.strip().split(" ")
+                spl = line.split()
 
-                line_1 = []
-                for l in line:
-                    if not l == "":
-                        line_1.append(l)
+                line_1 = [i for i in spl if i != ""]
 
                 atom_index = 3 * (int(line_1[2]) - 1) + int(line_1[4]) - 1
                 atom_indices.append(atom_index)
 
             elif "#" not in line:
-                line = line.strip().split(" ")
-
-                friction_tensor_line = []
-                for l in line:
-                    if not l == "":
-                        friction_tensor_line.append(float(l))
+                friction_tensor_line = [float(i) for i in line.split(" ") if i != ""]
 
                 friction_tensor_0.append(friction_tensor_line)
 
@@ -78,17 +82,22 @@ class FrictionTensor:
 
         return friction_tensor
 
-    def get_life_time(self, vibration):
+    def get_life_time(self, vibration: npt.NDArray) -> npt.NDArray[np.float64]:
         """
-        Returns life time in ps
+        Return life time in ps.
 
+        Parameters
+        ----------
+        vibration : npt.NDArray
+            Vibration vector
+
+        Returns
+        -------
+        NDArray[float64]
+            Life time
         """
         vibration /= np.linalg.norm(vibration)
-
         force = self.friction_tensor_raw.dot(vibration)
-
         eta = vibration.dot(force)
 
-        life_time = 1 / eta
-
-        return life_time
+        return 1 / eta
