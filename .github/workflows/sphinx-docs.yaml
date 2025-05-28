@@ -37,7 +37,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Build the project
-        run: uv sync --locked --group docs --no-dev
+        run: uv sync --group docs --no-dev
       - name: Build HTML
         run: cd docs && uv run -- make html
       - name: Upload artifacts
