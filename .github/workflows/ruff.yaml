@@ -1,4 +1,4 @@
-name: ruff
+name: Ruff
 
 on:
   push:

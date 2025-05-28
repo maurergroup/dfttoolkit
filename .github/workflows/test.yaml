@@ -1,4 +1,4 @@
-name: test
+name: Test
 
 on:
   push:
@@ -23,16 +23,17 @@ jobs:
           - "3.13"
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - name: Install UV
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - name: Install the project dependencies
-        run: uv sync --only-dev
+      - name: Build the project
+        run: uv sync --locked --dev
       - name: Run the tests
-        run: uv run pytest tests --cov=dfttoolkit --cov-report xml
-      - name: Coveralls
+        run: uv run -- pytest tests --cov=dfttoolkit --cov-report xml
+      - name: Publish to Coveralls
         if: matrix.python-version == '3.13'
         uses: coverallsapp/github-action@v2
         with:
