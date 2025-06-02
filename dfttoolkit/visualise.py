@@ -38,12 +38,12 @@ class VisualiseAims(AimsOutput):
         ----------
         ax : axes.Axes
             matplotlib subplot index
-        tot_scf_iters : npt.NDArray[np.int64] | list[int]
+        tot_scf_iters : NDArray[int64] | list[int]
             cumulative SCF iterations
-        delta_charge : npt.NDArray[np.float64] | list[float]
+        delta_charge : NDArray[float64] | list[float]
             change of spin-up or total spin (if the calculation was spin none)
             eigenvalues
-        delta_charge_sd : npt.NDArray[np.float64] | list[float] | None, default=None
+        delta_charge_sd : NDArray[float64] | list[float] | None, default=None
             change of spin-down eigenvalues
         conv_params : dict | None, default=None
             convergence parameters which determine if the SCF cycle has converged

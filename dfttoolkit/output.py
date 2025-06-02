@@ -951,17 +951,30 @@ class AimsOutput(Output):
             "total_force": 0.0,
         }
 
+        sc_acc_params = self.get_parameters()
+
         for line in self.lines:
             spl = line.split()
             if len(spl) > 1:
-                if spl[1] == "accuracy" and "charge density" in line:
-                    self.convergence_params["charge_density"] = float(spl[-1])
-                if spl[1] == "accuracy" and "sum of eigenvalues" in line:
-                    self.convergence_params["sum_eigenvalues"] = float(spl[-1])
-                if spl[1] == "accuracy" and "total energy" in line:
-                    self.convergence_params["total_energy"] = float(spl[-1])
-                if spl[1] == "accuracy" and spl[3] == "forces:":
-                    self.convergence_params["total_force"] = float(spl[-1])
+                # TODO: fix this logic
+                # if "sc_accuracy_rho" in sc_acc_params:
+                #     self.convergence_params["charge density"] = sc_acc_params[
+                #         "sc_accuracy_rho"
+                #     ]
+                # elif (
+                #     "* Based on n_atoms and forces and force-correction status, "
+                #     "FHI-aims chose sc_accuracy_rho =" in line
+                # ):
+                #     self.convergence_params["charge density"] = float(spl[-2])
+
+                # if spl[1] == "accuracy" and "charge density" in line:
+                #     self.convergence_params["charge_density"] = float(spl[-1])
+                # if spl[1] == "accuracy" and "sum of eigenvalues" in line:
+                #     self.convergence_params["sum_eigenvalues"] = float(spl[-1])
+                # if spl[1] == "accuracy" and "total energy" in line:
+                #     self.convergence_params["total_energy"] = float(spl[-1])
+                # if spl[1] == "accuracy" and spl[3] == "forces:":
+                #     self.convergence_params["total_force"] = float(spl[-1])
 
                 # No more values to get after SCF starts
                 if "Begin self-consistency loop" in line:
