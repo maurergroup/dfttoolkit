@@ -129,21 +129,22 @@ class TestParser:
             ),
             ({"arbitrary_format_1": ".csc"}, True, pytest.raises(KeyError)),
             (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
+                {"arbitrary_format_1": "tests/fixtures/base_test_files/test.arb_fmt"},
                 False,
                 nullcontext(
                     DummyParser(
                         False,
-                        arbitrary_format_1="fixtures/base_test_files/test.arb_fmt",
+                        arbitrary_format_1="tests/fixtures/base_test_files/test.arb_fmt",
                     )
                 ),
             ),
             (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
+                {"arbitrary_format_2": "tests/fixtures/base_test_files/test.csc"},
                 True,
                 nullcontext(
                     DummyParser(
-                        True, arbitrary_format_2="fixtures/base_test_files/test.csc"
+                        True,
+                        arbitrary_format_2="tests/fixtures/base_test_files/test.csc",
                     )
                 ),
             ),
@@ -186,22 +187,22 @@ class TestParser:
         ("kwargs", "binary", "expectation"),
         [
             (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
+                {"arbitrary_format_1": "tests/fixtures/base_test_files/test.arb_fmt"},
                 False,
                 nullcontext(None),
             ),
             (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
+                {"arbitrary_format_2": "tests/fixtures/base_test_files/test.csc"},
                 True,
                 nullcontext(None),
             ),
             (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
+                {"arbitrary_format_1": "tests/fixtures/base_test_files/test.arb_fmt"},
                 True,
                 pytest.raises(ValueError, match="name should be text format"),
             ),
             (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
+                {"arbitrary_format_2": "tests/fixtures/base_test_files/test.csc"},
                 False,
                 pytest.raises(ValueError, match="name should be binary format"),
             ),
