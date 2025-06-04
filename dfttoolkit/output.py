@@ -819,9 +819,9 @@ class AimsOutput(Output):
         return components_of_gradients["van_der_waals"]
         # TODO: implement occurences
         # if nr_of_occurrence is None:
-        #     return components_of_gradients["van_der_waals"]  # noqa: ERA001
-        # else:  # noqa: ERA001
-        #     return components_of_gradients["van_der_waals"][nr_of_occurrence]  # noqa: E501, ERA001
+        #     return components_of_gradients["van_der_waals"]
+        # else:
+        #     return components_of_gradients["van_der_waals"][nr_of_occurrence]
 
     def get_forces_without_vdw(self, nr_of_occurrence: int = -1) -> npt.NDArray:  # noqa: ARG002
         """
@@ -848,9 +848,9 @@ class AimsOutput(Output):
 
         # TODO: implement occurences
         # if nr_of_occurrence is None:
-        #     return gradients_without_vdW  # noqa: ERA001
-        # else:  # noqa: ERA001
-        #     return gradients_without_vdW[nr_of_occurrence]  # noqa: ERA001
+        #     return gradients_without_vdW
+        # else:
+        #     return gradients_without_vdW[nr_of_occurrence]
 
     def get_force_components(self, nr_of_occurrence: int = -1) -> dict:  # noqa: ARG002
         """
@@ -1094,13 +1094,13 @@ class AimsOutput(Output):
             "change_of_charge_spin_density": np.zeros(n_scf_iters),
             "change_of_sum_eigenvalues": np.zeros(n_scf_iters),
             "change_of_total_energy": np.zeros(n_scf_iters),
-            # "change_of_forces": np.zeros(n_relax_steps),  # noqa: ERA001
+            # "change_of_forces": np.zeros(n_relax_steps),
             "forces_on_atoms": np.zeros(n_relax_steps),
         }
 
         current_scf_iter = 0
         current_relax_step = 0
-        # new_scf_iter = True  # noqa: ERA001
+        # new_scf_iter = True
 
         for line in self.lines:
             spl = line.split()
@@ -1154,10 +1154,10 @@ class AimsOutput(Output):
                 #             current_relax_step - 1
                 #         ] = float(spl[-2])
 
-                #         new_scf_iter = False  # noqa: ERA001
+                #         new_scf_iter = False
 
                 #     elif (
-                #         float(spl[-2])  # noqa: ERA001
+                #         float(spl[-2])
                 #         < self.scf_conv_acc_params["change_of_forces"][-1]
                 #     ):
                 #         self.scf_conv_acc_params["change_of_forces"][
@@ -1170,7 +1170,7 @@ class AimsOutput(Output):
                     ] = float(spl[-2])
 
                 if line.strip() == "Self-consistency cycle converged.":
-                    # new_scf_iter = True  # noqa: ERA001
+                    # new_scf_iter = True
                     current_relax_step += 1
 
         return self.scf_conv_acc_params
@@ -1390,7 +1390,7 @@ class AimsOutput(Output):
 
         Returns
         -------
-        Union[dict, Tuple[dict, dict]]
+        Union[dict, tuple[dict, dict]]
             dict
                 the final kohn-sham eigenvalues
             Tuple[dict, dict]
