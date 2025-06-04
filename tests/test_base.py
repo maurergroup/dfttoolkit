@@ -212,6 +212,3 @@ class TestParser:
         with expectation as e:
             dp = dummy_parser(binary, **kwargs)
             assert dp._check_binary(binary) == e
-
-
-# ruff: noqa: ANN001, S101, ERA001

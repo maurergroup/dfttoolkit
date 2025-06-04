@@ -61,8 +61,13 @@ class AimsOutput(Output):
     ----------
     path: str
         path to the aims.out file
-    lines: List[str]
+    lines: list[str]
         contents of the aims.out file
+
+    Parameters
+    ----------
+    aims_out : str, default="aims.out"
+        path to the FHI-aims output file
 
     Examples
     --------
@@ -466,7 +471,7 @@ class AimsOutput(Output):
         Parameters
         ----------
         n_occurrence : int | None
-            If there are multiple energies in a file (e.g. during a geometry op)
+            If there are multiple energies in a file (e.g. during a geometry opt)
             this parameters allows to select which energy is returned.
             If set to -1 the last one is returned (e.g. result of a geometry opt)
             if set to None, all values will be returned as a numpy array.
@@ -934,13 +939,13 @@ class AimsOutput(Output):
 
         return spin_polarised
 
-    def get_convergence_parameters(self) -> dict:
+    def get_convergence_parameters(self) -> dict[str, float]:
         """
         Get the convergence parameters from the aims.out file.
 
         Returns
         -------
-        dict
+        dict[str, float]
             The convergence parameters from the aims.out file
         """
         # Setup dictionary to store convergence parameters
@@ -948,7 +953,7 @@ class AimsOutput(Output):
             "charge density": 0.0,
             "sum eigenvalues": 0.0,
             "total energy": 0.0,
-            "total force": 0.0,
+            "change of max force": 0.0,
         }
 
         for line in self.lines:
@@ -966,7 +971,7 @@ class AimsOutput(Output):
                 if "Convergence accuracy of total energy:" in line:
                     self.convergence_params["total energy"] = float(spl[-1])
                 if "Convergence accuracy of forces:" in line:
-                    self.convergence_params["total force"] = float(spl[-1])
+                    self.convergence_params["change of max force"] = float(spl[-1])
 
                 # No more values to get after SCF starts
                 if "Begin self-consistency loop" in line:
@@ -980,7 +985,7 @@ class AimsOutput(Output):
 
         Returns
         -------
-        Union[float, None]
+        float | None
             The final energy of the calculation
         """
         for line in self.lines:
@@ -1086,21 +1091,19 @@ class AimsOutput(Output):
         n_scf_iters = self.get_n_scf_iters()
         n_relax_steps = self.get_n_relaxation_steps() + 1
 
-        # Check that the calculation finished normally otherwise number of SCF
-        # iterations is not known
         self.scf_convergence = {
             "SCF iterations": np.zeros(n_scf_iters),
             "change of charge": np.zeros(n_scf_iters),
             "change of charge spin density": np.zeros(n_scf_iters),
             "change of sum eigenvalues": np.zeros(n_scf_iters),
             "change of total energy": np.zeros(n_scf_iters),
-            # "change of forces": np.zeros(n_relax_steps),
+            "change of max force": np.zeros(n_relax_steps),
             "forces on atoms": np.zeros(n_relax_steps),
         }
 
         current_scf_iter = 0
         current_relax_step = 0
-        # new_scf_iter = True
+        new_scf_iter = True
 
         for line in self.lines:
             spl = line.split()
@@ -1116,18 +1119,18 @@ class AimsOutput(Output):
 
                 # Use spin density if spin polarised calculation
                 if "Change of charge/spin density" in line:
-                    self.scf_convergence["change of charge"][
-                        current_scf_iter - 1
-                    ] = float(spl[-2])
+                    self.scf_convergence["change of charge"][current_scf_iter - 1] = (
+                        float(spl[-2])
+                    )
                     self.scf_convergence["change of charge spin density"][
                         current_scf_iter - 1
                     ] = float(spl[-1])
 
                 # Otherwise just use change of charge
                 elif "Change of charge" in line:
-                    self.scf_convergence["change of charge"][
-                        current_scf_iter - 1
-                    ] = float(spl[-1])
+                    self.scf_convergence["change of charge"][current_scf_iter - 1] = (
+                        float(spl[-1])
+                    )
 
                 if "Change of sum of eigenvalues" in line:
                     self.scf_convergence["change of sum eigenvalues"][
@@ -1139,38 +1142,31 @@ class AimsOutput(Output):
                         current_scf_iter - 1
                     ] = float(spl[-2])
 
-                # NOTE
-                # In the current aims compilation I'm using to test this, there is
-                # something wrong with printing the change of forces. It happens
-                # multiple times per relaxation and is clearly wrong so I am removing
-                # this functionality for now
+                if "Change of forces" in line:
+                    # Only save the smallest change of forces for each geometry
+                    # relaxation step. I have no idea why it prints multiple times but
+                    # I assume it's a data race of some sort
+                    if new_scf_iter:
+                        self.scf_convergence["change of max force"][
+                            current_relax_step - 1
+                        ] = float(spl[-2])
 
-                # if "Change of forces" in line:
-                #     # Only save the smallest change of forces for each geometry
-                #     # relaxation step. I have no idea why it prints multiple times but
-                #     # I assume it's a data race of some sort
-                #     if new_scf_iter:
-                #         self.scf_convergence["change of forces"][
-                #             current_relax_step - 1
-                #         ] = float(spl[-2])
+                        new_scf_iter = False
 
-                #         new_scf_iter = False
-
-                #     elif (
-                #         float(spl[-2])
-                #         < self.scf_convergence["change of forces"][-1]
-                #     ):
-                #         self.scf_convergence["change of forces"][
-                #             current_relax_step - 1
-                #         ] = float(spl[-2])
+                    elif (
+                        float(spl[-2]) < self.scf_convergence["change of max force"][-1]
+                    ):
+                        self.scf_convergence["change of max force"][
+                            current_relax_step - 1
+                        ] = float(spl[-2])
 
                 if "Forces on atoms" in line:
-                    self.scf_convergence["forces on atoms"][
-                        current_relax_step - 1
-                    ] = float(spl[-2])
+                    self.scf_convergence["forces on atoms"][current_relax_step - 1] = (
+                        float(spl[-2])
+                    )
 
                 if line.strip() == "Self-consistency cycle converged.":
-                    # new_scf_iter = True
+                    new_scf_iter = True
                     current_relax_step += 1
 
         return self.scf_convergence
@@ -1289,10 +1285,10 @@ class AimsOutput(Output):
 
         Returns
         -------
-        Union[dict, Tuple[dict, dict]]
+        dict | tuple[dict, dict]
             dict
                 the kohn-sham eigenvalues
-            Tuple[dict, dict]
+            tuple[dict, dict]
                 dict
                     the spin-up kohn-sham eigenvalues
                 dict
@@ -1390,10 +1386,10 @@ class AimsOutput(Output):
 
         Returns
         -------
-        Union[dict, tuple[dict, dict]]
+        dict | tuple[dict, dict]]
             dict
                 the final kohn-sham eigenvalues
-            Tuple[dict, dict]
+            tuple[dict, dict]
                 dict
                     the spin-up kohn-sham eigenvalues
                 dict
