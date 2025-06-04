@@ -945,36 +945,28 @@ class AimsOutput(Output):
         """
         # Setup dictionary to store convergence parameters
         self.convergence_params = {
-            "charge_density": 0.0,
-            "sum_eigenvalues": 0.0,
-            "total_energy": 0.0,
-            "total_force": 0.0,
+            "charge density": 0.0,
+            "sum eigenvalues": 0.0,
+            "total energy": 0.0,
+            "total force": 0.0,
         }
-
-        sc_acc_params = self.get_parameters()
 
         for line in self.lines:
             spl = line.split()
             if len(spl) > 1:
-                # TODO: fix this logic
-                # if "sc_accuracy_rho" in sc_acc_params:
-                #     self.convergence_params["charge density"] = sc_acc_params[
-                #         "sc_accuracy_rho"
-                #     ]
-                # elif (
-                #     "* Based on n_atoms and forces and force-correction status, "
-                #     "FHI-aims chose sc_accuracy_rho =" in line
-                # ):
-                #     self.convergence_params["charge density"] = float(spl[-2])
-
-                # if spl[1] == "accuracy" and "charge density" in line:
-                #     self.convergence_params["charge_density"] = float(spl[-1])
-                # if spl[1] == "accuracy" and "sum of eigenvalues" in line:
-                #     self.convergence_params["sum_eigenvalues"] = float(spl[-1])
-                # if spl[1] == "accuracy" and "total energy" in line:
-                #     self.convergence_params["total_energy"] = float(spl[-1])
-                # if spl[1] == "accuracy" and spl[3] == "forces:":
-                #     self.convergence_params["total_force"] = float(spl[-1])
+                if "Convergence accuracy of self-consistent charge density:" in line:
+                    self.convergence_params["charge density"] = float(spl[-1])
+                if (
+                    "* Based on n_atoms and forces and force-correction status, "
+                    "FHI-aims chose sc_accuracy_rho =" in line
+                ):
+                    self.convergence_params["charge density"] = float(spl[-2])
+                if "Convergence accuracy of sum of eigenvalues:" in line:
+                    self.convergence_params["sum eigenvalues"] = float(spl[-1])
+                if "Convergence accuracy of total energy:" in line:
+                    self.convergence_params["total energy"] = float(spl[-1])
+                if "Convergence accuracy of forces:" in line:
+                    self.convergence_params["total force"] = float(spl[-1])
 
                 # No more values to get after SCF starts
                 if "Begin self-consistency loop" in line:
@@ -1073,14 +1065,22 @@ class AimsOutput(Output):
 
         return n_scf_iters
 
-    def get_i_scf_conv_acc(self) -> dict:
+    def get_scf_convergence(self) -> dict[str, npt.NDArray[np.float64]]:
         """
-        Get SCF convergence accuracy values from the aims.out file.
+        Get the convergence of various parameters from the SCF cycle.
+
+        1. SCF Iterations
+        2. Change of charge
+        3. Change of charge/spin density
+        4. Change of sum of eigenvalues
+        5. Change of total energy
+        6. Change of forces (currently not fully implemented)
+        7. Forces on atoms
 
         Returns
         -------
-        dict
-            The scf convergence accuracy values from the aims.out file
+        dict[str, NDArray[float64]]
+            convergence data
         """
         # Read the total number of SCF iterations
         n_scf_iters = self.get_n_scf_iters()
@@ -1088,14 +1088,14 @@ class AimsOutput(Output):
 
         # Check that the calculation finished normally otherwise number of SCF
         # iterations is not known
-        self.scf_conv_acc_params = {
-            "scf_iter": np.zeros(n_scf_iters),
-            "change_of_charge": np.zeros(n_scf_iters),
-            "change_of_charge_spin_density": np.zeros(n_scf_iters),
-            "change_of_sum_eigenvalues": np.zeros(n_scf_iters),
-            "change_of_total_energy": np.zeros(n_scf_iters),
-            # "change_of_forces": np.zeros(n_relax_steps),
-            "forces_on_atoms": np.zeros(n_relax_steps),
+        self.scf_convergence = {
+            "SCF iterations": np.zeros(n_scf_iters),
+            "change of charge": np.zeros(n_scf_iters),
+            "change of charge spin density": np.zeros(n_scf_iters),
+            "change of sum eigenvalues": np.zeros(n_scf_iters),
+            "change of total energy": np.zeros(n_scf_iters),
+            # "change of forces": np.zeros(n_relax_steps),
+            "forces on atoms": np.zeros(n_relax_steps),
         }
 
         current_scf_iter = 0
@@ -1107,7 +1107,7 @@ class AimsOutput(Output):
             if len(spl) > 1:
                 if "Begin self-consistency iteration #" in line:
                     # save the scf iteration number
-                    self.scf_conv_acc_params["scf_iter"][current_scf_iter] = int(
+                    self.scf_convergence["SCF iterations"][current_scf_iter] = int(
                         spl[-1]
                     )
                     # use a counter rather than reading the SCF iteration number as it
@@ -1116,26 +1116,26 @@ class AimsOutput(Output):
 
                 # Use spin density if spin polarised calculation
                 if "Change of charge/spin density" in line:
-                    self.scf_conv_acc_params["change_of_charge"][
+                    self.scf_convergence["change of charge"][
                         current_scf_iter - 1
                     ] = float(spl[-2])
-                    self.scf_conv_acc_params["change_of_charge_spin_density"][
+                    self.scf_convergence["change of charge spin density"][
                         current_scf_iter - 1
                     ] = float(spl[-1])
 
                 # Otherwise just use change of charge
                 elif "Change of charge" in line:
-                    self.scf_conv_acc_params["change_of_charge"][
+                    self.scf_convergence["change of charge"][
                         current_scf_iter - 1
                     ] = float(spl[-1])
 
                 if "Change of sum of eigenvalues" in line:
-                    self.scf_conv_acc_params["change_of_sum_eigenvalues"][
+                    self.scf_convergence["change of sum eigenvalues"][
                         current_scf_iter - 1
                     ] = float(spl[-2])
 
                 if "Change of total energy" in line:
-                    self.scf_conv_acc_params["change_of_total_energy"][
+                    self.scf_convergence["change of total energy"][
                         current_scf_iter - 1
                     ] = float(spl[-2])
 
@@ -1150,7 +1150,7 @@ class AimsOutput(Output):
                 #     # relaxation step. I have no idea why it prints multiple times but
                 #     # I assume it's a data race of some sort
                 #     if new_scf_iter:
-                #         self.scf_conv_acc_params["change_of_forces"][
+                #         self.scf_convergence["change of forces"][
                 #             current_relax_step - 1
                 #         ] = float(spl[-2])
 
@@ -1158,14 +1158,14 @@ class AimsOutput(Output):
 
                 #     elif (
                 #         float(spl[-2])
-                #         < self.scf_conv_acc_params["change_of_forces"][-1]
+                #         < self.scf_convergence["change of forces"][-1]
                 #     ):
-                #         self.scf_conv_acc_params["change_of_forces"][
+                #         self.scf_convergence["change of forces"][
                 #             current_relax_step - 1
                 #         ] = float(spl[-2])
 
                 if "Forces on atoms" in line:
-                    self.scf_conv_acc_params["forces_on_atoms"][
+                    self.scf_convergence["forces on atoms"][
                         current_relax_step - 1
                     ] = float(spl[-2])
 
@@ -1173,7 +1173,7 @@ class AimsOutput(Output):
                     # new_scf_iter = True
                     current_relax_step += 1
 
-        return self.scf_conv_acc_params
+        return self.scf_convergence
 
     def get_n_initial_ks_states(self, include_spin_polarised: bool = True) -> int:
         """
