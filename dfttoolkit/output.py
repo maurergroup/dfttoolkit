@@ -262,10 +262,6 @@ class AimsOutput(Output):
             whether the calculation exited normally or not
         """
         exit_normal = False
-        for i in range(1, 10):  # only read last few lines
-            if self.lines[-i].strip() == "Have a nice day.":
-                exit_normal = True
-                break
 
         if len(self.lines) > 8:
             for i in range(1, 10):  # only read last few lines
@@ -281,7 +277,7 @@ class AimsOutput(Output):
 
         Returns
         -------
-        npt.NDArray[np.float64]
+        NDArray[float64]
             The average time taken per SCF iteration.
         """
         # Get the number of SCF iterations
@@ -960,6 +956,7 @@ class AimsOutput(Output):
             "sum eigenvalues": 0.0,
             "total energy": 0.0,
             "change of max force": 0.0,
+            "max force per atom": 0.0,
         }
 
         for line in self.lines:
@@ -978,6 +975,11 @@ class AimsOutput(Output):
                     self.convergence_params["total energy"] = float(spl[-1])
                 if "Convergence accuracy of forces:" in line:
                     self.convergence_params["change of max force"] = float(spl[-1])
+                if (
+                    "Convergence accuracy for geometry relaxation: Maximum force <"
+                    in line
+                ):
+                    self.convergence_params["max force per atom"] = float(spl[-2])
 
                 # No more values to get after SCF starts
                 if "Begin self-consistency loop" in line:

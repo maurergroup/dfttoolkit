@@ -47,9 +47,11 @@ control_params:
   relax_unit_cell: full, spin: collinear, xc: pbe}
 - {'#': 'Geometry Optimisation', 'xc': 'hse06 0.11', 'hse_unit': 'bohr-1', '#periodic_hf': 'screening_threshold 1e-06', '#exx_band_structure_version': '1', '#split_atoms': '.false.', 'RI_method': 'lvl_fast', 'spin': 'none', 'charge': '0.0', 'relativistic': 'atomic_zora scalar', 'occupation_type': 'gaussian 0.05', 'sc_accuracy_etot': '1e-06', 'sc_accuracy_eev': '1e-03', 'sc_accuracy_rho': '1e-05', 'sc_accuracy_forces': '1e-03', 'sc_iter_limit': '200', 'compensate_multipole_errors': '.true.', '#use_local_index': '.true.', '#load_balancing': '.true.', 'relax_geometry': 'trm 1e-02', 'max_relaxation_steps': '200'}
 conv_params:
-- {charge density: 8.0e-06, sum eigenvalues: 0.0, total energy: 0.0, change of max force: 0.0}
-- {charge density: 1.0e-06, sum eigenvalues: 0.0, total energy: 0.0, change of max force: 0.0}
-- {charge density: 1.0e-10, sum eigenvalues: 1.0e-06, total energy: 1.0e-12, change of max force: 1.0e-08}
+- {charge density: 8.0e-06, sum eigenvalues: 0.0, total energy: 0.0, change of max force: 0.0, max force per atom: 0.0}
+- {charge density: 8.0e-06, sum eigenvalues: 0.0, total energy: 0.0, change of max force: 0.0, max force per atom: 0.005}
+- {charge density: 1.0e-06, sum eigenvalues: 0.0, total energy: 0.0, change of max force: 0.0, max force per atom: 0.005}
+- {charge density: 1.0e-10, sum eigenvalues: 1.0e-06, total energy: 1.0e-12, change of max force: 1.0e-08, max force per atom: 0.005}
+- {charge density: 1.0e-10, sum eigenvalues: 1.0e-06, total energy: 1.0e-12, change of max force: 1.0e-08, max force per atom: 0.0}
 eigenvalues:
   eigenvalue_eV:
     - [-517.86899, -29.76884, -16.97123, -13.81016, -11.83018, -1.35898, 0.86956, 5.87767, 6.78809, 8.24353, 13.76122]

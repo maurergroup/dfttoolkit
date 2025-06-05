@@ -24,7 +24,7 @@ class VisualiseAims(AimsOutput):
     Examples
     --------
     >>> from dfttoolkit.visualise import VisualiseAims
-    >>> vis = VisualiseAims("path/to/aims.out")
+    >>> vis = VisualiseAims(aims_out="path/to/aims.out")
     """
 
     def __init__(self, aims_out: str = "aims.out"):
@@ -170,7 +170,8 @@ class VisualiseAims(AimsOutput):
     @staticmethod
     def _plot_forces_convergence(
         ax: axes.Axes,
-        total_force_conv_param: float,
+        change_max_force_conv_param: float,
+        max_force_per_atom_conv_param: float,
         delta_forces: npt.NDArray[np.float64],
         forces_on_atoms: npt.NDArray[np.float64],
         title: str | None = None,
@@ -182,26 +183,35 @@ class VisualiseAims(AimsOutput):
         ----------
         ax : Axes
             matplotlib subplot index
-        total_force_conv_param : float
-            convergence criterion for the total force
-        delta_forces: npt.NDArray[np.float64] | list[float],
+        change_max_force_conv_param : float
+            convergence criterion specified by `sc_accuracy_forces`
+        max_force_per_atom_conv_param : float
+            convergence criterion specified by `relax_geometry`
+        delta_forces: NDArray[float64] | list[float],
             change in forces on each atom
         forces_on_atoms : NDArray[float64]
             all forces acting on each atom
         title : str | None, default=None
             system name to include in title
         """
-        # see NOTE in dfttoolkit.output.AimsOutput.get_scf_convergence()
-        ax.plot(delta_forces, label=r"$\Delta$ max. force")
-        ax.plot(forces_on_atoms, label="force on atoms")
+        ax.plot(forces_on_atoms, label=r"max force atom$^{-1}$")
+        ax.plot(delta_forces, label=r"$\Delta$ max force")
 
         # Add the convergence parameters
-        if total_force_conv_param != 0:
+        if max_force_per_atom_conv_param != 0:
             ax.axhline(
-                total_force_conv_param,
+                max_force_per_atom_conv_param,
                 ls="--",
                 c="gray",
-                label="force convergence criterion",
+                label=r"max force atom$^{-1}$ convergence criterion",
+            )
+
+        if change_max_force_conv_param != 0:
+            ax.axhline(
+                change_max_force_conv_param,
+                ls="-.",
+                c="darkgray",
+                label=r"$\Delta$ max force convergence criterion",
             )
 
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -288,7 +298,7 @@ class VisualiseAims(AimsOutput):
         title: str | None = None,
         forces: bool = False,
         ks_eigenvalues: bool = False,
-        fig_size: tuple[int, int] = (24, 6),
+        fig_size: tuple[int, int] = (20, 5),
     ) -> figure.Figure:
         """
         Plot the SCF convergence.
@@ -364,6 +374,7 @@ class VisualiseAims(AimsOutput):
             self._plot_forces_convergence(
                 ax[i_subplot],
                 self.convergence_params["change of max force"],
+                self.convergence_params["max force per atom"],
                 delta_forces,
                 forces_on_atoms,
                 title,
