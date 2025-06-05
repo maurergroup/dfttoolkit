@@ -267,6 +267,12 @@ class AimsOutput(Output):
                 exit_normal = True
                 break
 
+        if len(self.lines) > 8:
+            for i in range(1, 10):  # only read last few lines
+                if self.lines[-i].strip() == "Have a nice day.":
+                    exit_normal = True
+                    break
+
         return exit_normal
 
     def get_time_per_scf(self) -> npt.NDArray[np.float64]:
