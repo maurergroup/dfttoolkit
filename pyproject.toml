@@ -1,13 +1,10 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "dfttoolkit"
 version = "0.3.0"
-description = "A collection of python modules and libraries for several DFT codes to handle input and output."
-readme = "README.md"
-authors = [
-  { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
-  { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
-]
-requires-python = ">=3.11, <3.14"
 dependencies = [
   "ase>=3.22.1",
   "click>=8.2.1",
@@ -23,14 +20,27 @@ dependencies = [
   "spglib>=2.6.0",
   "weas-widget>=0.1.26",
 ]
+requires-python = ">=3.11, <3.14"
+authors = [
+  { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
+  { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
+]
+maintainers = [
+  { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
+  { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
+]
+description = "A collection of python modules and libraries for several DFT codes to handle input, output, and post-processing."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[project.urls]
+Documentation = "https://maurergroup.github.io/dfttoolkit/"
+Repository = "https://github.com/maurergroup/dfttoolkit"
+Issues = "https://github.com/maurergroup/dfttoolkit/issues"
 
 [dependency-groups]
 dev = [
-  "basedpyright>=1.29.2",
   "coveralls>=4.0.1",
   "ptpython>=3.0.30",
   "pytest>=8.3.5",
@@ -43,21 +53,6 @@ docs = [
   "sphinx>=8.2.3",
   "sphinx-pyproject>=0.3.0",
 ]
-
-[tool.sphinx-pyproject]
-project = "dfttoolkit"
-author = "Lukas Hoermann, Dylan Morgan"
-copyright = "2024-2025, Lukas Hoermann, Dylan Morgan"
-html_theme = "furo"
-extensions = [
-  "sphinx.ext.autodoc",
-  "sphinx.ext.viewcode",
-  "sphinx.ext.napoleon",
-  "myst_parser",
-]
-templates_path = ["_templates"]
-html_static_path = ["_static"]
-exclude_patterns = ["build", ".DS_Store"]
 
 [tool.pytest.ini_options]
 pythonpath = "dfttoolkit"
@@ -154,3 +149,22 @@ convention = "numpy"
 [tool.ruff.lint.pylint]
 # Maximum number of arguments allowed for a function or method definition
 max-args = 10
+
+[tool.sphinx-pyproject]
+project = "dfttoolkit"
+author = "Lukas Hoermann, Dylan Morgan"
+copyright = "2024-2025, Lukas Hoermann, Dylan Morgan"
+html_theme = "furo"
+extensions = [
+  "sphinx.ext.autodoc",
+  "sphinx.ext.viewcode",
+  "sphinx.ext.napoleon",
+  "myst_parser",
+]
+templates_path = ["_templates"]
+html_static_path = ["_static"]
+exclude_patterns = ["build", ".DS_Store"]
+
+[tool.uv]
+upgrade = true
+default-groups = []
