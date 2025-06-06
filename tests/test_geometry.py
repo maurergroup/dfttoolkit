@@ -7,6 +7,16 @@ from dfttoolkit.geometry import AimsGeometry
 class TestAimsGeometry:
     """Test the AimsGeometry class."""
 
+    @property
+    def _aims_fixture_no(self) -> int:
+        return int(self.aims_geometries.path.split("/")[-2])
+
+    @pytest.fixture(params=range(10, 11), autouse=True)
+    def aims_out(self, cwd, request, aims_calc_dir) -> None:
+        self.ap_geom_load = AimsGeometry(
+            f"{cwd}/fixtures/{aims_calc_dir}/{request.param}/geometry.in"
+        )
+
     @pytest.fixture(autouse=True)
     def geometry(self) -> None:
         self.geom = AimsGeometry()
@@ -83,6 +93,19 @@ class TestAimsGeometry:
     def test_get_number_of_electrons(self) -> None:
         n_electrons = self.ap_geom.get_number_of_electrons()
         assert n_electrons == 145
+
+    def test_get_slab(self) -> None:
+        slab = self.ap_geom_load.get_slab(4, surface=(1, 1, 1))
+
+        test_lattice_vectors = np.array(
+            [
+                [3.87256419, 0.00000000, 0.00000000],
+                [-1.93628209, 3.35373897, 0.00000000],
+                [0.00000000, 0.00000000, 9.48580626],
+            ]
+        )
+
+        assert np.allclose(slab.lattice_vectors, test_lattice_vectors)
 
 
 # ruff: noqa: ANN001, S101, ERA001
