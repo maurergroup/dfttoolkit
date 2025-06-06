@@ -14,6 +14,7 @@ dependencies = [
   "networkx>=3.4.2",
   "numba>=0.61.2",
   "numpy>=2.2.6",
+  "pyside6>=6.9.1",
   "pyyaml>=6.0.2",
   "scipy>=1.15.3",
   "spglib>=2.6.0",
@@ -41,7 +42,6 @@ Issues = "https://github.com/maurergroup/dfttoolkit/issues"
 [dependency-groups]
 dev = [
   "coveralls>=4.0.1",
-  # "interrogate>=1.7.0",  TODO
   "ptpython>=3.0.30",
   "pytest>=8.3.5",
   "pytest-cov>=6.1.1",
@@ -125,6 +125,7 @@ ignore = [
   'E114',
   'E117',
   'EM101',
+  'ERA001',
   'N803',
   'N806',
   'PLR2004',

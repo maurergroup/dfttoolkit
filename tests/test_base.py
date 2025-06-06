@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from pathlib import Path
 
 import pytest
 
@@ -110,48 +111,52 @@ class TestParser:
         """Get a dummy parser class for testing."""
         return DummyParser
 
+    @pytest.fixture
+    def unsup_path(self, cwd) -> Path:
+        return cwd / "fixtures/base_test_files/unsupported_format.unsup_fmt"
+
+    @pytest.fixture
+    def arb_path(self, cwd) -> Path:
+        return cwd / "fixtures/base_test_files/test.arb_fmt"
+
+    @pytest.fixture
+    def csc_path(self, cwd) -> Path:
+        return cwd / "fixtures/base_test_files/test.csc"
+
+
     @pytest.mark.parametrize(
-        ("kwargs", "binary", "expectation"),
+        ("path", "key", "binary", "expectation"),
         [
-            ({}, False, pytest.raises(TypeError)),
-            (
-                {"unsupported_format": ".unsup_fmt"},
-                False,
-                pytest.raises(UnsupportedFileError),
-            ),
-            (
-                {
-                    "arbitrary_format_1": ".arb_fmt",
-                    "arbitrary_format_2": ".csc",
-                },
-                True,
-                pytest.raises(TypeError),
-            ),
-            ({"arbitrary_format_1": ".csc"}, True, pytest.raises(KeyError)),
-            (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
-                False,
-                nullcontext(
-                    DummyParser(
-                        False,
-                        arbitrary_format_1="fixtures/base_test_files/test.arb_fmt",
-                    )
-                ),
-            ),
-            (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
-                True,
-                nullcontext(
-                    DummyParser(
-                        True, arbitrary_format_2="fixtures/base_test_files/test.csc"
-                    )
-                ),
-            ),
+            (None, None, False, pytest.raises(TypeError)),
+            (None, "unsupported_format", False, pytest.raises(UnsupportedFileError)),
+            ("arb_path", "both_formats", True, pytest.raises(TypeError)),
+            ("csc_path", "arbitrary_format_1", True, pytest.raises(KeyError)),
+            ("arb_path", "arbitrary_format_1", False, "valid"),
+            ("csc_path", "arbitrary_format_2", True, "valid"),
         ],
     )
-    def test_parser_init(self, dummy_parser, kwargs, binary, expectation) -> None:
-        with expectation as e:
-            assert dummy_parser(binary, **kwargs) == e
+    def test_parser_init(
+        self, request, dummy_parser, path, key, binary, expectation
+    ) -> None:
+        if key is None:
+            kwargs = {}
+        elif key == "both_formats":
+            kwargs = {
+                "arbitrary_format_1": "fake_path_1.arb_fmt",
+                "arbitrary_format_2": "fake_path_2.csc",
+            }
+        elif key == "unsupported_format":
+            kwargs = {"unsupported_format": "fake.unsup"}
+        else:
+            file_path = request.getfixturevalue(path)
+            kwargs = {key: file_path}
+
+        if expectation == "valid":
+            with nullcontext():
+                assert dummy_parser(binary, **kwargs)
+        else:
+            with expectation:
+                dummy_parser(binary, **kwargs)
 
     def test_no_cls_init(self) -> None:
         with pytest.raises(TypeError):
@@ -183,34 +188,37 @@ class TestParser:
                     return {"arbitrary_format": ".arb_format"}
 
     @pytest.mark.parametrize(
-        ("kwargs", "binary", "expectation"),
+        ("path", "key", "binary", "expectation"),
         [
             (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
+                "arb_path",
+                "arbitrary_format_1",
                 False,
                 nullcontext(None),
             ),
             (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
+                "csc_path",
+                "arbitrary_format_2",
                 True,
                 nullcontext(None),
             ),
             (
-                {"arbitrary_format_1": "fixtures/base_test_files/test.arb_fmt"},
+                "arb_path",
+                "arbitrary_format_1",
                 True,
                 pytest.raises(ValueError, match="name should be text format"),
             ),
             (
-                {"arbitrary_format_2": "fixtures/base_test_files/test.csc"},
+                "csc_path",
+                "arbitrary_format_2",
                 False,
                 pytest.raises(ValueError, match="name should be binary format"),
             ),
         ],
     )
-    def test_check_binary(self, dummy_parser, kwargs, binary, expectation) -> None:
+    def test_check_binary(
+        self, request, dummy_parser, path, key, binary, expectation
+    ) -> None:
         with expectation as e:
-            dp = dummy_parser(binary, **kwargs)
+            dp = dummy_parser(binary, **{key: request.getfixturevalue(path)})
             assert dp._check_binary(binary) == e
-
-
-# ruff: noqa: ANN001, S101, ERA001

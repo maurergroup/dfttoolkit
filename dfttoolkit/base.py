@@ -24,7 +24,7 @@ class File:
         the name of the file
     extension : str
         the extension of the file
-    lines : Union[List[str], bytes]
+    lines : list[str] | bytes
         the contents of the file stored as either a list of strings for text files or
         bytes for binary files
     binary : bool
@@ -43,12 +43,12 @@ class File:
     def __post_init__(self):
         self._path = Path(self.path)
 
+        if not self._path.is_file():
+            raise FileNotFoundError("Path not found.")
+
         # Do not run init code for DummyParser in test_base.TestParser
         if "arbitrary_format" in self._format:
             return
-
-        if not self._path.is_file():
-            raise FileNotFoundError("Path not found.")
 
         self._name = self._path.name
         self._extension = self._path.suffix
@@ -98,7 +98,6 @@ class Parser(File, ABC):
             raise UnsupportedFileError(key, supported_files.keys())
 
         # Check if the provided file is a valid file type
-        # TODO: change so pathlib.Path is used in all child classes
         if supported_files.get(key) != Path(kwargs[key]).suffix:
             msg = f"{kwargs[key]} is not a valid {key} file"
             raise KeyError(msg)

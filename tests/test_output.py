@@ -267,10 +267,16 @@ class TestAimsOutput:
             assert self.ao.check_spin_polarised() is False
 
     def test_get_convergence_parameters(self, ref_data) -> None:
-        if self._aims_fixture_no in [7, 8]:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][1]
-        elif self._aims_fixture_no in [1, 2, 3, 4, 5, 6, 9, 10]:
+        if self._aims_fixture_no in [1, 2, 3, 4, 9, 10]:
             assert self.ao.get_convergence_parameters() == ref_data["conv_params"][0]
+        elif self._aims_fixture_no == 5:
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][1]
+        elif self._aims_fixture_no == 6:
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][2]
+        elif self._aims_fixture_no == 7:
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][3]
+        elif self._aims_fixture_no == 8:
+            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][4]
 
     def test_get_final_energy(self) -> None:
         final_energies = [

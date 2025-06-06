@@ -278,7 +278,7 @@ class AimsControl(Parameters):
         for keyword in args:
             for i, line in enumerate(self.lines):
                 spl = line.split()
-                if len(spl) > 0 and spl[0] != "#" and keyword in line:
+                if len(spl) > 0 and spl[0] != "#" and keyword == spl[0]:
                     self.lines.pop(i)
 
         with open(self.path, "w") as f:
