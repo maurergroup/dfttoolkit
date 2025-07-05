@@ -239,7 +239,9 @@ class Geometry:
         coords = np.array(coords)
         self.add_atoms(coords, species_list, constrain_relax)
 
-    def get_as_ase(self) -> ase.Atoms:
+    def get_as_ase(
+        self, energy_key="energy", froces_key="forces"
+    ) -> ase.Atoms:
         """
         Convert geometry file to ASE object.
 
@@ -272,10 +274,10 @@ class Geometry:
             ase_system.pbc = [1, 1, 1]
 
         if self.energy is not None:
-            ase_system.info["energy"] = self.energy
+            ase_system.info[energy_key] = self.energy
 
         if self.forces is not None:
-            ase_system.arrays["forces"] = self.forces
+            ase_system.arrays[froces_key] = self.forces
 
         return ase_system
 
