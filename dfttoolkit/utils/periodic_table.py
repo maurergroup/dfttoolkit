@@ -216,7 +216,7 @@ class PeriodicTable:
         return data[cls.get_element_dict(element)["symbol"]]
 
     @classmethod
-    def get_species_colors(cls, element: Union[str, int]) -> float:
+    def get_species_colours(cls, element: Union[str, int]) -> float:
         """
         Returns the chemical symbol if given the species as an atomic number.
 

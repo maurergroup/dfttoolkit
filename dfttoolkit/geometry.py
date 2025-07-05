@@ -2593,7 +2593,7 @@ class Geometry:
         # Case 2: if no substrate was passed but a geometry_parts "substrate" is defined
         # in geometry_parts, use that one
         substrate_indices_from_parts = self.get_substrate_indices_from_parts(
-            do_warn=False
+            warn=False
         )
 
         if primitive_substrate is not None:
