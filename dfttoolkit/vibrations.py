@@ -38,11 +38,11 @@ class Vibrations:
         return new_vibration
 
     @property
-    def vibration_coors(self) -> list[npt.NDArray[np.float64]]:
+    def vibration_coords(self) -> list[npt.NDArray[np.float64]]:
         return self._vibration_coords
 
-    @vibration_coors.setter
-    def vibration_coors(
+    @vibration_coords.setter
+    def vibration_coords(
         self, vibration_coords: list[npt.NDArray[np.float64]]
     ) -> None:
         self._vibration_coords = vibration_coords
