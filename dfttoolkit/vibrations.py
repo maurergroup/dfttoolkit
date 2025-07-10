@@ -368,6 +368,67 @@ class Vibrations:
             omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
         )
 
+    def get_thermally_displaced_geometry(self, T=300.0, classical=True):
+        """
+        Generate thermally displaced structures from vibrational modes.
+
+        Parameters
+        ----------
+        modes : np.ndarray
+            Normalized mode eigenvectors, shape (n_modes, 3N).
+        frequencies : np.ndarray
+            Frequencies in Hz or rad/s, shape (n_modes,).
+        masses : np.ndarray
+            Atomic masses in kg, shape (N_atoms,).
+        T : float
+            Temperature in Kelvin.
+        n_samples : int
+            Number of thermally displaced geometries to generate.
+        classical : bool
+            If True, uses classical approximation (kT), else quantum formula.
+
+        Returns
+        -------
+        displacements : list of np.ndarray
+            List of atomic displacements (shape (3N,)) for each snapshot.
+        """
+
+        kB = 1.380649e-23  # J/K
+
+        eigenvalues = self.get_eigenvalues_in_Hz()
+        n_modes = len(eigenvalues)
+        masses = self.get_mass_of_all_atoms()  # pyright:ignore
+        M = np.repeat(masses, 3)
+
+        new_geometry = copy.deepcopy(self)
+
+        displacement = np.zeros(3 * len(self))
+        for i in range(n_modes):
+            freq = eigenvalues[i]
+            if freq < 1e-12:
+                continue  # skip zero or imaginary modes
+
+            omega = 2 * np.pi * freq  # convert Hz to rad/s if needed
+            if classical:
+                var_qi = kB * T / (omega**2)
+            else:
+                hbar = 1.054571817e-34
+                var_qi = (
+                    (hbar / (2 * omega))
+                    * np.cosh(hbar * omega / (2 * kB * T))
+                    / np.sinh(hbar * omega / (2 * kB * T))
+                )
+
+            amp = np.random.normal(0.0, np.sqrt(var_qi))
+            displacement += amp * self.eigenvectors[i]
+
+        displacement /= np.sqrt(
+            M
+        )  # convert mass-weighted to real displacements
+        new_geometry.coods += displacement
+
+        return new_geometry
+
     def get_atom_type_index(self) -> npt.NDArray[np.int64]:
         n_atoms = len(self)  # pyright:ignore
 
