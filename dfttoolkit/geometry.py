@@ -4844,7 +4844,7 @@ class VaspGeometry(Geometry):
                 for j in range(3):
                     if curr_relax_constr[n, j] is True:
                         line += "  " + "F"
-                    elif curr_relax_constr[n, j] is False:
+                    else:
                         line += "  " + "T"
                 ## R.B. relax constraints end
 
