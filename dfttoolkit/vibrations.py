@@ -406,7 +406,7 @@ class Vibrations:
             if freq < 1e-12:
                 continue  # skip zero or imaginary modes
 
-            omega = 2 * np.pi * freq  # convert Hz to rad/s if needed
+            omega = 2 * np.pi * freq
             if classical:
                 var_qi = kB * temperature / (omega**2)
             else:
@@ -416,6 +416,10 @@ class Vibrations:
                     * np.cosh(hbar * omega / (2 * kB * temperature))
                     / np.sinh(hbar * omega / (2 * kB * temperature))
                 )
+
+            # Convert to atomic units
+            # var_qi (kg m²) -> var_qi (u A²)
+            var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
 
             amp = np.random.normal(0.0, np.sqrt(var_qi))
             displacement += amp * self.eigenvectors[i]
