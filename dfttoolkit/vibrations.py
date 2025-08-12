@@ -368,7 +368,7 @@ class Vibrations:
             omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
         )
 
-    def get_thermally_displaced_geometry(self, T=300.0, classical=True):
+    def get_thermally_displaced_geometry(self, temperature, classical=True):
         """
         Generate thermally displaced structures from vibrational modes.
 
@@ -380,7 +380,7 @@ class Vibrations:
             Frequencies in Hz or rad/s, shape (n_modes,).
         masses : np.ndarray
             Atomic masses in kg, shape (N_atoms,).
-        T : float
+        temperature : float
             Temperature in Kelvin.
         n_samples : int
             Number of thermally displaced geometries to generate.
@@ -397,12 +397,10 @@ class Vibrations:
 
         eigenvalues = self.get_eigenvalues_in_Hz()
         n_modes = len(eigenvalues)
-        masses = self.get_mass_of_all_atoms()  # pyright:ignore
-        M = np.repeat(masses, 3)
 
         new_geometry = copy.deepcopy(self)
 
-        displacement = np.zeros(3 * len(self))
+        displacement = np.zeros((len(self), 3))
         for i in range(n_modes):
             freq = eigenvalues[i]
             if freq < 1e-12:
@@ -410,22 +408,26 @@ class Vibrations:
 
             omega = 2 * np.pi * freq  # convert Hz to rad/s if needed
             if classical:
-                var_qi = kB * T / (omega**2)
+                var_qi = kB * temperature / (omega**2)
             else:
                 hbar = 1.054571817e-34
                 var_qi = (
                     (hbar / (2 * omega))
-                    * np.cosh(hbar * omega / (2 * kB * T))
-                    / np.sinh(hbar * omega / (2 * kB * T))
+                    * np.cosh(hbar * omega / (2 * kB * temperature))
+                    / np.sinh(hbar * omega / (2 * kB * temperature))
                 )
 
             amp = np.random.normal(0.0, np.sqrt(var_qi))
             displacement += amp * self.eigenvectors[i]
 
-        displacement /= np.sqrt(
-            M
-        )  # convert mass-weighted to real displacements
-        new_geometry.coods += displacement
+        # Convert from mass weighted to Cartesian coordinates
+        m = np.tile(
+            np.sqrt(self.get_atomic_masses()), (3, 1)
+        ).T  # pyright:ignore
+
+        displacement /= m
+
+        new_geometry.coords += displacement
 
         return new_geometry
 

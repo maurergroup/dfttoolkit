@@ -41,7 +41,9 @@ def get_rotation_matrix(
     return np.eye(3) + v_x + v_x.dot(v_x) / (1 + c)
 
 
-def get_rotation_matrix_around_axis(axis: npt.NDArray, phi: float) -> npt.NDArray:
+def get_rotation_matrix_around_axis(
+    axis: npt.NDArray, phi: float
+) -> npt.NDArray:
     """
     Generate a rotation matrix around a given vector.
 
@@ -138,7 +140,9 @@ def get_angle_between_vectors(
         Angle in radiants.
     """
     return (
-        np.dot(vector_1, vector_2) / np.linalg.norm(vector_1) / np.linalg.norm(vector_2)
+        np.dot(vector_1, vector_2)
+        / np.linalg.norm(vector_1)
+        / np.linalg.norm(vector_2)
     )
 
 
@@ -186,7 +190,9 @@ def get_cartesian_coords(
     return np.dot(frac_coords, lattice_vectors)
 
 
-def get_triple_product(a: npt.NDArray, b: npt.NDArray, c: npt.NDArray) -> npt.NDArray:
+def get_triple_product(
+    a: npt.NDArray, b: npt.NDArray, c: npt.NDArray
+) -> npt.NDArray:
     """
     Get the triple product (DE: Spatprodukt): a*(bxc).
 
@@ -210,7 +216,9 @@ def get_triple_product(a: npt.NDArray, b: npt.NDArray, c: npt.NDArray) -> npt.ND
     return np.dot(np.cross(a, b), c)
 
 
-def smooth_function(y: npt.NDArray, box_pts: int) -> npt.NDArray[np.floating[Any]]:
+def smooth_function(
+    y: npt.NDArray, box_pts: int
+) -> npt.NDArray[np.floating[Any]]:
     """
     Smooths a function using convolution.
 
@@ -434,7 +442,9 @@ def hann_window(N: int) -> npt.NDArray[np.float64]:
     return 0.5 * (1 - np.cos(2 * np.pi * np.arange(N) / (N - 1)))
 
 
-def apply_window(data: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def apply_hann_window(
+    data: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
     """
     Apply a Hann window to an array.
 
@@ -581,7 +591,9 @@ def get_moving_average(
     npt.NDArray[floating]
         Variance around the moving average.
     """
-    moving_avg = np.convolve(signal, np.ones(window_size) / window_size, mode="valid")
+    moving_avg = np.convolve(
+        signal, np.ones(window_size) / window_size, mode="valid"
+    )
     variance = np.array(
         [
             np.var(signal[i : i + window_size])
@@ -593,7 +605,10 @@ def get_moving_average(
 
 
 def get_maxima_in_moving_interval(
-    function_values: npt.NDArray, interval_size: int, step_size: int, filter_value: int
+    function_values: npt.NDArray,
+    interval_size: int,
+    step_size: int,
+    filter_value: int,
 ) -> npt.NDArray:
     """
     Slide an interval along the function, filtering out points below a threshold.
@@ -640,7 +655,9 @@ def get_maxima_in_moving_interval(
     return np.array(list(set(filtered_indices)))
 
 
-def get_pearson_correlation_coefficient(x: npt.NDArray, y: npt.NDArray) -> np.floating:
+def get_pearson_correlation_coefficient(
+    x: npt.NDArray, y: npt.NDArray
+) -> np.floating:
     """
     TODO.
 
@@ -710,7 +727,8 @@ def probability_density(t: float, n: int) -> float:
             np.sqrt(np.pi * degrees_of_freedom)
             * scipy.special.gamma(degrees_of_freedom / 2.0)
         )
-        * (1 + t**2 / degrees_of_freedom) ** (-(degrees_of_freedom + 1.0) / 2.0)
+        * (1 + t**2 / degrees_of_freedom)
+        ** (-(degrees_of_freedom + 1.0) / 2.0)
     )
 
 
@@ -791,7 +809,9 @@ class GPR:
         Uncertainty of the input data.
     """
 
-    def __init__(self, x: npt.NDArray, y: npt.NDArray, tau: float, sigma: float):
+    def __init__(
+        self, x: npt.NDArray, y: npt.NDArray, tau: float, sigma: float
+    ):
         K1 = squared_exponential_kernel(x, x, tau)
 
         self.K1_inv = np.linalg.inv(K1 + np.eye(len(x)) * sigma)
