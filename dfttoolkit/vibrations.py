@@ -411,10 +411,13 @@ class Vibrations:
                 var_qi = kB * temperature / (omega**2)
             else:
                 hbar = 1.054571817e-34
-                var_qi = (
-                    (hbar / (2 * omega))
-                    * np.cosh(hbar * omega / (2 * kB * temperature))
-                    / np.sinh(hbar * omega / (2 * kB * temperature))
+                # var_qi = (
+                #     (hbar / (2 * omega))
+                #     * np.cosh(hbar * omega / (2 * kB * temperature))
+                #     / np.sinh(hbar * omega / (2 * kB * temperature))
+                # )
+                var_qi = (hbar / (2 * omega)) / np.tanh(
+                    hbar * omega / (2 * kB * temperature)
                 )
 
             # Convert to atomic units
@@ -422,6 +425,7 @@ class Vibrations:
             var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
 
             amp = np.random.normal(0.0, np.sqrt(var_qi))
+            print(amp)
             displacement += amp * self.eigenvectors[i]
 
         # Convert from mass weighted to Cartesian coordinates
