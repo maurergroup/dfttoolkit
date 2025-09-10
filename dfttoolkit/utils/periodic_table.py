@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import Any
+
 import yaml
-from typing import Union, Any, List
+
 from .file_utils import classproperty
 
 
@@ -50,7 +52,7 @@ class PeriodicTable:
         a dictionary representing the periodic table
     """
 
-    with open(Path(__file__).parent / "periodic_table.yaml", "r") as pt:
+    with open(Path(__file__).parent / "periodic_table.yaml") as pt:
         _periodic_table = yaml.safe_load(pt)
 
     def __new__(cls):
@@ -71,11 +73,11 @@ class PeriodicTable:
         return cls._elements
 
     @classproperty
-    def element_names(cls) -> List[str]:
+    def element_names(cls) -> list[str]:
         return [e.name for e in cls.elements.values()]
 
     @classproperty
-    def element_symbols(cls) -> List[str]:
+    def element_symbols(cls) -> list[str]:
         return list(cls.elements.keys())
 
     @classmethod
@@ -93,11 +95,10 @@ class PeriodicTable:
         Element
             Instance of Element.
         """
-
         return cls.elements[symbol]
 
     @classmethod
-    def get_element_dict(cls, element: Union[str, int]) -> dict:
+    def get_element_dict(cls, element: str | int) -> dict:
 
         element_dict = None
 
@@ -123,7 +124,7 @@ class PeriodicTable:
         return element_dict
 
     @classmethod
-    def get_name(cls, element: Union[str, int]) -> str:
+    def get_name(cls, element: str | int) -> str:
         """
         Get the full name of an element.
 
@@ -137,11 +138,10 @@ class PeriodicTable:
         str
             Full name.
         """
-
         return cls.get_element_dict(element)["name"]
 
     @classmethod
-    def get_atomic_number(cls, element: Union[str, int]) -> int:
+    def get_atomic_number(cls, element: str | int) -> int:
         """
         Returns the atomic number if given the species as a string.
 
@@ -159,7 +159,7 @@ class PeriodicTable:
         return cls.get_element_dict(element)["number"]
 
     @classmethod
-    def get_atomic_mass(cls, element: Union[str, int]) -> float:
+    def get_atomic_mass(cls, element: str | int) -> float:
         """
         Returns the atomic mass if given the species as a string.
 
@@ -177,7 +177,7 @@ class PeriodicTable:
         return cls.get_element_dict(element)["atomic_mass"]
 
     @classmethod
-    def get_chemical_symbol(cls, element: Union[str, int]) -> float:
+    def get_chemical_symbol(cls, element: str | int) -> float:
         """
         Returns the chemical symbol if given the species as an atomic number.
 
@@ -195,7 +195,7 @@ class PeriodicTable:
         return cls.get_element_dict(element)["symbol"]
 
     @classmethod
-    def get_covalent_radius(cls, element: Union[str, int]) -> float:
+    def get_covalent_radius(cls, element: str | int) -> float:
         """
         Returns the chemical symbol if given the species as an atomic number.
 
@@ -210,13 +210,13 @@ class PeriodicTable:
             Covalent radius in atomic units.
 
         """
-        with open(Path(__file__).parent / "covalent_radii.yaml", "r") as cr:
+        with open(Path(__file__).parent / "covalent_radii.yaml") as cr:
             data = yaml.safe_load(cr)
 
         return data[cls.get_element_dict(element)["symbol"]]
 
     @classmethod
-    def get_species_colours(cls, element: Union[str, int]) -> float:
+    def get_species_colours(cls, element: str | int) -> float:
         """
         Returns the chemical symbol if given the species as an atomic number.
 
@@ -232,7 +232,7 @@ class PeriodicTable:
 
         """
         with open(
-            Path(__file__).parent / "elemental_colourmaps.yaml", "r"
+            Path(__file__).parent / "elemental_colourmaps.yaml"
         ) as ec:
             data = yaml.safe_load(ec)
 
