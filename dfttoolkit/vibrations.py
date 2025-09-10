@@ -238,7 +238,7 @@ class Vibrations:
 
     def get_eigenvalues_and_eigenvectors(
         self,
-        hessian: npt.NDArray[np.float64] | None = None,
+        hessian: npt.NDArray[np.float64] | None = None,  # pyright:ignore
         only_real: bool = True,
         symmetrize_hessian: bool = True,
         eigenvectors_to_cartesian: bool = False,
