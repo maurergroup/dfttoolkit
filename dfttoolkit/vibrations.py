@@ -83,7 +83,7 @@ class Vibrations:
 
     def get_displacements(
         self, displacement: float = 0.0025, directions: list = [1]
-    ) -> list:
+    ) -> list:  # pyright:ignore
         """
         Apply a given displacement for each degree of freedom of self and
         generates a new vibration with it.
@@ -368,7 +368,9 @@ class Vibrations:
             omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
         )
 
-    def get_thermally_displaced_geometry(self, temperature, classical=True):
+    def get_thermally_displaced_geometry(
+        self, temperature: np.float64, classical: bool = True
+    ):  # pyright:ignore
         """
         Generate thermally displaced structures from vibrational modes.
 
@@ -392,7 +394,6 @@ class Vibrations:
         displacements : list of np.ndarray
             List of atomic displacements (shape (3N,)) for each snapshot.
         """
-
         kB = 1.380649e-23  # J/K
 
         eigenvalues = self.get_eigenvalues_in_Hz()
@@ -424,7 +425,7 @@ class Vibrations:
             # var_qi (kg m²) -> var_qi (u A²)
             var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
 
-            amp = np.random.normal(0.0, np.sqrt(var_qi))
+            amp = np.random.normal(0.0, np.sqrt(var_qi))  # pyright:ignore
             print(amp)
             displacement += amp * self.eigenvectors[i]
 
