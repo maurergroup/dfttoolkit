@@ -1,40 +1,45 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-from os.path import join, isfile, dirname, basename, isdir
+import argparse
 import os
+from os.path import basename, dirname, isdir, isfile, join
+
+import matplotlib as mpl
+import numpy as np
+import numpy.typing as npt
 
 from dfttoolkit.output import AimsOutput
-import numpy as np
-import argparse
-import matplotlib as mpl
 
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 
-def get_all_outputs(calc_dir, outputname):
-    restart_dirs = [join(calc_dir, d) for d in os.listdir(calc_dir)]
+def get_all_outputs(calc_dir: str, outputname: str):
+    restart_dirs = [
+        join(calc_dir, d) for d in os.listdir(calc_dir)
+    ]  # pyright:ignore
     restart_dirs = sorted(
-        [d for d in restart_dirs if isfile(join(d, outputname))]
+        [
+            d for d in restart_dirs if isfile(join(d, outputname))
+        ]  # pyright:ignore
     )
     restart_dirs.append(calc_dir)
 
     outputs = []
     for d in restart_dirs:
-        outputs.append(AimsOutput(join(d, outputname)))
+        outputs.append(AimsOutput(join(d, outputname)))  # pyright:ignore
 
     return outputs
 
 
-def get_energies(aims_outputs):
+def get_energies(aims_outputs: str):
     E = []
     for aims in aims_outputs:
         E += list(aims.get_energy_corrected(None))
     return np.array(E)
 
 
-def get_maximum_forces(aims_outputs):
+def get_maximum_forces(aims_outputs: str):
     force = []
     for aims in aims_outputs:
         force += list(aims.get_maximum_force(None))
@@ -42,14 +47,14 @@ def get_maximum_forces(aims_outputs):
     return np.array(force)
 
 
-def get_geometries(aims_outputs):
+def get_geometries(aims_outputs: str):
     geometries = []
     for aims in aims_outputs:
         geometries += aims.get_geometry_steps_of_optimisation()
     return geometries
 
 
-def plot_energy(E, logarithmic=False):
+def plot_energy(E: npt.NDArray[np.float64], logarithmic: bool = False):
     E_ref = np.min([e for e in E if not np.isnan(e)])
     E_difference = 1e3 * (E - E_ref)
     print(E, np.min([e for e in E if not np.isnan(e)]))
@@ -79,7 +84,12 @@ def plot_energy(E, logarithmic=False):
     plt.xlim([0, len(E)])
 
 
-def plot_forces(forces, converged, threshold, logarithmic=False):
+def plot_forces(
+    forces: npt.NDArray[np.float64],
+    converged: bool,
+    threshold: np.float64,
+    logarithmic: bool = False,
+):
     ax2 = plt.subplot(1, 2, 2)
     if converged:
         color_key = "g"
@@ -118,14 +128,14 @@ def plot_forces(forces, converged, threshold, logarithmic=False):
             threshold,
             color="k",
             linestyle="--",
-            label="threshold = {} eV/A".format(threshold),
+            label=f"threshold = {threshold} eV/A",
         )
 
     plt.axhline(
         forces[-1],
         color=color_key,
         linestyle="--",
-        label="last value = {:.3} eV/A".format(forces[-1]),
+        label=f"last value = {forces[-1]:.3} eV/A",
     )
     # plt.text(x=len(forces)/2, y=forces[-1] + 0.01, s="{:.3} eV/A".format(forces[-1]))
 
@@ -134,12 +144,12 @@ def plot_forces(forces, converged, threshold, logarithmic=False):
 
 
 def plot_energy_and_forces(
-    E,
-    forces,
-    converged,
-    threshold,
-    plot_energy_logarithmic=False,
-    plot_forces_logarithmic=False,
+    E: npt.NDArray[np.float64],
+    forces: npt.NDArray[np.float64],
+    converged: bool,
+    threshold: np.float64,
+    plot_energy_logarithmic: bool = False,
+    plot_forces_logarithmic: bool = False,
 ):
     plt.close("all")
     fig = plt.figure()
@@ -151,14 +161,14 @@ def plot_energy_and_forces(
     fig.tight_layout()
 
 
-def plot_height(h):
+def plot_height(h: np.float64):
     plt.close("all")
     plt.figure()
     plt.ylabel("Distance C-slab / A")
     plt.plot(range(len(h)), h, linewidth=2)
 
 
-def get_heights(geometries):
+def get_heights(geometries: list):
     """Get height of uppermost slab layer and C atoms"""
     heights = []
     try:
@@ -196,7 +206,10 @@ def get_heights(geometries):
 
 
 def get_output_filename(
-    output_option, calc_dir, energy_logarithmic, forces_logarithmic
+    output_option: str,
+    calc_dir: str,
+    energy_logarithmic: bool,
+    forces_logarithmic: bool,
 ):
 
     file_name = "optimization"
@@ -207,20 +220,19 @@ def get_output_filename(
     file_name += ".png"
 
     if output_option == "":
-        return join(calc_dir, file_name)
+        return join(calc_dir, file_name)  # pyright:ignore
 
     if isdir(output_option):
-        return join(output_option, basename(calc_dir))
+        return join(output_option, basename(calc_dir))  # pyright:ignore
 
     if output_option[-4:].lower() in [".png", ".pdf", ".svg"]:
         return output_option
-    else:
-        raise NotImplementedError(
-            "Invalid figure filename or directory does not exist."
-        )
+    raise NotImplementedError(
+        "Invalid figure filename or directory does not exist."
+    )
 
 
-def visualise_optimisation(aims_output, args):
+def visualise_optimisation(aims_output, args):  # pyright:ignore
     outputname = basename(aims_output)
     calc_dir = dirname(aims_output)
     if calc_dir == "":
@@ -261,22 +273,30 @@ def visualise_optimisation(aims_output, args):
     geometries = None
     # Save all geometry steps of the optimization
     if args.geometries:
-        geometries_dir = join(calc_dir, "geometries")
+        geometries_dir = join(calc_dir, "geometries")  # pyright:ignore
         if not isdir(geometries_dir):
             os.makedirs(geometries_dir)
         geometries = get_geometries(aims_outputs)
         for i, g in enumerate(geometries):
             fig = plt.Figure()
             g.visualise()
-            fig.savefig(join(geometries_dir, "{:04d}.png".format(i)), dpi=600)
+            fig.savefig(
+                join(geometries_dir, f"{i:04d}.png"), dpi=600
+            )  # pyright:ignore
 
-            g.save_to_file(join(geometries_dir, "{:04d}.in".format(i)))
+            g.save_to_file(
+                join(geometries_dir, f"{i:04d}.in")
+            )  # pyright:ignore
 
         if args.gif:
-            import imageio, glob
+            import glob
+
+            import imageio
 
             with imageio.get_writer("optimization.gif") as writer:
-                for g in sorted(glob.glob(join(geometries_dir, "*.png"))):
+                for g in sorted(
+                    glob.glob(join(geometries_dir, "*.png"))
+                ):  # pyright:ignore
                     writer.append_data(imageio.imread(g))
 
     if args.displacement:
@@ -286,22 +306,26 @@ def visualise_optimisation(aims_output, args):
             plt.figure()
             geometries[0].visualize()
             geometries[0].visualizeAtomDisplacements(geometries[-1])
-            plt.savefig(join(calc_dir, "atom_displacements.png"), dpi=600)
+            plt.savefig(
+                join(calc_dir, "atom_displacements.png"), dpi=600
+            )  # pyright:ignore
         except ValueError:
             print("visualizing atom displacements failed")
 
     # Save forces of all geometry steps of the optimisation
     if args.forces:
-        forces_dir = join(calc_dir, "forces")
+        forces_dir = join(calc_dir, "forces")  # pyright:ignore
         if not isdir(forces_dir):
             os.makedirs(forces_dir)
         ind = 0
         geometries = get_geometries(aims_outputs)
         # print(aims_outputs, len(aims_outputs))
         # print(geometries, len(geometries))
-        for i, ao in enumerate(aims_outputs):  # , geometries)):
+        for i, ao in enumerate(aims_outputs):  # pyright:ignore
             try:
-                for j in range(len(ao.getEnergyCorrected(None))):
+                for j in range(
+                    len(ao.getEnergyCorrected(None))
+                ):  # pyright:ignore
                     F = ao.getGradients(nr_of_occurrence=j)
                     geom = geometries[ind]
 
@@ -316,8 +340,8 @@ def visualise_optimisation(aims_output, args):
                         print_constrained=False,
                     )
                     fig.savefig(
-                        join(forces_dir, "{:04d}.png".format(ind)), dpi=600
-                    )
+                        join(forces_dir, f"{ind:04d}.png"), dpi=600
+                    )  # pyright:ignore
                     plt.close()
                     ind = ind + 1
 
@@ -349,7 +373,10 @@ if __name__ == "__main__":
         "--output",
         "-o",
         default="",
-        help="Output directory or name for figure. Set to empty directory to save in the calculation directory.",
+        help=(
+            "Output directory or name for figure. Set to empty directory to",
+            "save in the calculation directory.",
+        ),
     )
     parser.add_argument(
         "--geometries",
@@ -360,7 +387,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gif",
         action="store_true",
-        help="Creates a gif from the images of the geometry steps. Requires --geometries.",
+        help=(
+            "Creates a gif from the images of the geometry steps. Requires",
+            "--geometries.",
+        ),
     )
     parser.add_argument(
         "--displacement",
@@ -386,7 +416,10 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         dest="both_logarithmic",
-        help='Plot both energy differences and maximum force logarithmically. Shorthand for option "-el -fl".',
+        help=(
+            "Plot both energy differences and maximum force logarithmically.",
+            "Shorthand for option '-el -fl'.",
+        ),
     )
     parser.add_argument(
         "--energy-logarithmic",
@@ -405,7 +438,6 @@ if __name__ == "__main__":
         help="Plot log(max_force) instead of max_force.",
     )
 
-    #    args = ["/home/michael/calculations/TCNE_Ag/Ag4/Batch1/(5, 0, 0, 6, 3, 3, 5, 5, 0, 15, 12, 27)/aims.out"]
     args = parser.parse_args()
 
     # manage dependencies of arguments
