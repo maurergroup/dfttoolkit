@@ -18,58 +18,61 @@ class VisualiseAims(AimsOutput):
 
     Attributes
     ----------
-    scf_conv_acc_params : dict
-        the SCF convergence accuracy parameters
+    scf_convergence : dict[str, NDArray[float64]]
+    convergence_params : dict[str, float]
+
+    Examples
+    --------
+    >>> from dfttoolkit.visualise import VisualiseAims
+    >>> vis = VisualiseAims(aims_out="path/to/aims.out")
     """
+
+    def __init__(self, aims_out: str = "aims.out"):
+        super().__init__(aims_out=aims_out)
 
     @staticmethod
     def _plot_charge_convergence(
         ax: axes.Axes,
-        tot_scf_iters: npt.NDArray[np.int64] | list[int],
-        delta_charge: npt.NDArray[np.float64] | list[float],
-        delta_charge_sd: npt.NDArray[np.float64] | list[float] | None = None,
-        conv_params: dict | None = None,
+        charge_density: float,
+        tot_scf_iters: npt.NDArray[np.int64],
+        delta_charge: npt.NDArray[np.float64],
+        delta_charge_sd: npt.NDArray[np.float64] | None = None,
         title: str | None = None,
-    ) -> axes.Axes:
+    ) -> None:
         """
         Create a subplot for the charge convergence of an FHI-aims calculation.
 
         Parameters
         ----------
-        ax : axes.Axes
+        ax : Axes
             matplotlib subplot index
-        tot_scf_iters : npt.NDArray[np.int64] | list[int]
+        charge_density : float
+            convergence criterion for the charge density
+        tot_scf_iters : NDArray[int64]
             cumulative SCF iterations
-        delta_charge : npt.NDArray[np.float64] | list[float]
+        delta_charge : NDArray[float64]
             change of spin-up or total spin (if the calculation was spin none)
             eigenvalues
-        delta_charge_sd : npt.NDArray[np.float64] | list[float] | None, default=None
+        delta_charge_sd : NDArray[float64] | None, default=None
             change of spin-down eigenvalues
-        conv_params : dict | None, default=None
-            convergence parameters which determine if the SCF cycle has converged
         title : str | None, default=None
             system name to include in title
-
-        Returns
-        -------
-        axes.Axes
-            matplotlib subplot object
         """
         ax.plot(tot_scf_iters, delta_charge, label=r"$\Delta$ charge")
 
         # Only plot delta_charge_sd if the calculation is spin polarised
-        if delta_charge_sd is not None:
+        if delta_charge_sd is not None and np.all(delta_charge_sd) != 0.0:
             ax.plot(
                 tot_scf_iters, delta_charge_sd, label=r"$\Delta$ charge/spin density"
             )
 
         # Add the convergence parameters
-        if conv_params is not None and conv_params["charge_density"] != 0.0:
+        if charge_density != 0.0:
             ax.axhline(
-                conv_params["charge_density"],
+                charge_density,
                 ls="--",
                 c="gray",
-                label=r"$\rho$ convergence criterion",
+                label="charge convergence criterion",
             )
 
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -77,45 +80,46 @@ class VisualiseAims(AimsOutput):
         ax.set_xlabel("cumulative SCF iteration")
         ax.set_ylabel(r"Charge / $e a_0^{-3}$")
         ax.legend()
-        if title is not None:
-            ax.set_title(rf"{title} $\Delta$ charge Convergence")
 
-        return ax
+        if title is None:
+            title = ""
+        else:
+            title += " "
+
+        ax.set_title(rf"{title}Charge Convergence")
 
     @staticmethod
     def _plot_energy_convergence(
         ax: axes.Axes,
-        tot_scf_iters: npt.NDArray[np.int64] | list[int],
-        delta_sum_eigenvalues: npt.NDArray[np.float64] | list[float],
-        delta_total_energies: npt.NDArray[np.float64] | list[float],
-        conv_params: dict | None = None,
+        sum_eigenvalues_conv_param: float,
+        total_energy_conv_param: float,
+        tot_scf_iters: npt.NDArray[np.int64],
+        delta_sum_eigenvalues: npt.NDArray[np.float64],
+        delta_total_energies: npt.NDArray[np.float64],
         absolute: bool = True,
         title: str | None = None,
-    ) -> axes.Axes:
+    ) -> None:
         """
         Create a subplot for the energy convergence of an FHI-aims calculation.
 
         Parameters
         ----------
-        ax : axes.Axes
+        ax : Axes
             matplotlib subplot index
-        tot_scf_iters : npt.NDArray[np.int64] | list[int]
+        sum_eigenvalues_conv_param : float
+            convergence criterion for the sum of eigenvalues
+        total_energy_conv_param : float
+            convergence criterion for the total energy
+        tot_scf_iters : NDArray[int64]
             cumulative SCF iterations
-        delta_sum_eigenvalues : npt.NDArray[np.float64] | list[float]
+        delta_sum_eigenvalues : NDArray[float64]
             change of sum of eigenvalues
-        delta_total_energies : npt.NDArray[np.float64] | list[float]
+        delta_total_energies : NDArray[float64]
             change of total energies
-        conv_params : dict | None, default=None
-            convergence parameters which determine if the SCF cycle has converged
         absolute : bool, default=True
             whether to plot the absolute value of the energies
         title : str | None, default=None
             system name to include in title
-
-        Returns
-        -------
-        axes.Axes
-            matplotlib subplot object
         """
         if absolute:
             delta_sum_eigenvalues = np.abs(delta_sum_eigenvalues)
@@ -135,15 +139,16 @@ class VisualiseAims(AimsOutput):
         )
 
         # Add the convergence parameters
-        if conv_params is not None:
+        if sum_eigenvalues_conv_param != 0:
             ax.axhline(
-                conv_params["sum_eigenvalues"],
+                sum_eigenvalues_conv_param,
                 ls="-.",
                 c="darkgray",
                 label=r"$\Delta \; \Sigma$ eigenvalues convergence criterion",
             )
+        if total_energy_conv_param != 0:
             ax.axhline(
-                conv_params["total_energy"],
+                total_energy_conv_param,
                 ls="--",
                 c="gray",
                 label=r"$\Delta$ total energies convergence criterion",
@@ -154,16 +159,21 @@ class VisualiseAims(AimsOutput):
         ax.set_xlabel("cumulative SCF iteration")
         ax.set_ylabel(r"absolute energy / $| \mathrm{eV} |$")
         ax.legend()
-        if title is not None:
-            ax.set_title(rf"{title} Energies and Eigenvalues Convergence")
 
-        return ax
+        if title is None:
+            title = ""
+        else:
+            title += " "
+
+        ax.set_title(rf"{title}Energies and Eigenvalues Convergence")
 
     @staticmethod
     def _plot_forces_convergence(
         ax: axes.Axes,
-        forces_on_atoms: npt.NDArray[np.float64] | list[float],
-        conv_params: dict | None = None,
+        change_max_force_conv_param: float,
+        max_force_per_atom_conv_param: float,
+        delta_forces: npt.NDArray[np.float64],
+        forces_on_atoms: npt.NDArray[np.float64],
         title: str | None = None,
     ) -> None:
         """
@@ -171,35 +181,51 @@ class VisualiseAims(AimsOutput):
 
         Parameters
         ----------
-        ax : axes.Axes
+        ax : Axes
             matplotlib subplot index
-        forces_on_atoms : npt.NDArray[np.float64] | list[float]
+        change_max_force_conv_param : float
+            convergence criterion specified by `sc_accuracy_forces`
+        max_force_per_atom_conv_param : float
+            convergence criterion specified by `relax_geometry`
+        delta_forces: NDArray[float64] | list[float],
+            change in forces on each atom
+        forces_on_atoms : NDArray[float64]
             all forces acting on each atom
-        conv_params : dict | None, default=None
-            convergence parameters which determine if the SCF cycle has converged
         title : str | None, default=None
             system name to include in title
         """
-        # see NOTE in dfttoolkit.output.AimsOutput.get_i_scf_conv_acc()
-        # ax.plot(delta_forces, label=r"$\Delta$ forces")  # noqa: ERA001
-        ax.plot(forces_on_atoms, label="forces on atoms")
+        ax.plot(forces_on_atoms, label=r"max force atom$^{-1}$")
+        ax.plot(delta_forces, label=r"$\Delta$ max force")
 
         # Add the convergence parameters
-        if conv_params is not None and conv_params["total_force"] is not None:
+        if max_force_per_atom_conv_param != 0:
             ax.axhline(
-                conv_params["total_force"],
+                max_force_per_atom_conv_param,
                 ls="--",
                 c="gray",
-                label="forces convergence criterion",
+                label=r"max force atom$^{-1}$ convergence criterion",
+            )
+
+        if change_max_force_conv_param != 0:
+            ax.axhline(
+                change_max_force_conv_param,
+                ls="-.",
+                c="darkgray",
+                label=r"$\Delta$ max force convergence criterion",
             )
 
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_yscale("log")
         ax.set_xlabel("geometry relaxation step")
         ax.set_ylabel(r"force / $\mathrm{eV} \mathrm{\AA}^{-1}$")
         ax.legend()
 
-        if title is not None:
-            ax.set_title(rf"{title} Forces Convergence")
+        if title is None:
+            title = ""
+        else:
+            title += " "
+
+        ax.set_title(rf"{title}Force Convergence")
 
     @staticmethod
     def _plot_ks_states_convergence(
@@ -216,18 +242,15 @@ class VisualiseAims(AimsOutput):
 
         Parameters
         ----------
-        ax : axes.Axes
+        ax : Axes
             matplotlib subplot index
-        ks_eigenvals : dict | tuple[npt.NDArray, npt.NDArray]
-            state, occupation, and eigenvalue of each KS state at each SCF
-            iteration
+        ks_eigenvals: (
+            dict[str, NDArray[int64 | float64]]
+            | tuple[NDArray, NDArray]
+        )
+            state, occupation, and eigenvalue of each KS state at each SCF iteration
         title : str | None, default=None
             system name to include in title
-
-        Returns
-        -------
-        axes.Axes
-            matplotlib subplot object
         """
         if isinstance(ks_eigenvals, dict):
             # Don't include last eigenvalue as it only prints after final SCF iteration
@@ -240,38 +263,48 @@ class VisualiseAims(AimsOutput):
             su_ks_eigenvals = ks_eigenvals[0]
             sd_ks_eigenvals = ks_eigenvals[1]
 
-            for ev in su_ks_eigenvals["eigenvalue_eV"].T:
-                ax.plot(np.arange(len(su_ks_eigenvals["eigenvalue_eV"])), ev, c="C0")
+            for i, ev in enumerate(su_ks_eigenvals["eigenvalue_eV"].T):
+                ax.plot(
+                    np.arange(len(su_ks_eigenvals["eigenvalue_eV"])),
+                    ev,
+                    c="C0",
+                    label="Spin-up Eigenstates" if i == 0 else None,
+                )
 
-            for ev in sd_ks_eigenvals["eigenvalue_eV"].T:
-                ax.plot(np.arange(len(su_ks_eigenvals["eigenvalue_eV"])), ev, c="C1")
+            for i, ev in enumerate(sd_ks_eigenvals["eigenvalue_eV"].T):
+                ax.plot(
+                    np.arange(len(su_ks_eigenvals["eigenvalue_eV"])),
+                    ev,
+                    c="C1",
+                    label="Spin-down Eigenstates" if i == 0 else None,
+                )
+
+            ax.legend()
 
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.set_yscale("symlog")
         ax.set_xlabel("cumulative SCF iteration")
         ax.set_ylabel("energy / eV")
 
-        if title is not None:
-            ax.set_title(f"{title} KS State Convergence")
+        if title is None:
+            title = ""
+        else:
+            title += " "
+
+        ax.set_title(rf"{title}KS State Convergence")
 
     def convergence(
         self,
-        conv_params: dict | None = None,
-        scf_conv_acc_params: dict | None = None,
         title: str | None = None,
         forces: bool = False,
         ks_eigenvalues: bool = False,
-        fig_size: tuple[int, int] = (24, 6),
+        fig_size: tuple[int, int] = (20, 5),
     ) -> figure.Figure:
         """
-        Plot the SCF convergence accuracy parameters.
+        Plot the SCF convergence.
 
         Parameters
         ----------
-        conv_params: dict | None, default=None
-            convergence parameters which determine if the SCF cycle has converged
-        scf_conv_acc_params : dict | None, default=None
-            the scf convergence accuracy parameters
         title : str | None, default=None
             system name to use in title of the plot
         forces : bool, default=False
@@ -283,24 +316,23 @@ class VisualiseAims(AimsOutput):
 
         Returns
         -------
-        figure.Figure
+        Figure
             matplotlib figure object
+
+        Examples
+        --------
+        >>> from dfttoolkit.visualise import VisualiseAims
+        >>> vis = VisualiseAims("path/to/aims.out")
+        >>> fig = vis.convergence(
+        ...     title="My System", forces=True, ks_eigenvalues=True, fig_size=(12, 8)
+        ... )
         """
-        # Get the SCF convergence accuracy parameters if not provided
-        if scf_conv_acc_params is None:
-            if not hasattr(self, "scf_conv_acc_params"):
-                self.scf_conv_acc_params = self.get_i_scf_conv_acc()
+        # Get the SCF convergence values and parameters
+        self.get_scf_convergence()
+        self.get_convergence_parameters()
 
-        # Override the default scf_conv_acc_params if given in function
-        else:
-            self.scf_conv_acc_params = scf_conv_acc_params
-
-        scf_iters = self.scf_conv_acc_params["scf_iter"]
-        tot_scf_iters = np.arange(1, len(scf_iters) + 1)
-        delta_charge = self.scf_conv_acc_params["change_of_charge"]
-        delta_charge_sd = self.scf_conv_acc_params["change_of_charge_spin_density"]
-        delta_sum_eigenvalues = self.scf_conv_acc_params["change_of_sum_eigenvalues"]
-        delta_total_energies = self.scf_conv_acc_params["change_of_total_energy"]
+        # Get the total number of SCF iterations
+        tot_scf_iters = np.arange(1, len(self.scf_convergence["SCF iterations"]) + 1)
 
         # Change the number of subplots if forces and ks_eigenvalues are to be plotted
         subplots = [True, True, forces, ks_eigenvalues]
@@ -311,32 +343,41 @@ class VisualiseAims(AimsOutput):
 
         # Plot the change of charge
         self._plot_charge_convergence(
-            ax[0], tot_scf_iters, delta_charge, delta_charge_sd, conv_params, title
+            ax[0],
+            self.convergence_params["charge density"],
+            tot_scf_iters,
+            self.scf_convergence["change of charge"],
+            self.scf_convergence["change of charge spin density"],
+            title,
         )
 
         # Plot the change of total energies and sum of eigenvalues
         self._plot_energy_convergence(
             ax[1],
+            self.convergence_params["sum eigenvalues"],
+            self.convergence_params["total energy"],
             tot_scf_iters,
-            delta_sum_eigenvalues,
-            delta_total_energies,
-            conv_params,
-            True,
-            title,
+            self.scf_convergence["change of sum eigenvalues"],
+            self.scf_convergence["change of total energy"],
+            title=title,
         )
 
         # Plot the forces
         if forces:
-            # see NOTE in dfttoolkit.output.AimsOutput.get_i_scf_conv_acc()
-            # delta_forces = self.scf_conv_acc_params["change_of_forces"]  # noqa: E501, ERA001
-            # delta_forces = np.delete(delta_forces, np.argwhere(delta_forces == 0.0))  # noqa: E501, ERA001
-            forces_on_atoms = self.scf_conv_acc_params["forces_on_atoms"]
+            delta_forces = self.scf_convergence["change of max force"]
+            delta_forces = np.delete(delta_forces, np.argwhere(delta_forces == 0.0))
+            forces_on_atoms = self.scf_convergence["forces on atoms"]
             forces_on_atoms = np.delete(
                 forces_on_atoms, np.argwhere(forces_on_atoms == 0.0)
             )
             i_subplot += 1
             self._plot_forces_convergence(
-                ax[i_subplot], forces_on_atoms, conv_params, title
+                ax[i_subplot],
+                self.convergence_params["change of max force"],
+                self.convergence_params["max force per atom"],
+                delta_forces,
+                forces_on_atoms,
+                title,
             )
 
         # Plot the KS state energies
@@ -377,7 +418,7 @@ class VisualiseCube(Cube):
 
     def weas_core_hole(
         self, viewer: WeasWidget | None = None, **kwargs: str
-    ) -> WeasWidget:
+    ) -> WeasWidget | None:
         """
         Visualise the core hole as an isosurface.
 
@@ -390,8 +431,8 @@ class VisualiseCube(Cube):
 
         Returns
         -------
-        WeasWidget
-            viewer instance
+        WeasWidget | None
+            viewer instance or None if not running in Jupyter or Marimo
         """
         # Check if running in Jupyter
         try:
@@ -406,7 +447,7 @@ class VisualiseCube(Cube):
                 )
 
         except (ImportError, AttributeError):
-            return False
+            return None
 
         # Create the viewer
         ch_viewer = WeasWidget(**kwargs) if viewer is None else viewer
