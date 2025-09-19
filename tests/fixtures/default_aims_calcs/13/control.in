@@ -1,4 +1,3 @@
-# control.in written by ControlFile class of SAMPLE aimstools
 # General Settings: 
 xc	                           hse06 0.11
 hse_unit                           bohr-1
