@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import sys
+import os
+import shutil
+from os.path import join, isfile, isdir, getmtime
+import time
+import argparse
+from dfttoolkit.utils.file_crawler import find_all_aims_calculations_and_status
+
+
+def moveUnfinishedCalculations(
+    start_dir, move_dir, consider_jobs=False, idle_time=0
+):
+    all_calculations = find_all_aims_calculations_and_status(start_dir)
+
+    n_moved = 0
+    for calc, values in all_calculations.items():
+        print("move_dir", move_dir, calc)
+        if move_dir in calc:
+            continue
+
+        if not values["finished"] and (
+            values["idle_time"] is None or values["idle_time"] > idle_time
+        ):
+            n_moved += 1
+            shutil.move(join(values["path"], calc), join(move_dir, calc))
+            print("{} not finished -> moving".format(calc))
+
+    print(
+        "A total of {:d} calculation(s) was moved to folder '{}'".format(
+            n_moved, os.path.abspath(move_dir)
+        )
+    )
+
+
+# def getAIMSFolders(startpath):
+#    for root, dirs, files in os.walk(startpath):
+#        level = root.replace(startpath, '').count(os.sep)
+#        indent = ' ' * 4 * (level)
+##        print('{}{}/'.format(indent, os.path.basename(root)))
+#
+#        calc_dirs = {}
+#        if 'geometry.in' in files and 'control.in' in files:
+#            if 'aims.out' in files:
+#                o = AIMSOutput(join(root,'aims.out'))
+#                if not o.calculationExitedNormally():
+#                    shutil.move(root, os.path.join(unfinished_dir, os.path.basename(root)))
+#            else:
+#                shutil.move(root, os.path.join(unfinished_dir, os.path.basename(root)))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Moves all calculations that are not started or not finished to the specified directory"
+    )
+    parser.add_argument(
+        "path",
+        type=str,
+        nargs="+",
+        help="Directory into which unfinished aims calcs should be moved",
+    )
+    parser.add_argument(
+        "-b",
+        "--bundled",
+        action="store_true",
+        help="Check bundled job files and move only those that are not still running",
+    )
+    parser.add_argument(
+        "-i",
+        "--idle_time",
+        default=600,
+        type=int,
+        help="Idle time of the output file (in seconds) after which the calculation is considered finished",
+    )
+
+    args = parser.parse_args()
+
+    unfinished_dir = os.path.join(os.getcwd(), args.path[0])
+    if not os.path.isdir(unfinished_dir):
+        os.mkdir(unfinished_dir)
+
+    moveUnfinishedCalculations(
+        os.getcwd(),
+        unfinished_dir,
+        consider_jobs=args.bundled,
+        idle_time=args.idle_time,
+    )

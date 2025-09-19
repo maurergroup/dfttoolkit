@@ -233,13 +233,15 @@ class Geometry:
         for atom in atoms:
             species = atom.symbol
             if isinstance(species, int):
-                species = PeriodicTable.get_symbol(species)
+                species = PeriodicTable.get_chemical_symbol(species)
             species_list.append(species)
             coords.append(atom.position)
         coords = np.array(coords)
         self.add_atoms(coords, species_list, constrain_relax)
 
-    def get_as_ase(self) -> ase.Atoms:
+    def get_as_ase(
+        self, energy_key="energy", froces_key="forces"
+    ) -> ase.Atoms:
         """
         Convert geometry file to ASE object.
 
@@ -272,10 +274,10 @@ class Geometry:
             ase_system.pbc = [1, 1, 1]
 
         if self.energy is not None:
-            ase_system.info["energy"] = self.energy
+            ase_system.info[energy_key] = self.energy
 
         if self.forces is not None:
-            ase_system.arrays["forces"] = self.forces
+            ase_system.arrays[froces_key] = self.forces
 
         return ase_system
 
@@ -2614,7 +2616,7 @@ class Geometry:
         # Case 2: if no substrate was passed but a geometry_parts "substrate" is defined
         # in geometry_parts, use that one
         substrate_indices_from_parts = self.get_substrate_indices_from_parts(
-            do_warn=False
+            warn=False
         )
 
         if primitive_substrate is not None:
@@ -3191,7 +3193,11 @@ class Geometry:
                             if not L1 and not L2:
                                 slab.add_atoms(
                                     [new_coord],
-                                    [PeriodicTable.get_symbol(new_species)],
+                                    [
+                                        PeriodicTable.get_chemical_symbol(
+                                            new_species
+                                        )
+                                    ],
                                 )
                                 add_next_shell = True
 
@@ -3224,7 +3230,8 @@ class Geometry:
         )
 
         primitive_slab_species = [
-            PeriodicTable.get_symbol(s) for s in primitive_slab_atomic_numbers
+            PeriodicTable.get_chemical_symbol(s)
+            for s in primitive_slab_atomic_numbers
         ]
         primitive_slab_coords = primitive_slab_scaled_positions.dot(
             primitive_slab_lattice
@@ -4858,7 +4865,7 @@ class VaspGeometry(Geometry):
                 for j in range(3):
                     if curr_relax_constr[n, j] is True:
                         line += "  " + "F"
-                    elif curr_relax_constr[n, j] is False:
+                    else:
                         line += "  " + "T"
                 ## R.B. relax constraints end
 
