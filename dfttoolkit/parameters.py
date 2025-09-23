@@ -403,6 +403,9 @@ class AimsControl(Parameters):
 
         return keywords
 
+    def set_k_grid(self, k_grid):
+        self.settings["k_grid"] = k_grid
+
     def remove_k_grid(self):
         if "k_grid" in self.settings:
             self.settings.pop("k_grid")
