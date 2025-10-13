@@ -180,6 +180,10 @@ class AimsControl(Parameters):
             # skip species keywords
             elif keyword in species_keywords:
                 pass
+            elif keyword == "k_grid":
+                self.settings[keyword] = [
+                    int(x) for x in list(line.split())[1:]
+                ]
             # catch-all for keywords with simple key-value structure
             else:
                 self.settings[keyword] = " ".join(_line.split()[1:])
@@ -402,6 +406,9 @@ class AimsControl(Parameters):
                 keywords[spl[0]] = " ".join(spl[1:])
 
         return keywords
+
+    def get_k_grid(self) -> list[int]:
+        return self.settings["k_grid"]
 
     def set_k_grid(self, k_grid):
         self.settings["k_grid"] = k_grid

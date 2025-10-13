@@ -4709,6 +4709,7 @@ class VaspGeometry(Geometry):
         selective = False
         selectivevals = []
         P = []
+        self.constrain_relax = []
         fi = text.split("\n")
 
         for line in fi:
