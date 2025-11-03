@@ -1,6 +1,6 @@
 # General settings:
 xc                      pbe
-k_grid                  1   1   1
+k_grid                  1 1 1
 
 # Additional output:
 

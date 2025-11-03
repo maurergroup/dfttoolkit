@@ -1,6 +1,6 @@
 # General settings:
 xc                      hse06 0.11
-k_grid                  8   8   8
+k_grid                  8 8 8
 
 # Other settings:
 hse_unit                b

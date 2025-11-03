@@ -1,6 +1,6 @@
 # General settings:
 xc                      pbe
-k_grid                  8   8   8
+k_grid                  8 8 8
 spin                    collinear
 
 # Other settings:

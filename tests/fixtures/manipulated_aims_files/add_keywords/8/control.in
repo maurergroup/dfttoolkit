@@ -1,6 +1,6 @@
 # General settings:
 xc                      dfauto scan
-k_grid                  1   1   1
+k_grid                  1 1 1
 
 # Convergence criteria:
 sc_accuracy_rho         1e-10

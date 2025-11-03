@@ -8,7 +8,7 @@ from .file_utils import classproperty
 
 class Element:
     """
-    Hold and access data for individual elements
+    Hold and access data for individual elements.
 
     ...
 
@@ -44,7 +44,7 @@ class Element:
 
 class PeriodicTable:
     """
-    Create a periodic table object
+    Create a periodic table object.
 
     Returns
     -------
@@ -94,6 +94,7 @@ class PeriodicTable:
         -------
         Element
             Instance of Element.
+
         """
         return cls.elements[symbol]
 
@@ -137,6 +138,7 @@ class PeriodicTable:
         -------
         str
             Full name.
+
         """
         return cls.get_element_dict(element)["name"]
 
@@ -166,12 +168,12 @@ class PeriodicTable:
         Parameters
         ----------
         species : str or int
-            Name or chemical sysmbol of the atomic species.
+        Name or chemical sysmbol of the atomic species.
 
         Returns
         -------
         float
-            atomic mass in atomic units.
+        atomic mass in atomic units.
 
         """
         return cls.get_element_dict(element)["atomic_mass"]
@@ -231,9 +233,7 @@ class PeriodicTable:
             Covalent radius in atomic units.
 
         """
-        with open(
-            Path(__file__).parent / "elemental_colourmaps.yaml"
-        ) as ec:
+        with open(Path(__file__).parent / "elemental_colourmaps.yaml") as ec:
             data = yaml.safe_load(ec)
 
         return data[cls.get_element_dict(element)["symbol"]]

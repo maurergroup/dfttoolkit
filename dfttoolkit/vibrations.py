@@ -2,9 +2,11 @@ import copy
 import functools
 import multiprocessing as mp
 import sys
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
+
 from .geometry import AimsGeometry, VaspGeometry
 from .utils import units
 from .utils import vibrations_utils as vu

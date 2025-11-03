@@ -246,7 +246,7 @@ class TestAimsOutput:
 
         else:
             with pytest.raises(
-                ValueError, match="Energy not found in aims.out file for"
+                ValueError, match=r"Energy not found in aims.out file for"
             ):
                 self.ao.get_change_of_forces()
 
@@ -278,15 +278,30 @@ class TestAimsOutput:
 
     def test_get_convergence_parameters(self, ref_data) -> None:
         if self._aims_fixture_no in [1, 2, 3, 4, 9, 10]:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][0]
+            assert (
+                self.ao.get_convergence_parameters()
+                == ref_data["conv_params"][0]
+            )
         elif self._aims_fixture_no == 5:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][1]
+            assert (
+                self.ao.get_convergence_parameters()
+                == ref_data["conv_params"][1]
+            )
         elif self._aims_fixture_no == 6:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][2]
+            assert (
+                self.ao.get_convergence_parameters()
+                == ref_data["conv_params"][2]
+            )
         elif self._aims_fixture_no == 7:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][3]
+            assert (
+                self.ao.get_convergence_parameters()
+                == ref_data["conv_params"][3]
+            )
         elif self._aims_fixture_no == 8:
-            assert self.ao.get_convergence_parameters() == ref_data["conv_params"][4]
+            assert (
+                self.ao.get_convergence_parameters()
+                == ref_data["conv_params"][4]
+            )
 
     def test_get_final_energy(self) -> None:
         final_energies = [
@@ -482,7 +497,8 @@ class TestAimsOutput:
 
         elif self._aims_fixture_no in [2, 11]:
             with pytest.raises(
-                ValueError, match="Final KS states not found in aims.out file."
+                ValueError,
+                match=r"Final KS states not found in aims.out file\.",
             ):
                 self.ao.get_pert_soc_ks_eigenvalues()
 
@@ -492,7 +508,7 @@ class TestAimsOutput:
                 pytest.warns(UserWarning),
                 pytest.raises(
                     ValueError,
-                    match="Final KS states not found in aims.out file.",
+                    match=r"Final KS states not found in aims.out file\.",
                 ),
             ):
                 self.ao.get_pert_soc_ks_eigenvalues()
@@ -561,6 +577,3 @@ class TestELSIOutput:
         assert (
             self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz
         )._getnnz() == 0
-
-
-# ruff: noqa: ANN001, S101, ERA001

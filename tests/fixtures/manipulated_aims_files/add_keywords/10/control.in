@@ -1,6 +1,6 @@
 # General settings:
 xc                      dfauto scan
-k_grid                  8   8   8
+k_grid                  8 8 8
 
 # Other settings:
 hse_unit                b

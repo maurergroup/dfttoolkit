@@ -163,4 +163,3 @@ class TestAimsControl:
             assert self.ac.check_periodic() is False
 
 
-# ruff: noqa: ANN001, S101, ERA001

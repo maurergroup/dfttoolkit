@@ -1,11 +1,11 @@
+import collections
+import os
+import re
 from typing import Any
 from warnings import warn
 
-import os
-import re
 import numpy as np
 import numpy.typing as npt
-import collections
 
 from .base import Parser
 from .utils.file_utils import MultiDict
@@ -89,8 +89,8 @@ class AimsControl(Parameters):
                 "spin": "none",
                 "charge": 0,
                 "relativistic": "atomic_zora scalar",
-                # 'occupation_type':'gaussian 0.01', # aims uses this broadening as default
-                # 'compensate_multipole_errors':'.true.', # always turned on, unless DFPT_phonon or magnetic_response is requested
+                # 'occupation_type':'gaussian 0.01',
+                # 'compensate_multipole_errors':'.true.',
                 "sc_accuracy_rho": 1e-5,
                 "sc_accuracy_etot": 1e-6,
             }
@@ -623,7 +623,7 @@ class SpeciesDefinition:
 
     def __init__(self, text):
         if os.path.isfile(text):
-            with open(text, "r") as f:
+            with open(text) as f:
                 text = f.read()
         self.text = text
         self.settings = collections.OrderedDict()
@@ -681,11 +681,11 @@ class SpeciesDefinition:
 
     def get_text(self):
         text = "#" * 45 + "\n"
-        text += "species {}\n\n".format(self.species)
+        text += f"species {self.species}\n\n"
         for s in self.settings:
             if s == "angular_grids":
                 text += "\n# Angular grid divisions\n"
-            text += "{} {}\n".format(s, _list_to_string(self.settings[s]))
+            text += f"{s} {_list_to_string(self.settings[s])}\n"
             if s == "angular_grids":
                 for d in self.angular_grid_divisions:
                     text += _list_to_string(d) + "\n"

@@ -1,5 +1,6 @@
 import os
 from os.path import join
+
 from dfttoolkit.output import AimsOutput
 
 
@@ -40,9 +41,7 @@ def find_all_aims_output_files(
                 if include_restart:
                     aims_fnames.append(join(root, fname))  # noqa: PTH118
                 else:
-                    root_name = os.path.basename(
-                        os.path.normpath(root)
-                    )  # noqa: PTH119
+                    root_name = os.path.basename(os.path.normpath(root))
                     is_restart_folder = len(root_name) == len(
                         "restartXX"
                     ) and root_name.startswith("restart")
@@ -137,7 +136,7 @@ def find_file(
 
     allfiles = [
         f for f in os.listdir(calc_dir) if os.path.isfile(join(calc_dir, f))
-    ]  # noqa: PTH113, PTH118, PTH208
+    ]
     filename = [f for f in allfiles if f.lower() in list_of_filenames]
 
     if allow_all_out_files and len(filename) == 0:
@@ -152,7 +151,7 @@ def find_file(
 
 def find_all_aims_calculations_and_status(startpath):
     """
-    Returns all AIMS calculations and their calculation status
+    Returns all AIMS calculations and their calculation status.
     """
     calculations_results = {}
 

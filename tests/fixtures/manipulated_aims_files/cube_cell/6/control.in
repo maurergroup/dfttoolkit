@@ -1,6 +1,6 @@
 # General settings:
 xc                      pbe
-k_grid                  8   8   8
+k_grid                  8 8 8
 
 # Other settings:
 relax_geometry          bfgs 5e-3
