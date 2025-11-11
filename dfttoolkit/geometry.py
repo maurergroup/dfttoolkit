@@ -233,7 +233,7 @@ class Geometry:
         for atom in atoms:
             species = atom.symbol
             if isinstance(species, int):
-                species = PeriodicTable.get_chemical_symbol(species)
+                species = PeriodicTable.get_symbol(species)
             species_list.append(species)
             coords.append(atom.position)
         coords = np.array(coords)
@@ -3173,7 +3173,7 @@ class Geometry:
                                 slab.add_atoms(
                                     [new_coord],
                                     [
-                                        PeriodicTable.get_chemical_symbol(
+                                        PeriodicTable.get_symbol(
                                             new_species
                                         )
                                     ],
@@ -3209,7 +3209,7 @@ class Geometry:
         )
 
         primitive_slab_species = [
-            PeriodicTable.get_chemical_symbol(s)
+            PeriodicTable.get_symbol(s)
             for s in primitive_slab_atomic_numbers
         ]
         primitive_slab_coords = primitive_slab_scaled_positions.dot(

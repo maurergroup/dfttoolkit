@@ -147,11 +147,11 @@ def find_file(
     return filename
 
 
-def find_all_aims_calculations_and_status(startpath) -> dict[str, dict]:
+def find_all_aims_calculations_and_status(startpath: str) -> dict[str, dict]:
     """Find all AIMS calculations and their calculation status."""
     calculations_results = {}
 
-    for root, dirs, files in os.walk(startpath):
+    for root, _, files in os.walk(startpath):
         if root == startpath:
             continue
 

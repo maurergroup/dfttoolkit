@@ -1,4 +1,3 @@
-import marimo as mo
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -435,19 +434,22 @@ class VisualiseCube(Cube):
             viewer instance or None if not running in Jupyter or Marimo
         """
         # Check if running in Jupyter
-        try:
-            from IPython import get_ipython  # pyright: ignore
+        # TODO
+        # try:
+        #     from IPython import (  # type: ignore[unresolved-import]
+        #         get_ipython,
+        #     )
 
-            if (
-                not mo.running_in_notebook()
-                or get_ipython().__class__.__name__ != "ZMQInteractiveShell"
-            ):
-                raise NotImplementedError(
-                    "The core_hole method is only available in a Jupyter session."
-                )
+        #     if (
+        #         not mo.running_in_notebook()
+        #         or get_ipython().__class__.__name__ != "ZMQInteractiveShell"
+        #     ):
+        #         raise NotImplementedError(
+        #             "The core_hole method is only available in a Jupyter session."
+        #         )
 
-        except (ImportError, AttributeError):
-            return None
+        # except (ImportError, AttributeError):
+        #     return None
 
         # Create the viewer
         ch_viewer = WeasWidget(**kwargs) if viewer is None else viewer
