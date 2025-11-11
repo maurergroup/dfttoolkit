@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import yaml
 
@@ -8,7 +8,7 @@ from .file_utils import classproperty
 
 class Element:
     """
-    Hold and access data for individual elements
+    Hold and access data for individual elements.
 
     ...
 
@@ -38,52 +38,79 @@ class Element:
     def __repr__(self):
         return f"Element({vars(self)})"
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         return getattr(self, key)
 
 
 class PeriodicTable:
     """
-    Create a periodic table object
+    Hold and access data for elements in the periodic table.
 
-    Returns
-    -------
-    dict
-        a dictionary representing the periodic table
+    ...
+
+    Attributes
+    ----------
+    elements: dict
+        Data on physical properties of elements
+    order: List[str]
+        Element names ordered by their atomic number
     """
 
+    # Parse the yaml file
     with open(Path(__file__).parent / "periodic_table.yaml") as pt:
-        _periodic_table = yaml.safe_load(pt)
+        _raw_table = yaml.safe_load(pt)
+
+    # Save
+    _order = _raw_table["order"]
+    _elements: ClassVar = {}
+    for name in _order:
+        del _raw_table[name]["name"]
+        _elements[_raw_table[name]["symbol"]] = Element(name, **_raw_table[name])
 
     def __new__(cls):
+        """Prevent instantiation of this class."""
         raise TypeError("This class cannot be instantiated.")
 
     @classproperty
-    def elements(cls) -> dict:
-        # Save
-        _order = cls._periodic_table["order"]
-        cls._elements = {}
-        for name in _order:
-            del cls._periodic_table[name]["name"]
-            # _elements[s] = Element(name, **_raw_table[name])
-            cls._elements[cls._periodic_table[name]["symbol"]] = Element(
-                name, **cls._periodic_table[name]
-            )
+    def elements(cls) -> dict[str, Element]:  # noqa: N805
+        """
+        Elements as a dictionary of their symbols mapped to element objects.
 
+        Returns
+        -------
+        dict[str, Element]
+            Dictionary of elements.
+        """
         return cls._elements
 
     @classproperty
-    def element_names(cls) -> list[str]:
-        return [e.name for e in cls.elements.values()]
+    def element_names(cls) -> list[str]:  # noqa: N805
+        """
+        Element names ordered by atomic number.
+
+        Returns
+        -------
+        list[str]
+            List of element names.
+        """
+        return [e.name for e in cls._elements.values()]
 
     @classproperty
-    def element_symbols(cls) -> list[str]:
-        return list(cls.elements.keys())
+    def element_symbols(cls) -> list[str]:  # noqa: N805
+        """
+        Element symbols ordered by atomic number.
+
+        Returns
+        -------
+        list[str]
+            List of element symbols.
+        """
+        return list(cls._elements.keys())
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:
         """
-        Retrieve an element as an instance of Element
+        Retrieve an element as an instance of Element.
 
         Parameters
         ----------
@@ -95,36 +122,27 @@ class PeriodicTable:
         Element
             Instance of Element.
         """
-        return cls.elements[symbol]
+        return cls._elements[symbol]
 
     @classmethod
-    def get_element_dict(cls, element: str | int) -> dict:
+    def get_symbol(cls, atomic_number: int) -> str:
+        """
+        Get the chemical symbol of an element.
 
-        element_dict = None
+        Parameters
+        ----------
+        atomic_number : int
+            Atomic number of the element.
 
-        if element in cls._periodic_table:
-            element_dict = cls._periodic_table[element]
-        else:
-            for key in cls._periodic_table["order"]:
-                element_0 = cls._periodic_table[key]
-
-                if (
-                    element == element_0["name"]
-                    or element == element_0["number"]
-                    or element == element_0["symbol"]
-                ):
-                    element_dict = element_0
-                    break
-
-        if element_dict is None:
-            raise ValueError(
-                f'Could not find element "{element}" in periodic table!'
-            )
-
-        return element_dict
+        Returns
+        -------
+        str
+            Chemical symbol.
+        """
+        return cls.element_symbols[atomic_number - 1]
 
     @classmethod
-    def get_name(cls, element: str | int) -> str:
+    def get_name(cls, symbol: str) -> str:
         """
         Get the full name of an element.
 
@@ -138,102 +156,78 @@ class PeriodicTable:
         str
             Full name.
         """
-        return cls.get_element_dict(element)["name"]
+        return cls.get_element(symbol).name
 
     @classmethod
-    def get_atomic_number(cls, element: str | int) -> int:
+    def get_atomic_number(cls, symbol: str) -> int:
         """
-        Returns the atomic number if given the species as a string.
+        Get the atomic number of an element.
 
         Parameters
         ----------
-        species : str or int
-            Name or chemical sysmbol of the atomic species.
+        symbol : str
+            Chemical symbol of the element
 
         Returns
         -------
         int
-            atomic number.
-
+            Atomic number.
         """
-        return cls.get_element_dict(element)["number"]
+        return cls.get_element(symbol).atomic_number
 
     @classmethod
-    def get_atomic_mass(cls, element: str | int) -> float:
+    def get_atomic_mass(cls, symbol: str) -> float:
         """
-        Returns the atomic mass if given the species as a string.
+        Get the atomic mass of an element.
 
         Parameters
         ----------
-        species : str or int
-            Name or chemical sysmbol of the atomic species.
+        symbol : str
+            chemical symbol of the element
 
         Returns
         -------
         float
-            atomic mass in atomic units.
-
+            Atomic mass.
         """
-        return cls.get_element_dict(element)["atomic_mass"]
+        return cls.get_element(symbol).atomic_mass
 
     @classmethod
-    def get_chemical_symbol(cls, element: str | int) -> float:
+    def get_covalent_radius(cls, symbol: str) -> float:
         """
-        Returns the chemical symbol if given the species as an atomic number.
+        Get the covalent radius of an element.
 
         Parameters
         ----------
-        species : str or int
-            Name or chemical sysmbol of the atomic species.
-
-        Returns
-        -------
-        float
-            atomic mass in atomic units.
-
-        """
-        return cls.get_element_dict(element)["symbol"]
-
-    @classmethod
-    def get_covalent_radius(cls, element: str | int) -> float:
-        """
-        Returns the chemical symbol if given the species as an atomic number.
-
-        Parameters
-        ----------
-        species : str or int
-            Name or chemical sysmbol of the atomic species.
+        symbol : str
+            chemical symbol of the element
 
         Returns
         -------
         float
             Covalent radius in atomic units.
-
         """
         with open(Path(__file__).parent / "covalent_radii.yaml") as cr:
             data = yaml.safe_load(cr)
 
-        return data[cls.get_element_dict(element)["symbol"]]
+        return data[symbol]
 
     @classmethod
-    def get_species_colours(cls, element: str | int) -> float:
+    def get_species_colours(cls, symbol: str) -> tuple[float, float, float]:
         """
-        Returns the chemical symbol if given the species as an atomic number.
+        Get the JMol colour of an element.
 
         Parameters
         ----------
-        species : str or int
-            Name or chemical sysmbol of the atomic species.
+        symbol : str
+            chemical symbol of the element
 
         Returns
         -------
-        float
+        Tuple[float, float, float]
             Covalent radius in atomic units.
-
         """
-        with open(
-            Path(__file__).parent / "elemental_colourmaps.yaml"
-        ) as ec:
+        with open(Path(__file__).parent / "elemental_colourmaps.yaml") as ec:
             data = yaml.safe_load(ec)
 
-        return data[cls.get_element_dict(element)["symbol"]]
+        return data[symbol]

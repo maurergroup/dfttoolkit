@@ -1,5 +1,6 @@
 import os
-from os.path import join
+from pathlib import Path
+
 from dfttoolkit.output import AimsOutput
 
 
@@ -36,18 +37,17 @@ def find_all_aims_output_files(
         )
 
         if len(fname_list) > 0:
+            root_path = Path(root)
             for fname in fname_list:
                 if include_restart:
-                    aims_fnames.append(join(root, fname))  # noqa: PTH118
+                    aims_fnames.append(root / fname)
                 else:
-                    root_name = os.path.basename(
-                        os.path.normpath(root)
-                    )  # noqa: PTH119
+                    root_name = root_path.name
                     is_restart_folder = len(root_name) == len(
                         "restartXX"
                     ) and root_name.startswith("restart")
                     if not is_restart_folder:
-                        aims_fnames.append(join(root, fname))  # noqa: PTH118
+                        aims_fnames.append(root / fname)
 
     return aims_fnames
 
@@ -102,9 +102,7 @@ def find_vasp_output_file(calc_dir: str) -> list:
     list
         List of found output files
     """
-    return find_file(
-        calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"]
-    )
+    return find_file(calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"])
 
 
 def find_file(
@@ -135,9 +133,8 @@ def find_file(
     if list_of_filenames is None:
         list_of_filenames = []
 
-    allfiles = [
-        f for f in os.listdir(calc_dir) if os.path.isfile(join(calc_dir, f))
-    ]  # noqa: PTH113, PTH118, PTH208
+    calc_dir_path = Path(calc_dir)
+    allfiles = [f.name for f in calc_dir_path.iterdir() if f.is_file()]
     filename = [f for f in allfiles if f.lower() in list_of_filenames]
 
     if allow_all_out_files and len(filename) == 0:
@@ -150,28 +147,27 @@ def find_file(
     return filename
 
 
-def find_all_aims_calculations_and_status(startpath):
-    """
-    Returns all AIMS calculations and their calculation status
-    """
+def find_all_aims_calculations_and_status(startpath) -> dict[str, dict]:
+    """Find all AIMS calculations and their calculation status."""
     calculations_results = {}
 
     for root, dirs, files in os.walk(startpath):
         if root == startpath:
             continue
 
-        path_from_start = root.replace(os.path.basename(root), "")
+        root_path = Path(root)
+        path_from_start = str(root_path.parent)
         control_in_folder = "control.in" in files
         geometry_in_folder = "geometry.in" in files
 
         output_file_name = find_aims_output_file(root)
-        output_in_folder = True if len(output_file_name) > 0 else False
-        folder_name = os.path.basename(root)
+        output_in_folder = bool(output_file_name)
+        folder_name = root_path.name
 
         if output_in_folder:
             values_dict = {}
-            # cach if found file is not an actual AIMS output file?
-            aims_out = AimsOutput(join(root, output_file_name[0]))
+            # catch if found file is not an actual AIMS output file?
+            aims_out = AimsOutput(str(root / output_file_name[0]))
             values_dict["started"] = True
             values_dict["finished"] = aims_out.check_exit_normal()
             values_dict["path"] = path_from_start
