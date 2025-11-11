@@ -139,7 +139,7 @@ class PeriodicTable:
         str
             Chemical symbol.
         """
-        return cls.element_symbols()[atomic_number]
+        return cls.element_symbols[atomic_number - 1]
 
     @classmethod
     def get_name(cls, symbol: str) -> str:

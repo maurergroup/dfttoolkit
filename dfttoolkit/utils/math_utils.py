@@ -434,7 +434,9 @@ def hann_window(N: int) -> npt.NDArray[np.float64]:
     return 0.5 * (1 - np.cos(2 * np.pi * np.arange(N) / (N - 1)))
 
 
-def apply_window(data: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def apply_hann_window(
+    data: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
     """
     Apply a Hann window to an array.
 
@@ -593,7 +595,10 @@ def get_moving_average(
 
 
 def get_maxima_in_moving_interval(
-    function_values: npt.NDArray, interval_size: int, step_size: int, filter_value: int
+    function_values: npt.NDArray,
+    interval_size: int,
+    step_size: int,
+    filter_value: int,
 ) -> npt.NDArray:
     """
     Slide an interval along the function, filtering out points below a threshold.

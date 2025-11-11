@@ -18,7 +18,8 @@ parallel_numba = os.environ.get("PARALLEL_NUMBA")
 
 if parallel_numba is None:
     warnings.warn(
-        "System variable <parallel_numba> not set. Using default!", stacklevel=2
+        "System variable <parallel_numba> not set. Using default!",
+        stacklevel=2,
     )
     parallel_numba = True
 else:

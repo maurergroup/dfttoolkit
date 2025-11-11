@@ -10,6 +10,7 @@ import numpy.typing as npt
 from .geometry import AimsGeometry, VaspGeometry
 from .utils import units
 from .utils import vibrations_utils as vu
+from .utils.periodic_table import PeriodicTable
 
 
 class Vibrations:
@@ -37,11 +38,11 @@ class Vibrations:
         return new_vibration
 
     @property
-    def vibration_coors(self) -> list[npt.NDArray[np.float64]]:
+    def vibration_coords(self) -> list[npt.NDArray[np.float64]]:
         return self._vibration_coords
 
-    @vibration_coors.setter
-    def vibration_coors(self, vibration_coords: list[npt.NDArray[np.float64]]) -> None:
+    @vibration_coords.setter
+    def vibration_coords(self, vibration_coords: list[npt.NDArray[np.float64]]) -> None:
         self._vibration_coords = vibration_coords
 
     @property
@@ -76,7 +77,9 @@ class Vibrations:
     def eigenvectors(self, eigenvectors: npt.NDArray[np.float64]) -> None:
         self._eigenvectors = eigenvectors
 
-    def get_displacements(self, displacement: float = 0.0025) -> list:
+    def get_displacements(
+        self, displacement: float = 0.0025, directions: list | None = None
+    ) -> list:  # pyright:ignore
         """
         Apply a given displacement for each degree of freedom of self and
         generates a new vibration with it.
@@ -84,7 +87,7 @@ class Vibrations:
         Parameters
         ----------
         displacement : float, default=0.0025
-            Displacement for finte difference calculation of vibrations in
+            Displacement for finite difference calculation of vibrations in
             Angstrom.
 
         Returns
@@ -95,7 +98,8 @@ class Vibrations:
         """  # noqa: D205
         geometries_displaced = [self]
 
-        directions = [-1, 1]
+        if directions is None:
+            directions = [1]
 
         for i in range(self.n_atoms):  # pyright:ignore
             for dim in range(3):
@@ -122,7 +126,7 @@ class Vibrations:
             Mass tensor in atomic units.
         """
         mass_vector = [
-            self.periodic_table.get_atomic_mass(s)  # pyright:ignore
+            PeriodicTable.get_atomic_mass(s)  # pyright:ignore
             for s in self.species  # pyright:ignore
         ]
         mass_vector = np.repeat(mass_vector, 3)
@@ -152,18 +156,18 @@ class Vibrations:
         N = len(self) * 3  # pyright:ignore
         H = np.zeros([N, N])
 
-        if not np.allclose(self.coors, self.vibration_coors[0]):  # pyright:ignore
+        if not np.allclose(self.coords, self.vibration_coords[0]):  # pyright:ignore
             raise ValueError(
                 "The first entry in vibration_coords must be identical to the "
                 "undispaced geometry."
             )
 
-        coords_0 = self.vibration_coors[0].flatten()
+        coords_0 = self.vibration_coords[0].flatten()
         F_0 = self.vibration_forces[0].flatten()
 
         n_forces = np.zeros(N, np.int64)
 
-        for c, F in zip(self.vibration_coors, self.vibration_forces, strict=False):
+        for c, F in zip(self.vibration_coords, self.vibration_forces, strict=False):
             dF = F.flatten() - F_0
             dx = c.flatten() - coords_0
             ind = np.argmax(np.abs(dx))
@@ -225,7 +229,7 @@ class Vibrations:
 
     def get_eigenvalues_and_eigenvectors(
         self,
-        hessian: npt.NDArray[np.float64] | None = None,
+        hessian: npt.NDArray[np.float64] | None = None,  # pyright:ignore
         only_real: bool = True,
         symmetrize_hessian: bool = True,
         eigenvectors_to_cartesian: bool = False,
@@ -347,6 +351,76 @@ class Vibrations:
     ) -> npt.NDArray[np.float64]:
         omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
         return omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
+
+    def get_thermally_displaced_geometry(
+        self, temperature: np.float64, classical: bool = True
+    ) -> list:  # pyright:ignore
+        """
+        Generate thermally displaced structures from vibrational modes.
+
+        Parameters
+        ----------
+        modes : np.ndarray
+            Normalized mode eigenvectors, shape (n_modes, 3N).
+        frequencies : np.ndarray
+            Frequencies in Hz or rad/s, shape (n_modes,).
+        masses : np.ndarray
+            Atomic masses in kg, shape (N_atoms,).
+        temperature : float
+            Temperature in Kelvin.
+        n_samples : int
+            Number of thermally displaced geometries to generate.
+        classical : bool
+            If True, uses classical approximation (kT), else quantum formula.
+
+        Returns
+        -------
+        displacements : list of np.ndarray
+            List of atomic displacements (shape (3N,)) for each snapshot.
+        """
+        kB = 1.380649e-23  # J/K
+
+        eigenvalues = self.get_eigenvalues_in_Hz()
+        n_modes = len(eigenvalues)
+
+        new_geometry = copy.deepcopy(self)
+
+        displacement = np.zeros((len(self), 3))
+        for i in range(n_modes):
+            freq = eigenvalues[i]
+            if freq < 1e-12:
+                continue  # skip zero or imaginary modes
+
+            omega = 2 * np.pi * freq
+            if classical:
+                var_qi = kB * temperature / (omega**2)
+            else:
+                hbar = 1.054571817e-34
+                # var_qi = (
+                #     (hbar / (2 * omega))
+                #     * np.cosh(hbar * omega / (2 * kB * temperature))
+                #     / np.sinh(hbar * omega / (2 * kB * temperature))
+                # )
+                var_qi = (hbar / (2 * omega)) / np.tanh(
+                    hbar * omega / (2 * kB * temperature)
+                )
+
+            # Convert to atomic units
+            # var_qi (kg m²) -> var_qi (u A²)
+            var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
+
+            amp = np.random.Generator(0.0, np.sqrt(var_qi))  # pyright:ignore
+            print(amp)
+            displacement += amp * self.eigenvectors[i]
+
+        # Convert from mass weighted to Cartesian coordinates
+        m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
+
+        displacement /= m
+
+        new_geometry.coords += displacement
+
+        return new_geometry
 
     def get_atom_type_index(self) -> npt.NDArray[np.int64]:
         n_atoms = len(self)  # pyright:ignore
