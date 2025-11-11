@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dfttoolkit"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
   "ase>=3.22.1",
   "click>=8.2.1",
