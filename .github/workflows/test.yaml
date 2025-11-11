@@ -38,4 +38,3 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          compare-ref: ${{ github.event.repository.default_branch }}
