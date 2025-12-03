@@ -13,7 +13,7 @@ class TestRunUtils:
 
     @pytest.fixture(scope="class")
     def default_calc_dir(self) -> str:
-        return Path.cwd().parent / "fixtures/default_aims_calcs/1"
+        return str(Path(__file__).parent / "fixtures" / "default_aims_calcs" / "1")
 
     @pytest.fixture(scope="class")
     def warn_msg(self) -> str:

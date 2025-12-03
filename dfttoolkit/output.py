@@ -1308,8 +1308,6 @@ class AimsOutput(Output):
         ------
         ItemNotFoundError
             the 'output_level full' keyword was not found in the calculation
-        ValueError
-            could not determine if the calculation was spin polarised
         """
         # Check if the calculation was spin polarised
         spin_polarised = self.check_spin_polarised()
@@ -1342,7 +1340,7 @@ class AimsOutput(Output):
                     self._get_ks_states(i + 1, eigenvalues, n, n_ks_states)
                     n += 1
 
-            return eigenvalues
+            evals = eigenvalues
 
         if spin_polarised:
             su_eigenvalues = {
@@ -1378,9 +1376,9 @@ class AimsOutput(Output):
                         self._get_ks_states(i + 1, sd_eigenvalues, down_n, n_ks_states)
                         down_n += 1
 
-            return su_eigenvalues, sd_eigenvalues
+            evals = su_eigenvalues, sd_eigenvalues
 
-        return None
+        return evals
 
     def get_final_ks_eigenvalues(
         self,

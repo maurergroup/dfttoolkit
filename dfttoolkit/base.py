@@ -108,6 +108,7 @@ class Parser(File, ABC):
     @abstractmethod
     def _supported_files(self) -> dict[str, str]:
         """Currently supported output file types and extensions."""
+        ...
 
     def __init_subclass__(cls, **kwargs: str):
         super().__init_subclass__(**kwargs)
