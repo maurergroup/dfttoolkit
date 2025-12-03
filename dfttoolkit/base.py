@@ -17,11 +17,11 @@ class File:
     Attributes
     ----------
     path : str
-        the path to the file
+        the path to the file.
     format : str
-        the type of file it is (eg. aims.out, control.in, etc.)
+        the type of file it is (eg. aims.out, control.in, etc.).
     name : str
-        the name of the file
+        the name of the file.
     extension : str
         the extension of the file
     lines : list[str] | bytes
@@ -97,7 +97,7 @@ class Parser(File, ABC):
         if key not in supported_files:
             raise UnsupportedFileError(key, supported_files.keys())
 
-        # Check if the provided file is a valid file type
+        # Check if the provided file is a valid filetype
         if supported_files.get(key) != Path(kwargs[key]).suffix:
             msg = f"{kwargs[key]} is not a valid {key} file"
             raise KeyError(msg)
@@ -108,7 +108,6 @@ class Parser(File, ABC):
     @abstractmethod
     def _supported_files(self) -> dict[str, str]:
         """Currently supported output file types and extensions."""
-        ...
 
     def __init_subclass__(cls, **kwargs: str):
         super().__init_subclass__(**kwargs)

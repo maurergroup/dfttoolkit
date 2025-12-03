@@ -47,7 +47,7 @@ def cwd() -> Path:
 
 
 @pytest.fixture(scope="session")
-def aims_calc_dir(run_aims, cwd) -> Generator[str, None, None] | str:  # noqa: ANN001
+def aims_calc_dir(run_aims: bool, cwd: Path) -> Generator[str, None, None] | str:
     """
     Run FHI-aims calculations using a custom binary if specified by --run-aims.
 
@@ -57,7 +57,7 @@ def aims_calc_dir(run_aims, cwd) -> Generator[str, None, None] | str:  # noqa: A
     """
     # Check if the directory already exists
     if Path("custom_bin_aims_calcs").is_dir() and run_aims != "change_bin":
-        return "custom_bin_aims_calcs"
+        yield "custom_bin_aims_calcs"
     elif run_aims is not False:
         binary = aims_bin_path_prompt(run_aims, cwd)
         subprocess.run(  # noqa: S603

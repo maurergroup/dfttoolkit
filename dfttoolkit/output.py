@@ -250,7 +250,8 @@ class AimsOutput(Output):
 
         return parameters
 
-    def get_basis_sets(self) -> dict[str, str]: ...
+    def get_basis_sets(self) -> dict[str, str]:
+        raise NotImplementedError
 
     def check_exit_normal(self) -> bool:
         """
@@ -345,11 +346,11 @@ class AimsOutput(Output):
         skip_next_energy = False  # only relevant if energy_invalid_indicator != None
         use_next_energy = False  # only relevant if energy_valid_indicator != None
 
-        if skip_next_energy and use_next_energy:
-            raise ValueError(
-                "AIMSOutput._get_energy: usage of skip_next_energy and "
-                "use_next_energy at the same function call is undefined!"
-            )
+        # if skip_next_energy and use_next_energy:
+        #     raise ValueError(
+        #         "AIMSOutput._get_energy: usage of skip_next_energy and "
+        #         "use_next_energy at the same function call is undefined!"
+        #     )
 
         # energy (in)valid indicator allows now for multiple values, if a list is
         # provided. Otherwise, everything works out as before.
@@ -1287,6 +1288,7 @@ class AimsOutput(Output):
             dict[str, npt.NDArray[np.int64 | np.float64]],
             dict[str, npt.NDArray[np.int64 | np.float64]],
         ]
+        | None
     ):
         """
         Get all Kohn-Sham eigenvalues from a calculation.
@@ -1378,7 +1380,7 @@ class AimsOutput(Output):
 
             return su_eigenvalues, sd_eigenvalues
 
-        raise ValueError("Could not determine if calculation was spin polarised.")
+        return None
 
     def get_final_ks_eigenvalues(
         self,

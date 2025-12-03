@@ -98,6 +98,7 @@ class Geometry:
                 self.lattice_vectors, other.lattice_vectors
             )
             equal = equal and self.species == other.species
+
         return equal
 
     def __len__(self):
@@ -125,6 +126,7 @@ class Geometry:
             raise ValueError(f'Type "{geometry_type}" is not availlable.')
 
         new_geometry.__dict__ = self.__dict__
+
         return new_geometry
 
     ###########################################################################
@@ -2279,13 +2281,6 @@ class Geometry:
         """
         raise NotImplementedError
 
-        # TODO write the below function
-        neighbouring_atoms = self.get_all_neighbouring_atoms(
-            bond_factor=bond_factor
-        )
-        bond_lengths = [v[1] for v in neighbouring_atoms.values()]
-
-        return np.array(bond_lengths)
 
     def get_number_of_atom_layers(
         self, threshold: float = 1e-2
@@ -3347,7 +3342,6 @@ class Geometry:
                         atom_distances, distance_threshold
                     )
         if len(index_tuples) > 0:
-            G = nx.Graph()
             G = nx.from_edgelist(
                 itertools.chain.from_iterable(
                     itertools.pairwise(e) for e in index_tuples
@@ -3723,7 +3717,6 @@ class Geometry:
         print_lattice_vectors=False,
         alpha=1.0,
         linewidth=1,
-        lattice_linewidth=None,
         lattice_color="k",
         atom_scale=1,
         highlight_inds=[],
@@ -3855,10 +3848,6 @@ class Geometry:
         None
 
         """
-        # default for lattice_linewidth (which is used to draw the lattice)
-        if lattice_linewidth is None:
-            lattice_linewidth = 2 * linewidth
-
         orig_inds = np.arange(self.n_atoms)
         remove_inds = []
         if xlim is not None:
@@ -4218,6 +4207,18 @@ class Geometry:
 
 
 class AimsGeometry(Geometry):
+    def __eq__(self, other):
+        if len(self) != len(other):
+            return False
+        else:
+            equal = np.allclose(self.coords, other.coords)
+            equal = equal and np.allclose(
+                self.lattice_vectors, other.lattice_vectors
+            )
+            equal = equal and self.species == other.species
+
+        return equal
+
     def parse(self, text):
         """
         Parses text from AIMS geometry file and sets all necessary parameters
@@ -4632,6 +4633,18 @@ class AimsGeometry(Geometry):
 
 
 class VaspGeometry(Geometry):
+    def __eq__(self, other):
+        if len(self) != len(other):
+            return False
+        else:
+            equal = np.allclose(self.coords, other.coords)
+            equal = equal and np.allclose(
+                self.lattice_vectors, other.lattice_vectors
+            )
+            equal = equal and self.species == other.species
+
+        return equal
+
     def parse(self, text):
         """
         Read the VASP structure definition in the typical POSCAR format
@@ -4854,6 +4867,18 @@ class VaspGeometry(Geometry):
 
 
 class XYZGeometry(Geometry):
+    def __eq__(self, other):
+        if len(self) != len(other):
+            return False
+        else:
+            equal = np.allclose(self.coords, other.coords)
+            equal = equal and np.allclose(
+                self.lattice_vectors, other.lattice_vectors
+            )
+            equal = equal and self.species == other.species
+
+        return equal
+
     def parse(self, text):
         """
         Reads a .xyz file. Designed to work with .xyz files produced by Avogadro

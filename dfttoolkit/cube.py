@@ -860,44 +860,6 @@ class Cube(Parser):
 
         return values
 
-    def calculate_distance_to_local_geometry(
-        self, adsorption_geometry: Geometry
-    ) -> None:
-        """
-        Compute distance between cube file molecule and its local adsorption geometry.
-
-        Parameters
-        ----------
-        adsorption_geometry : Geometry
-            Geometry of the local adsorption geometry.
-        """
-        raise NotImplementedError(
-            "This was originally implemented using `Geometry.get_molecules()` but "
-            "this is (no longer?) defined as an attribute of Geometry"
-        )
-
-        cube_mol = self.geometry.get_molecules()
-        cube_geom_center = cube_mol.get_geometric_center(ignore_center_attribute=True)
-        ads_geom_center = adsorption_geometry.get_geometric_center(
-            ignore_center_attribute=True
-        )
-        distance_to_adsorption_geometry = ads_geom_center - cube_geom_center
-        coord_diff = np.max(
-            cube_mol.coords
-            + distance_to_adsorption_geometry
-            - adsorption_geometry.coords
-        )
-
-        if coord_diff < 5e-2:
-            msg = (
-                "Local Geometry doesnt match cube geometry!, difference is ",
-                coord_diff,
-            )
-            raise ValueError(msg)
-
-        self.corresponding_adsorption_geometry = adsorption_geometry
-        self.distance_to_adsorption_geometry = ads_geom_center - cube_geom_center
-
     def get_values_on_plane(
         self,
         plane_centre: npt.NDArray,

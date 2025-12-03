@@ -333,10 +333,10 @@ class CubeParameters(Parameters):
         self._parsing_functions = {
             "spinstate": [
                 lambda x: int(x[0]),
-                lambda x: str(x),
+                str,
             ],
-            "kpoint": [lambda x: int(x[0]), lambda x: str(x)],
-            "divisor": [lambda x: int(x[0]), lambda x: str(x)],
+            "kpoint": [lambda x: int(x[0]), str],
+            "divisor": [lambda x: int(x[0]), str],
             "spinmask": [
                 lambda x: [int(k) for k in x],
                 lambda x: "  ".join([str(k) for k in x]),
@@ -365,7 +365,7 @@ class CubeParameters(Parameters):
 
     @property
     def type(self) -> str:
-        """Everythin that comes after output cube as a single string."""
+        """Everything that comes after output cube as a single string."""
         return self._type
 
     @type.setter
@@ -415,23 +415,23 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Type annotations need to be fixed")
 
-        self.settings["edge"] = []
-        for i, d in enumerate(edges[0]):
-            self.settings["edge"].append([d, *list(edges[1][i, :])])
+        # self.settings["edge"] = []
+        # for i, d in enumerate(edges[0]):
+        #     self.settings["edge"].append([d, *list(edges[1][i, :])])
 
     @property
     def grid_vectors(self) -> float:
         raise NotImplementedError("See edges.setter")
 
-        edges = self.edges
-        return edges[:, 1:]
+        # edges = self.edges
+        # return edges[:, 1:]
 
     @property
     def divisions(self) -> float:
         raise NotImplementedError("See edges.setter")
 
-        edges = self.edges
-        return edges[:, 0]
+        # edges = self.edges
+        # return edges[:, 0]
 
     @divisions.setter
     def divisions(self, divs: npt.NDArray[np.float64]) -> None:
@@ -554,30 +554,29 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Origin parameter needs to be fixed")
 
-        # TODO: why is this necessary?
-        self.origin = [0, 0, 0]
-        self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+        # self.origin = [0, 0, 0]
+        # self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 
-        # set one dimension at a time
-        for i, lim in enumerate([x_limits, y_limits, z_limits]):
-            if lim[0] >= lim[1]:
-                raise ValueError("Ensure the minimum is given first")
+        # # set one dimension at a time
+        # for i, lim in enumerate([x_limits, y_limits, z_limits]):
+        #     if lim[0] >= lim[1]:
+        #         raise ValueError("Ensure the minimum is given first")
 
-            diff = lim[1] - lim[0]
+        #     diff = lim[1] - lim[0]
 
-            # set origin
-            center = lim[0] + (diff / 2)
-            self.settings["origin"][0][i] = center
+        #     # set origin
+        #     center = lim[0] + (diff / 2)
+        #     self.settings["origin"][0][i] = center
 
-            # set edges
-            space = spacing[i] if isinstance(spacing, list) else spacing
+        #     # set edges
+        #     space = spacing[i] if isinstance(spacing, list) else spacing
 
-            # size of voxel
-            self.settings["edge"][i][i + 1] = space
+        #     # size of voxel
+        #     self.settings["edge"][i][i + 1] = space
 
-            # number of voxels
-            n_voxels = int(diff / space) + 1
-            self.settings["edge"][i][0] = n_voxels
+        #     # number of voxels
+        #     n_voxels = int(diff / space) + 1
+        #     self.settings["edge"][i][0] = n_voxels
 
     def get_text(self) -> str:
         """
@@ -589,20 +588,20 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Fix self.parsing_functions type")
 
-        text = ""
-        if len(self.type) > 0:
-            text += "output cube " + self.type + "\n"
-        else:
-            warn("No cube type specified", stacklevel=2)
-            text += "output cube" + "CUBETYPE" + "\n"
+        # text = ""
+        # if len(self.type) > 0:
+        #     text += "output cube " + self.type + "\n"
+        # else:
+        #     warn("No cube type specified", stacklevel=2)
+        #     text += "output cube" + "CUBETYPE" + "\n"
 
-        for key, values in self.settings.items():
-            for v in values:
-                text += "cube " + key + " "
-                if key in self.parsing_functions:
-                    text += self.parsing_functions[key][1](v) + "\n"
-                else:
-                    print(v)
-                    text += v + "\n"
+        # for key, values in self.settings.items():
+        #     for v in values:
+        #         text += "cube " + key + " "
+        #         if key in self.parsing_functions:
+        #             text += self.parsing_functions[key][1](v) + "\n"
+        #         else:
+        #             print(v)
+        #             text += v + "\n"
 
-        return text
+        # return text

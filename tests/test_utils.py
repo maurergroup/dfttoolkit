@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -9,14 +9,11 @@ from dfttoolkit.utils.run_utils import no_repeat
 
 
 class TestRunUtils:
-    """Tests and fixtures for run_utils.py."""
+    """Tests and fixtures for run_utils."""
 
     @pytest.fixture(scope="class")
     def default_calc_dir(self) -> str:
-        return (
-            f"{os.path.dirname(os.path.realpath(__file__))}/fixtures/"  # noqa: PTH120
-            "default_aims_calcs/1"
-        )
+        return Path.cwd().parent / "fixtures/default_aims_calcs/1"
 
     @pytest.fixture(scope="class")
     def warn_msg(self) -> str:
@@ -217,8 +214,7 @@ class TestMathUtils:
         assert np.isclose(mu.rel_mae(delta, xyz_1_arr * 2), 2 / 3)
 
 
-class TestPeriodicTable: ...  # noqa: D101
+class TestPeriodicTable:
+    """Tests and fixtures for periodic_table.py."""
 
-
-
-# ruff: noqa: ANN001, S101
+    raise NotImplementedError

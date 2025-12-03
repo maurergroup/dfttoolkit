@@ -719,17 +719,29 @@ def _output_cross_spectrum(
     )
 
 
-class AimsVibrations(Vibrations, AimsGeometry):  # pyright: ignore
+class AimsVibrations(Vibrations, AimsGeometry):
     """TODO."""
 
     def __init__(self, filename: str | None = None):
         Vibrations.__init__(self)
         AimsGeometry.__init__(self, filename=filename)
 
+    def get_instance_of_other_type(
+        self, *args: str, **kwargs: str
+    ) -> "AimsVibrations | VaspVibrations":
+        """Explicitly delegate to Vibrations to resolve ambiguity."""
+        return Vibrations.get_instance_of_other_type(self, *args, **kwargs)
 
-class VaspVibrations(Vibrations, VaspGeometry):  # pyright: ignore
+
+class VaspVibrations(Vibrations, VaspGeometry):
     """TODO."""
 
     def __init__(self, filename: str | None = None):
         Vibrations.__init__(self)
         VaspGeometry.__init__(self, filename=filename)
+
+    def get_instance_of_other_type(
+        self, *args: str, **kwargs: str
+    ) -> "AimsVibrations | VaspVibrations":
+        """Explicitly delegate to Vibrations to resolve ambiguity."""
+        return Vibrations.get_instance_of_other_type(self, *args, **kwargs)
