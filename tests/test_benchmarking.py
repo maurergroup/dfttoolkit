@@ -1,5 +1,8 @@
-class TestBenchmarking: ...  # noqa: D101
+import pytest
 
 
+@pytest.mark.skip
+class TestBenchmarking:
+    """Tests for the benchmarking module."""
 
-# ruff: noqa: ANN001, S101, ERA001
+    # TODO

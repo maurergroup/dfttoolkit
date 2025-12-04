@@ -52,7 +52,7 @@ class PeriodicTable:
     ----------
     elements: dict
         Data on physical properties of elements
-    order: List[str]
+    order: list[str]
         Element names ordered by their atomic number
     """
 
@@ -68,11 +68,11 @@ class PeriodicTable:
         _elements[_raw_table[name]["symbol"]] = Element(name, **_raw_table[name])
 
     def __new__(cls):
-        """Prevent instantiation of this class."""
+        """Prevent instantiation."""
         raise TypeError("This class cannot be instantiated.")
 
     @classproperty
-    def elements(cls) -> dict[str, Element]:  # noqa: N805
+    def elements(self) -> dict[str, Element]:
         """
         Elements as a dictionary of their symbols mapped to element objects.
 
@@ -81,10 +81,10 @@ class PeriodicTable:
         dict[str, Element]
             Dictionary of elements.
         """
-        return cls._elements
+        return self._elements
 
     @classproperty
-    def element_names(cls) -> list[str]:  # noqa: N805
+    def element_names(self) -> list[str]:
         """
         Element names ordered by atomic number.
 
@@ -93,10 +93,10 @@ class PeriodicTable:
         list[str]
             List of element names.
         """
-        return [e.name for e in cls._elements.values()]
+        return [e.name for e in self._elements.values()]
 
     @classproperty
-    def element_symbols(cls) -> list[str]:  # noqa: N805
+    def element_symbols(self) -> list[str]:
         """
         Element symbols ordered by atomic number.
 
@@ -105,7 +105,7 @@ class PeriodicTable:
         list[str]
             List of element symbols.
         """
-        return list(cls._elements.keys())
+        return list(self._elements.keys())
 
     @classmethod
     def get_element(cls, symbol: str) -> Element:

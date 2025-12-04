@@ -4,7 +4,7 @@ import numpy.typing as npt
 from .output import AimsOutput
 
 
-class BenchmarkAims(AimsOutput):
+class BenchmarkAims:
     """
     Calculate benchmarking metrics for FHI-aims calculations.
 

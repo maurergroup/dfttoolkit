@@ -1,18 +1,51 @@
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, overload
 from warnings import warn
 
 
+class NamedCallable(Protocol):
+    """Type for callables with a `__name__` attribute."""
+
+    __name__: str
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
+
+
+Wrapper = Callable[..., Any | None]
+Decorator = Callable[[NamedCallable], Wrapper]
+
+
+# Use overloads for whether the decorator returns a decorator or a wrapper
+@overload
 def no_repeat(
-    _func: Callable[..., Any] | None = None,
+    _func: None = None,
+    *,
+    output_file: str = "aims.out",
+    calc_dir: str = "./",
+    force: bool = False,
+) -> Decorator: ...
+
+
+@overload
+def no_repeat(
+    _func: NamedCallable,
+    *,
+    output_file: str = "aims.out",
+    calc_dir: str = "./",
+    force: bool = False,
+) -> Wrapper: ...
+
+
+def no_repeat(
+    _func: NamedCallable | None = None,
     *,
     output_file: str = "aims.out",
     calc_dir: str = "./",
     force: bool = False,
     suppress_warn: bool = False,
-) -> Callable[..., Any]:
+) -> Decorator | Wrapper:
     """
     Skip function execution if a specified file already exists.
 
@@ -50,9 +83,9 @@ def no_repeat(
     TODO
     """
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: NamedCallable) -> Wrapper:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Callable[..., Any] | None:
+        def wrapper(*args: Any, **kwargs: Any) -> Any | None:
             # Allow override via kwargs
             output = kwargs.pop("output_file", output_file)
             dir_ = Path(str(kwargs.pop("calc_dir", calc_dir)))

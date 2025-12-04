@@ -123,7 +123,6 @@ class TestParser:
     def csc_path(self, cwd) -> Path:
         return cwd / "fixtures/base_test_files/test.csc"
 
-
     @pytest.mark.parametrize(
         ("path", "key", "binary", "expectation"),
         [
@@ -159,12 +158,17 @@ class TestParser:
                 dummy_parser(binary, **kwargs)
 
     def test_no_cls_init(self) -> None:
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError):  # noqa: PT012
 
-            class DummyParser(Parser):  # pyright: ignore[reportUnusedClass]
+            class DummyParser(Parser):
                 @property
                 def _supported_files(self) -> dict:
                     return {"arbitrary_format": ".arb_format"}
+
+                def dummy_method() -> None:
+                    return None
+
+            DummyParser.dummy_method()
 
     def test_no_supported_files_property(self) -> None:
         class DummyParser(Parser):
@@ -174,18 +178,24 @@ class TestParser:
                 self._check_binary(False)
 
         with pytest.raises(TypeError):
-            DummyParser()  # pyright: ignore[reportAbstractUsage]
+            DummyParser()
 
     def test_no_check_binary(self) -> None:
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError):  # noqa: PT012
 
-            class DummyParser(Parser):  # pyright: ignore[reportUnusedClass]
+            class DummyParser(Parser):
                 def __init__(self, **kwargs: str):
                     super().__init__(self._supported_files, **kwargs)
 
                 @property
                 def _supported_files(self) -> dict:
                     return {"arbitrary_format": ".arb_format"}
+
+                def dummy_method(self) -> None:
+                    return None
+
+            dp = DummyParser()
+            dp.dummy_method()
 
     @pytest.mark.parametrize(
         ("path", "key", "binary", "expectation"),
