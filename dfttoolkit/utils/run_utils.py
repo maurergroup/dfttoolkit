@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, overload
 from warnings import warn
 
 
@@ -15,6 +15,27 @@ class NamedCallable(Protocol):
 
 Wrapper = Callable[..., Any | None]
 Decorator = Callable[[NamedCallable], Wrapper]
+
+
+# Use overloads for whether the decorator returns a decorator or a wrapper
+@overload
+def no_repeat(
+    _func: None = None,
+    *,
+    output_file: str = "aims.out",
+    calc_dir: str = "./",
+    force: bool = False,
+) -> Decorator: ...
+
+
+@overload
+def no_repeat(
+    _func: NamedCallable,
+    *,
+    output_file: str = "aims.out",
+    calc_dir: str = "./",
+    force: bool = False,
+) -> Wrapper: ...
 
 
 def no_repeat(

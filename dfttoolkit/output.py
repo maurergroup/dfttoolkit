@@ -346,12 +346,6 @@ class AimsOutput(Output):
         skip_next_energy = False  # only relevant if energy_invalid_indicator != None
         use_next_energy = False  # only relevant if energy_valid_indicator != None
 
-        # if skip_next_energy and use_next_energy:
-        #     raise ValueError(
-        #         "AIMSOutput._get_energy: usage of skip_next_energy and "
-        #         "use_next_energy at the same function call is undefined!"
-        #     )
-
         # energy (in)valid indicator allows now for multiple values, if a list is
         # provided. Otherwise, everything works out as before.
         if energy_valid_indicator is not None and not isinstance(
@@ -1326,22 +1320,6 @@ class AimsOutput(Output):
         # Parse line to find the start of the KS eigenvalues
         target_line = "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]"
 
-        if not spin_polarised:
-            eigenvalues = {
-                "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
-                "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
-                "eigenvalue_eV": np.zeros((n_scf_iters, n_ks_states), dtype=float),
-            }
-
-            n = 0  # Count the current SCF iteration
-            for i, line in enumerate(self.lines):
-                if target_line in line:
-                    # Get the KS states from this line until the next empty line
-                    self._get_ks_states(i + 1, eigenvalues, n, n_ks_states)
-                    n += 1
-
-            evals = eigenvalues
-
         if spin_polarised:
             su_eigenvalues = {
                 "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
@@ -1377,6 +1355,22 @@ class AimsOutput(Output):
                         down_n += 1
 
             evals = su_eigenvalues, sd_eigenvalues
+
+        else:  # Not spin polarised
+            eigenvalues = {
+                "state": np.zeros((n_scf_iters, n_ks_states), dtype=int),
+                "occupation": np.zeros((n_scf_iters, n_ks_states), dtype=float),
+                "eigenvalue_eV": np.zeros((n_scf_iters, n_ks_states), dtype=float),
+            }
+
+            n = 0  # Count the current SCF iteration
+            for i, line in enumerate(self.lines):
+                if target_line in line:
+                    # Get the KS states from this line until the next empty line
+                    self._get_ks_states(i + 1, eigenvalues, n, n_ks_states)
+                    n += 1
+
+            evals = eigenvalues
 
         return evals
 

@@ -4207,18 +4207,6 @@ class Geometry:
 
 
 class AimsGeometry(Geometry):
-    def __eq__(self, other):
-        if len(self) != len(other):
-            return False
-        else:
-            equal = np.allclose(self.coords, other.coords)
-            equal = equal and np.allclose(
-                self.lattice_vectors, other.lattice_vectors
-            )
-            equal = equal and self.species == other.species
-
-        return equal
-
     def parse(self, text):
         """
         Parses text from AIMS geometry file and sets all necessary parameters
@@ -4633,18 +4621,6 @@ class AimsGeometry(Geometry):
 
 
 class VaspGeometry(Geometry):
-    def __eq__(self, other):
-        if len(self) != len(other):
-            return False
-        else:
-            equal = np.allclose(self.coords, other.coords)
-            equal = equal and np.allclose(
-                self.lattice_vectors, other.lattice_vectors
-            )
-            equal = equal and self.species == other.species
-
-        return equal
-
     def parse(self, text):
         """
         Read the VASP structure definition in the typical POSCAR format
@@ -4867,18 +4843,6 @@ class VaspGeometry(Geometry):
 
 
 class XYZGeometry(Geometry):
-    def __eq__(self, other):
-        if len(self) != len(other):
-            return False
-        else:
-            equal = np.allclose(self.coords, other.coords)
-            equal = equal and np.allclose(
-                self.lattice_vectors, other.lattice_vectors
-            )
-            equal = equal and self.species == other.species
-
-        return equal
-
     def parse(self, text):
         """
         Reads a .xyz file. Designed to work with .xyz files produced by Avogadro

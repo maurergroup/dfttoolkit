@@ -79,10 +79,9 @@ class Vibrations:
 
     def get_displacements(
         self, displacement: float = 0.0025, directions: list | None = None
-    ) -> list:  # pyright:ignore
+    ) -> list:
         """
-        Apply a given displacement for each degree of freedom of self and
-        generates a new vibration with it.
+        Apply a given displacement for each degree of freedom to create a new vibration.
 
         Parameters
         ----------
@@ -94,23 +93,20 @@ class Vibrations:
         -------
         list
             List of geometries where atoms have been displaced.
-
-        """  # noqa: D205
+        """
         geometries_displaced = [self]
 
         if directions is None:
             directions = [1]
 
-        for i in range(self.n_atoms):  # pyright:ignore
+        for i in range(self.n_atoms):
             for dim in range(3):
-                if self.constrain_relax[i, dim]:  # pyright:ignore
+                if self.constrain_relax[i, dim]:
                     continue
 
                 for direction in directions:
                     geometry_displaced = copy.deepcopy(self)
-                    geometry_displaced.coords[i, dim] += (  # pyright:ignore
-                        displacement * direction
-                    )
+                    geometry_displaced.coords[i, dim] += displacement * direction
 
                     geometries_displaced.append(geometry_displaced)
 
@@ -125,10 +121,7 @@ class Vibrations:
         mass_tensor : np.array
             Mass tensor in atomic units.
         """
-        mass_vector = [
-            PeriodicTable.get_atomic_mass(s)  # pyright:ignore
-            for s in self.species  # pyright:ignore
-        ]
+        mass_vector = [PeriodicTable.get_atomic_mass(s) for s in self.species]
         mass_vector = np.repeat(mass_vector, 3)
 
         mass_tensor = np.tile(mass_vector, (len(mass_vector), 1))
@@ -156,7 +149,7 @@ class Vibrations:
         N = len(self) * 3  # pyright:ignore
         H = np.zeros([N, N])
 
-        if not np.allclose(self.coords, self.vibration_coords[0]):  # pyright:ignore
+        if not np.allclose(self.coords, self.vibration_coords[0]):
             raise ValueError(
                 "The first entry in vibration_coords must be identical to the "
                 "undispaced geometry."
@@ -184,7 +177,7 @@ class Vibrations:
                 H[row, :] /= n_forces[row]  # prevent div by zero for unknown forces
 
         if set_constrained_atoms_zero:
-            constrained = self.constrain_relax.flatten()  # pyright:ignore
+            constrained = self.constrain_relax.flatten()
             H[constrained, :] = 0
             H[:, constrained] = 0
 
@@ -213,9 +206,9 @@ class Vibrations:
 
         hessian_new = hessian + hessian.T
 
-        all_inds = list(range(len(self) * 3))  # pyright:ignore
+        all_inds = list(range(len(self) * 3))
 
-        constrain = self.constrain_relax.flatten()  # pyright:ignore
+        constrain = self.constrain_relax.flatten()
         constrained_inds = [i for i, c in enumerate(constrain) if c]
         constrained_inds = np.array(constrained_inds)
 
@@ -294,7 +287,7 @@ class Vibrations:
 
         # Convert eigenvector to Cartesian coordinates
         if eigenvectors_to_cartesian:
-            m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
+            m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T
 
             for index in range(len(eigenvectors)):
                 eigenvectors[index] /= m
@@ -320,7 +313,7 @@ class Vibrations:
         if omega2 is None:
             omega2 = self.get_eigenvalues_and_eigenvectors()[0]
 
-        omega = np.sign(omega2) * np.sqrt(np.abs(omega2))  # pyright:ignore
+        omega = np.sign(omega2) * np.sqrt(np.abs(omega2))
 
         conversion = np.sqrt(
             (units.EV_IN_JOULE) / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
@@ -409,13 +402,12 @@ class Vibrations:
             # var_qi (kg m²) -> var_qi (u A²)
             var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
 
-            amp = np.random.Generator(0.0, np.sqrt(var_qi))  # pyright:ignore
+            amp = np.random.Generator(0.0, np.sqrt(var_qi))
             print(amp)
             displacement += amp * self.eigenvectors[i]
 
         # Convert from mass weighted to Cartesian coordinates
-        m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
-
+        m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T
         displacement /= m
 
         new_geometry.coords += displacement
@@ -481,7 +473,7 @@ class Vibrations:
 
         for i in range(velocities.shape[1]):
             velocities_mass_average[:, i, :] = velocities[:, i, :] * np.sqrt(
-                self.get_atomic_masses()[i]  # pyright:ignore
+                self.get_atomic_masses()[i]
             )
 
         return velocities_mass_average
@@ -492,11 +484,11 @@ class Vibrations:
         wave_vector: npt.NDArray[np.float64],
         project_on_atom: int = -1,
     ) -> npt.NDArray[np.float64]:
-        number_of_primitive_atoms = len(self)  # pyright:ignore
+        number_of_primitive_atoms = len(self)
         number_of_atoms = velocities.shape[1]
         number_of_dimensions = velocities.shape[2]
 
-        coordinates = self.coords  # pyright:ignore
+        coordinates = self.coords
         atom_type = self.get_atom_type_index()
 
         velocities_projected = np.zeros(
@@ -567,7 +559,7 @@ class Vibrations:
         self,
         velocities: npt.NDArray[np.float64],
         index_pair: tuple,
-        time_step: float,
+        time_step: int,
         bootstrapping_blocks: int = 1,
         bootstrapping_overlap: int = 0,
         cutoff_at_last_maximum: bool = True,
@@ -616,7 +608,7 @@ class Vibrations:
     def output_cross_spectrum(
         self,
         velocities: npt.NDArray[np.float64],
-        time_step: float,
+        time_step: int,
         use_mem: bool = False,
         bootstrapping_blocks: int = 1,
         bootstrapping_overlap: int = 0,
@@ -634,7 +626,7 @@ class Vibrations:
             frequencies = vu.get_cross_spectrum_mem(
                 velocities_proj[:, 0],
                 velocities_proj[:, 0],
-                time_step,  # pyright: ignore
+                time_step,
                 model_order,
                 n_freqs=len(velocities_proj),
             )[0]
@@ -685,7 +677,7 @@ class Vibrations:
 def _output_cross_spectrum(
     index: npt.NDArray,
     velocities_proj: npt.NDArray,
-    time_step: float,
+    time_step: int,
     use_mem: bool,
     bootstrapping_blocks: int,
     bootstrapping_overlap: int,
@@ -700,7 +692,7 @@ def _output_cross_spectrum(
         cross_spectrum = vu.get_cross_spectrum_mem(
             velocities_proj[:, index_0],
             velocities_proj[:, index_1],
-            time_step,  # pyright: ignore
+            time_step,
             model_order,
             n_freqs=len(velocities_proj),
         )[1]
@@ -726,12 +718,6 @@ class AimsVibrations(Vibrations, AimsGeometry):
         Vibrations.__init__(self)
         AimsGeometry.__init__(self, filename=filename)
 
-    def get_instance_of_other_type(
-        self, *args: str, **kwargs: str
-    ) -> "AimsVibrations | VaspVibrations":
-        """Explicitly delegate to Vibrations to resolve ambiguity."""
-        return Vibrations.get_instance_of_other_type(self, *args, **kwargs)
-
 
 class VaspVibrations(Vibrations, VaspGeometry):
     """TODO."""
@@ -739,9 +725,3 @@ class VaspVibrations(Vibrations, VaspGeometry):
     def __init__(self, filename: str | None = None):
         Vibrations.__init__(self)
         VaspGeometry.__init__(self, filename=filename)
-
-    def get_instance_of_other_type(
-        self, *args: str, **kwargs: str
-    ) -> "AimsVibrations | VaspVibrations":
-        """Explicitly delegate to Vibrations to resolve ambiguity."""
-        return Vibrations.get_instance_of_other_type(self, *args, **kwargs)

@@ -26,11 +26,11 @@ def pytest_addoption(parser) -> None:  # noqa: ANN001
 
 
 def multidict_constructor(loader: yaml.Loader, node: yaml.SequenceNode) -> MultiDict:
-    """PyYaml constructor to read MultiDict objects."""
+    """YAML constructor to read MultiDict objects."""
     return MultiDict(*loader.construct_sequence(node))
 
 
-# Enable PyYaml to read MultiDict objects
+# Enable YAML to read MultiDict objects
 yaml.FullLoader.add_constructor("!MultiDict", multidict_constructor)
 
 
@@ -57,7 +57,7 @@ def aims_calc_dir(run_aims: bool, cwd: Path) -> Generator[str, None, None] | str
     """
     # Check if the directory already exists
     if Path("custom_bin_aims_calcs").is_dir() and run_aims != "change_bin":
-        yield "custom_bin_aims_calcs"
+        return "custom_bin_aims_calcs"
     elif run_aims is not False:
         binary = aims_bin_path_prompt(run_aims, cwd)
         subprocess.run(  # noqa: S603

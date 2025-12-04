@@ -214,7 +214,8 @@ class TestMathUtils:
         assert np.isclose(mu.rel_mae(delta, xyz_1_arr * 2), 2 / 3)
 
 
-# class TestPeriodicTable:
-#     """Tests and fixtures for periodic_table.py."""
+@pytest.mark.skip
+class TestPeriodicTable:
+    """Tests and fixtures for periodic_table.py."""
 
-#     raise NotImplementedError
+    # TODO

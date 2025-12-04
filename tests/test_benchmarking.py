@@ -1,4 +1,8 @@
-# class TestBenchmarking:
-#     """Tests for the benchmarking module."""
+import pytest
 
-#     raise NotImplementedError
+
+@pytest.mark.skip
+class TestBenchmarking:
+    """Tests for the benchmarking module."""
+
+    # TODO
