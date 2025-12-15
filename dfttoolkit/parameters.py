@@ -45,6 +45,11 @@ class Parameters(Parser):
         # Override the parent's __init_subclass__ without calling it
         pass
 
+    def write(self) -> None:
+        """Write the parameters file to disk."""
+        with open(self.path, "w") as f:
+            f.writelines(self.lines)
+
 
 class AimsControl(Parameters):
     """
@@ -170,9 +175,9 @@ class AimsControl(Parameters):
 
         return basis_funcs
 
-    def add_keywords_and_save(self, *args: tuple[str, Any]) -> None:
+    def add_keywords(self, *args: tuple[str, Any]) -> None:
         """
-        Add keywords to the control.in file and write the new control.in to disk.
+        Add keywords to the AimsControl instance.
 
         Note that files written by ASE or in a format where the keywords are at the top
         of the file followed by the basis sets are the only formats that are supported
@@ -210,16 +215,9 @@ class AimsControl(Parameters):
         for arg in reversed(args):
             self.lines.insert(basis_set_start, f"{arg[0]:<34} {arg[1]}\n")
 
-        # Write the file
-        with open(self.path, "w") as f:
-            f.writelines(self.lines)
-
-    def add_cube_cell_and_save(
-        self, cell_matrix: npt.NDArray, resolution: int = 100
-    ) -> None:
+    def add_cube_cell(self, cell_matrix: npt.NDArray, resolution: int = 100) -> None:
         """
-        Add cube output settings to control.in to cover the unit cell specified in
-        `cell_matrix` and save to disk.
+        Add cube output settings to cover the unit cell specified in `cell_matrix`.
 
         Since the default behaviour of FHI-AIMS for generating cube files for periodic
         structures with vacuum gives confusing results, this function ensures the cube
@@ -232,8 +230,7 @@ class AimsControl(Parameters):
 
         resolution : int
             Number of cube voxels to use for the shortest side of the unit cell.
-
-        """  # noqa: D205
+        """
         if not self.check_periodic():  # Fail for non-periodic structures
             raise TypeError("add_cube_cell doesn't support non-periodic structures")
 
@@ -252,7 +249,7 @@ class AimsControl(Parameters):
             2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
         )
         z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
-        self.add_keywords_and_save(  # Add cube options to control.in
+        self.add_keywords(  # Add cube options to control.in
             (
                 "cube",
                 "origin {} {} {}\n".format(
@@ -264,9 +261,9 @@ class AimsControl(Parameters):
             )
         )
 
-    def remove_keywords_and_save(self, *args: str) -> None:
+    def remove_keywords(self, *args: str) -> None:
         """
-        Remove keywords from the control.in file and save to disk.
+        Remove keywords from the control.in file.
 
         Note that this will not remove keywords that are commented with a '#'.
 
@@ -280,9 +277,6 @@ class AimsControl(Parameters):
                 spl = line.split()
                 if len(spl) > 0 and spl[0] != "#" and keyword == spl[0]:
                     self.lines.pop(i)
-
-        with open(self.path, "w") as f:
-            f.writelines(self.lines)
 
     def check_periodic(self) -> bool:
         """Check if the system is periodic."""
@@ -333,10 +327,10 @@ class CubeParameters(Parameters):
         self._parsing_functions = {
             "spinstate": [
                 lambda x: int(x[0]),
-                lambda x: str(x),
+                str,
             ],
-            "kpoint": [lambda x: int(x[0]), lambda x: str(x)],
-            "divisor": [lambda x: int(x[0]), lambda x: str(x)],
+            "kpoint": [lambda x: int(x[0]), str],
+            "divisor": [lambda x: int(x[0]), str],
             "spinmask": [
                 lambda x: [int(k) for k in x],
                 lambda x: "  ".join([str(k) for k in x]),
@@ -365,7 +359,7 @@ class CubeParameters(Parameters):
 
     @property
     def type(self) -> str:
-        """Everythin that comes after output cube as a single string."""
+        """Everything that comes after output cube as a single string."""
         return self._type
 
     @type.setter
@@ -415,23 +409,23 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Type annotations need to be fixed")
 
-        self.settings["edge"] = []
-        for i, d in enumerate(edges[0]):
-            self.settings["edge"].append([d, *list(edges[1][i, :])])
+        # self.settings["edge"] = []
+        # for i, d in enumerate(edges[0]):
+        #     self.settings["edge"].append([d, *list(edges[1][i, :])])
 
     @property
     def grid_vectors(self) -> float:
         raise NotImplementedError("See edges.setter")
 
-        edges = self.edges
-        return edges[:, 1:]
+        # edges = self.edges
+        # return edges[:, 1:]
 
     @property
     def divisions(self) -> float:
         raise NotImplementedError("See edges.setter")
 
-        edges = self.edges
-        return edges[:, 0]
+        # edges = self.edges
+        # return edges[:, 0]
 
     @divisions.setter
     def divisions(self, divs: npt.NDArray[np.float64]) -> None:
@@ -554,30 +548,29 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Origin parameter needs to be fixed")
 
-        # TODO: why is this necessary?
-        self.origin = [0, 0, 0]
-        self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+        # self.origin = [0, 0, 0]
+        # self.settings["edge"] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 
-        # set one dimension at a time
-        for i, lim in enumerate([x_limits, y_limits, z_limits]):
-            if lim[0] >= lim[1]:
-                raise ValueError("Ensure the minimum is given first")
+        # # set one dimension at a time
+        # for i, lim in enumerate([x_limits, y_limits, z_limits]):
+        #     if lim[0] >= lim[1]:
+        #         raise ValueError("Ensure the minimum is given first")
 
-            diff = lim[1] - lim[0]
+        #     diff = lim[1] - lim[0]
 
-            # set origin
-            center = lim[0] + (diff / 2)
-            self.settings["origin"][0][i] = center
+        #     # set origin
+        #     center = lim[0] + (diff / 2)
+        #     self.settings["origin"][0][i] = center
 
-            # set edges
-            space = spacing[i] if isinstance(spacing, list) else spacing
+        #     # set edges
+        #     space = spacing[i] if isinstance(spacing, list) else spacing
 
-            # size of voxel
-            self.settings["edge"][i][i + 1] = space
+        #     # size of voxel
+        #     self.settings["edge"][i][i + 1] = space
 
-            # number of voxels
-            n_voxels = int(diff / space) + 1
-            self.settings["edge"][i][0] = n_voxels
+        #     # number of voxels
+        #     n_voxels = int(diff / space) + 1
+        #     self.settings["edge"][i][0] = n_voxels
 
     def get_text(self) -> str:
         """
@@ -589,20 +582,20 @@ class CubeParameters(Parameters):
         """
         raise NotImplementedError("Fix self.parsing_functions type")
 
-        text = ""
-        if len(self.type) > 0:
-            text += "output cube " + self.type + "\n"
-        else:
-            warn("No cube type specified", stacklevel=2)
-            text += "output cube" + "CUBETYPE" + "\n"
+        # text = ""
+        # if len(self.type) > 0:
+        #     text += "output cube " + self.type + "\n"
+        # else:
+        #     warn("No cube type specified", stacklevel=2)
+        #     text += "output cube" + "CUBETYPE" + "\n"
 
-        for key, values in self.settings.items():
-            for v in values:
-                text += "cube " + key + " "
-                if key in self.parsing_functions:
-                    text += self.parsing_functions[key][1](v) + "\n"
-                else:
-                    print(v)
-                    text += v + "\n"
+        # for key, values in self.settings.items():
+        #     for v in values:
+        #         text += "cube " + key + " "
+        #         if key in self.parsing_functions:
+        #             text += self.parsing_functions[key][1](v) + "\n"
+        #         else:
+        #             print(v)
+        #             text += v + "\n"
 
-        return text
+        # return text
