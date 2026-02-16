@@ -89,14 +89,15 @@ class TestAimsControl:
         if self.aims_fixture_no == 4:
             assert self.ac.get_default_basis_funcs() == basis_funcs[1]
 
-    def test_add_cube_cell_and_save(self, tmp_dir, cube_cell_ref_files) -> None:
+    def test_add_cube_cell(self, tmp_dir, cube_cell_ref_files) -> None:
         if self.aims_fixture_no != 13:
             control_path = tmp_dir / "control.in"
             shutil.copy(self.ac.path, control_path)
             ac = AimsControl(control_in=str(control_path))
             try:
-                ac.add_keywords_and_save(("output", "cube total_density"))
-                ac.add_cube_cell_and_save(np.eye(3, 3) * [3, 4, 5], resolution=100)
+                ac.add_keywords(("output", "cube total_density"))
+                ac.add_cube_cell(np.eye(3, 3) * [3, 4, 5], resolution=100)
+                ac.write()
             except TypeError:
                 assert not ac.check_periodic()
             else:
@@ -104,25 +105,25 @@ class TestAimsControl:
                     "".join(cube_cell_ref_files) == control_path.read_text()
                 )  # Check correct for periodic
 
-    def test_add_keywords_and_save(self, tmp_dir, added_keywords_ref_files) -> None:
+    def test_add_keywords(self, tmp_dir, added_keywords_ref_files) -> None:
         control_path = tmp_dir / "control.in"
         shutil.copy(self.ac.path, control_path)
         ac = AimsControl(control_in=str(control_path))
-        ac.add_keywords_and_save(
+        ac.add_keywords(
             ("xc", "dfauto scan"),
             ("output", "cube spin_density"),
             ("output", "mulliken"),
         )
+        ac.write()
 
         assert "".join(added_keywords_ref_files) == control_path.read_text()
 
-    def test_remove_keywords_and_save(
-        self, tmp_dir, removed_keywords_ref_files
-    ) -> None:
+    def test_remove_keywords(self, tmp_dir, removed_keywords_ref_files) -> None:
         control_path = tmp_dir / "control.in"
         shutil.copy(self.ac.path, control_path)
         ac = AimsControl(control_in=str(control_path))
-        ac.remove_keywords_and_save("xc", "relax_geometry", "k_grid")
+        ac.remove_keywords("xc", "relax_geometry", "k_grid")
+        ac.write()
 
         assert "".join(removed_keywords_ref_files) == control_path.read_text()
 
@@ -131,6 +132,3 @@ class TestAimsControl:
             assert self.ac.check_periodic() is True
         else:
             assert self.ac.check_periodic() is False
-
-
-# ruff: noqa: ANN001, S101, ERA001
