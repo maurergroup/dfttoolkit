@@ -553,7 +553,7 @@ class Vibrations:
     def get_normal_mode_decomposition(
         self,
         velocities: npt.NDArray,
-        mass_weighted=True,
+        mass_weighted: bool = True,
         use_numba: bool = True,
     ) -> npt.NDArray:
         """
