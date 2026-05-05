@@ -123,7 +123,6 @@ class TestParser:
     def csc_path(self, cwd) -> Path:
         return cwd / "fixtures/base_test_files/test.csc"
 
-
     @pytest.mark.parametrize(
         ("path", "key", "binary", "expectation"),
         [

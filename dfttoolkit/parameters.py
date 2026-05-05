@@ -147,7 +147,10 @@ class AimsControl(Parameters):
 
         # Warn if the requested elements aren't found in control.in
         if elements is not None and not set(elements).issubset(self.get_species()):
-            warn("Could not find all requested elements in control.in", stacklevel=2)
+            warn(
+                "Could not find all requested elements in control.in",
+                stacklevel=2,
+            )
 
         basis_funcs = {}
 
@@ -358,12 +361,12 @@ class CubeParameters(Parameters):
         return text
 
     @property
-    def type(self) -> str:
+    def cube_type(self) -> str:
         """Everything that comes after output cube as a single string."""
         return self._type
 
-    @type.setter
-    def type(self, value: str) -> None:
+    @cube_type.setter
+    def cube_type(self, value: str) -> None:
         """Set the type of the cube file."""
         self._type = value
 

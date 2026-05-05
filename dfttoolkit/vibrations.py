@@ -42,9 +42,7 @@ class Vibrations:
         return self._vibration_coords
 
     @vibration_coords.setter
-    def vibration_coords(
-        self, vibration_coords: list[npt.NDArray[np.float64]]
-    ) -> None:
+    def vibration_coords(self, vibration_coords: list[npt.NDArray[np.float64]]) -> None:
         self._vibration_coords = vibration_coords
 
     @property
@@ -52,9 +50,7 @@ class Vibrations:
         return self._vibration_forces
 
     @vibration_forces.setter
-    def vibration_forces(
-        self, vibration_forces: list[npt.NDArray[np.float64]]
-    ) -> None:
+    def vibration_forces(self, vibration_forces: list[npt.NDArray[np.float64]]) -> None:
         self._vibration_forces = vibration_forces
 
     @property
@@ -160,9 +156,7 @@ class Vibrations:
         N = len(self) * 3  # pyright:ignore
         H = np.zeros([N, N])
 
-        if not np.allclose(
-            self.coords, self.vibration_coords[0]
-        ):  # pyright:ignore
+        if not np.allclose(self.coords, self.vibration_coords[0]):  # pyright:ignore
             raise ValueError(
                 "The first entry in vibration_coords must be identical to the "
                 "undispaced geometry."
@@ -173,9 +167,7 @@ class Vibrations:
 
         n_forces = np.zeros(N, np.int64)
 
-        for c, F in zip(
-            self.vibration_coords, self.vibration_forces, strict=False
-        ):
+        for c, F in zip(self.vibration_coords, self.vibration_forces, strict=False):
             dF = F.flatten() - F_0
             dx = c.flatten() - coords_0
             ind = np.argmax(np.abs(dx))
@@ -189,9 +181,7 @@ class Vibrations:
 
         for row in range(H.shape[0]):
             if n_forces[row] > 0:
-                H[row, :] /= n_forces[
-                    row
-                ]  # prevent div by zero for unknown forces
+                H[row, :] /= n_forces[row]  # prevent div by zero for unknown forces
 
         if set_constrained_atoms_zero:
             constrained = self.constrain_relax.flatten()  # pyright:ignore
@@ -229,9 +219,7 @@ class Vibrations:
         constrained_inds = [i for i, c in enumerate(constrain) if c]
         constrained_inds = np.array(constrained_inds)
 
-        unconstrained_inds = np.array(
-            list(set(all_inds) - set(constrained_inds))
-        )
+        unconstrained_inds = np.array(list(set(all_inds) - set(constrained_inds)))
 
         for i in unconstrained_inds:
             for j in unconstrained_inds:
@@ -278,9 +266,7 @@ class Vibrations:
             hessian = copy.deepcopy(self.hessian)
 
         if not hasattr(self, "hessian") or hessian is None:
-            raise ValueError(
-                "Hessian must be given to calculate the Eigenvalues!"
-            )
+            raise ValueError("Hessian must be given to calculate the Eigenvalues!")
 
         M = 1 / self.get_mass_tensor()
 
@@ -308,9 +294,7 @@ class Vibrations:
 
         # Convert eigenvector to Cartesian coordinates
         if eigenvectors_to_cartesian:
-            m = np.tile(
-                np.sqrt(self.get_atomic_masses()), (3, 1)
-            ).T  # pyright:ignore
+            m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
 
             for index in range(len(eigenvectors)):
                 eigenvectors[index] /= m
@@ -339,8 +323,7 @@ class Vibrations:
         omega = np.sign(omega2) * np.sqrt(np.abs(omega2))  # pyright:ignore
 
         conversion = np.sqrt(
-            (units.EV_IN_JOULE)
-            / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
+            (units.EV_IN_JOULE) / (units.ATOMIC_MASS_IN_KG * units.ANGSTROM_IN_METER**2)
         )
         return omega * conversion
 
@@ -367,9 +350,7 @@ class Vibrations:
         self, omega2: npt.NDArray[np.float64] | None = None
     ) -> npt.NDArray[np.float64]:
         omega_SI = self.get_eigenvalues_in_Hz(omega2=omega2)
-        return (
-            omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
-        )
+        return omega_SI * units.PLANCK_CONSTANT / (2 * np.pi) / units.JOULE_IN_EV
 
     def get_thermally_displaced_geometry(
         self, temperature: np.float64, classical: bool = True
@@ -429,9 +410,7 @@ class Vibrations:
             displacement += amp * self.eigenvectors[i]
 
         # Convert from mass weighted to Cartesian coordinates
-        m = np.tile(
-            np.sqrt(self.get_atomic_masses()), (3, 1)
-        ).T  # pyright:ignore
+        m = np.tile(np.sqrt(self.get_atomic_masses()), (3, 1)).T  # pyright:ignore
 
         displacement /= m
 
@@ -446,9 +425,7 @@ class Vibrations:
         masses = self.get_mass_of_all_atoms()  # pyright:ignore
         tolerance = 0.001
 
-        primitive_cell_inverse = np.linalg.inv(
-            self.lattice_vectors
-        )  # pyright:ignore
+        primitive_cell_inverse = np.linalg.inv(self.lattice_vectors)  # pyright:ignore
 
         atom_type_index = np.array([None] * n_atoms)
         counter = 0
@@ -472,9 +449,7 @@ class Vibrations:
                     difference_in_cell_coordinates,
                 )
                 separation = pow(
-                    np.linalg.norm(
-                        projected_coordinates_atom_j - coordinates_atom_i
-                    ),
+                    np.linalg.norm(projected_coordinates_atom_j - coordinates_atom_i),
                     2,
                 )
 
@@ -553,6 +528,7 @@ class Vibrations:
     def get_normal_mode_decomposition(
         self,
         velocities: npt.NDArray,
+        mass_weighted: bool = True,
         use_numba: bool = True,
     ) -> npt.NDArray:
         """
@@ -576,7 +552,10 @@ class Vibrations:
         """
         velocities = np.array(velocities, dtype=np.complex128)
 
-        velocities_mass_averaged = self.get_velocity_mass_average(velocities)
+        if mass_weighted:
+            velocities_mass_averaged = self.get_velocity_mass_average(velocities)
+        else:
+            velocities_mass_averaged = velocities
 
         return vu.get_normal_mode_decomposition(
             velocities_mass_averaged,
@@ -593,6 +572,7 @@ class Vibrations:
         bootstrapping_overlap: int = 0,
         cutoff_at_last_maximum: bool = True,
         window_function: str = "hann",
+        component_of_spectrum: str = "real",
     ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         PLACEHOLDE.
@@ -610,6 +590,9 @@ class Vibrations:
             DESCRIPTION. The default is 1.
         bootstrapping_overlap : int, optional
             DESCRIPTION. The default is 0.
+        component_of_spectrum : str, default="real"
+            ["real", "imag", "abs"]
+            Allows selecting to output the real, imaginary, or absolute cross-spectrum
 
         Returns
         -------
@@ -630,6 +613,7 @@ class Vibrations:
             bootstrapping_overlap=bootstrapping_overlap,
             cutoff_at_last_maximum=cutoff_at_last_maximum,
             window_function=window_function,
+            component_of_spectrum=component_of_spectrum,
         )
 
         return frequencies, cross_spectrum
