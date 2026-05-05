@@ -146,9 +146,7 @@ class AimsControl(Parameters):
             raise ValueError("Invalid element(s) given")
 
         # Warn if the requested elements aren't found in control.in
-        if elements is not None and not set(elements).issubset(
-            self.get_species()
-        ):
+        if elements is not None and not set(elements).issubset(self.get_species()):
             warn(
                 "Could not find all requested elements in control.in",
                 stacklevel=2,
@@ -220,9 +218,7 @@ class AimsControl(Parameters):
         for arg in reversed(args):
             self.lines.insert(basis_set_start, f"{arg[0]:<34} {arg[1]}\n")
 
-    def add_cube_cell(
-        self, cell_matrix: npt.NDArray, resolution: int = 100
-    ) -> None:
+    def add_cube_cell(self, cell_matrix: npt.NDArray, resolution: int = 100) -> None:
         """
         Add cube output settings to cover the unit cell specified in `cell_matrix`.
 
@@ -239,43 +235,23 @@ class AimsControl(Parameters):
             Number of cube voxels to use for the shortest side of the unit cell.
         """
         if not self.check_periodic():  # Fail for non-periodic structures
-            raise TypeError(
-                "add_cube_cell doesn't support non-periodic structures"
-            )
+            raise TypeError("add_cube_cell doesn't support non-periodic structures")
 
         shortest_side = min(np.sum(cell_matrix, axis=1))
         resolution = shortest_side / 100.0
 
         cube_x = (
-            2
-            * int(
-                np.ceil(0.5 * np.linalg.norm(cell_matrix[0, :]) / resolution)
-            )
-            + 1
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[0, :]) / resolution)) + 1
         )  # Number of cubes along x axis
-        x_vector = (
-            cell_matrix[0, :] / np.linalg.norm(cell_matrix[0, :]) * resolution
-        )
+        x_vector = cell_matrix[0, :] / np.linalg.norm(cell_matrix[0, :]) * resolution
         cube_y = (
-            2
-            * int(
-                np.ceil(0.5 * np.linalg.norm(cell_matrix[1, :]) / resolution)
-            )
-            + 1
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[1, :]) / resolution)) + 1
         )
-        y_vector = (
-            cell_matrix[1, :] / np.linalg.norm(cell_matrix[1, :]) * resolution
-        )
+        y_vector = cell_matrix[1, :] / np.linalg.norm(cell_matrix[1, :]) * resolution
         cube_z = (
-            2
-            * int(
-                np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)
-            )
-            + 1
+            2 * int(np.ceil(0.5 * np.linalg.norm(cell_matrix[2, :]) / resolution)) + 1
         )
-        z_vector = (
-            cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
-        )
+        z_vector = cell_matrix[2, :] / np.linalg.norm(cell_matrix[2, :]) * resolution
         self.add_keywords(  # Add cube options to control.in
             (
                 "cube",
@@ -457,9 +433,7 @@ class CubeParameters(Parameters):
     @divisions.setter
     def divisions(self, divs: npt.NDArray[np.float64]) -> None:
         if len(divs) != 3:
-            raise ValueError(
-                "Requires divisions for all three lattice vectors"
-            )
+            raise ValueError("Requires divisions for all three lattice vectors")
 
         for i in range(3):
             self.settings["edge"][i][0] = divs[i]
