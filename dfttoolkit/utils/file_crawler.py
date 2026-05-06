@@ -102,7 +102,9 @@ def find_vasp_output_file(calc_dir: str) -> list:
     list
         List of found output files
     """
-    return find_file(calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"])
+    return find_file(
+        calc_dir, allow_all_out_files=False, list_of_filenames=["outcar"]
+    )
 
 
 def find_file(
@@ -167,7 +169,7 @@ def find_all_aims_calculations_and_status(startpath: str) -> dict[str, dict]:
         if output_in_folder:
             values_dict = {}
             # catch if found file is not an actual AIMS output file?
-            aims_out = AimsOutput(str(root / output_file_name[0]))
+            aims_out = AimsOutput(os.path.join(root, output_file_name[0]))
             values_dict["started"] = True
             values_dict["finished"] = aims_out.check_exit_normal()
             values_dict["path"] = path_from_start
