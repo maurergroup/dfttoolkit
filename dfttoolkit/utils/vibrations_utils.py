@@ -70,6 +70,7 @@ def get_cross_spectrum(
     zero_padding: int = 0,
     cutoff_at_last_maximum: bool = False,
     window_function: str = "none",
+    component_of_spectrum: str = "real",
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """
     Determine the cross spectrum for a given signal using bootstrapping.
@@ -101,6 +102,9 @@ def get_cross_spectrum(
     cutoff_at_last_maximum : bool, default=False
         Cut off the cross correlation function at the last maximum to hide
         spectral leakage.
+    component_of_spectrum : str, default="real"
+        ["real", "imag", "abs"]
+        Allows selecting to output the real, imaginary, or absolute cross-spectrum
 
     Returns
     -------
@@ -180,7 +184,14 @@ def get_cross_spectrum(
             )
             cross_spectrum_block = f(frequencies)
 
-        cross_spectrum.append(np.abs(cross_spectrum_block))
+        if component_of_spectrum == "abs":
+            cross_spectrum.append(np.abs(cross_spectrum_block))
+        elif component_of_spectrum == "real":
+            cross_spectrum.append(np.real(cross_spectrum_block))
+        elif component_of_spectrum == "imag":
+            cross_spectrum.append(np.imag(cross_spectrum_block))
+        else:
+            raise TypeError("component_of_spectrum must be one of: [abs, real, imag]")
 
     cross_spectrum = np.atleast_2d(cross_spectrum)
     cross_spectrum = np.average(cross_spectrum, axis=0)

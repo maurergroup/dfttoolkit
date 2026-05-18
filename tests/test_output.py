@@ -22,9 +22,7 @@ class TestAimsOutput:
         )
 
     @pytest.fixture
-    def control_in(
-        self, cwd, aims_calc_dir
-    ) -> Generator[list[str], None, None]:
+    def control_in(self, cwd, aims_calc_dir) -> Generator[list[str], None, None]:
         """
         Get lines from a control.in fixture.
 
@@ -199,12 +197,7 @@ class TestAimsOutput:
 
         if self._aims_fixture_no in [5]:
             assert (
-                np.all(
-                    abs(
-                        self.ao.get_forces()
-                        - forces[self._aims_fixture_no - 5]
-                    )
-                )
+                np.all(abs(self.ao.get_forces() - forces[self._aims_fixture_no - 5]))
                 < 1e-8
             )
 
@@ -237,10 +230,7 @@ class TestAimsOutput:
 
         if self._aims_fixture_no in aims_forces_fixtures:
             assert (
-                abs(
-                    self.ao.get_change_of_forces()
-                    - forces[self._aims_fixture_no]
-                )
+                abs(self.ao.get_change_of_forces() - forces[self._aims_fixture_no])
                 < 1e-8
             )
 
@@ -311,10 +301,7 @@ class TestAimsOutput:
             assert final_energy is None
 
         else:
-            assert (
-                abs(final_energy - final_energies[self._aims_fixture_no - 1])
-                < 1e-8
-            )
+            assert abs(final_energy - final_energies[self._aims_fixture_no - 1]) < 1e-8
 
     def test_get_final_spin_moment(self) -> None:
         final_spin_moments = [
@@ -369,9 +356,7 @@ class TestAimsOutput:
 
     def test_get_n_scf_iters(self) -> None:
         n_scf_iters = [12, 13, 13, 10, 42, 27, 56, 8, 14, 11, 10, 29, 251]
-        assert (
-            self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
-        )
+        assert self.ao.get_n_scf_iters() == n_scf_iters[self._aims_fixture_no - 1]
 
     # TODO
     # def get_i_scf_conv_acc_test(self):
@@ -436,9 +421,7 @@ class TestAimsOutput:
             with pytest.raises(ItemNotFoundError):
                 self.ao.get_all_ks_eigenvalues()
 
-    def _compare_final_ks_evals(
-        self, ref_data: dict, ref: int, spin_case: str
-    ) -> None:
+    def _compare_final_ks_evals(self, ref_data: dict, ref: int, spin_case: str) -> None:
         for key in ref_data[f"{spin_case}_final_eigenvalues"][ref]:
             if spin_case == "sn":
                 test = self.ao.get_final_ks_eigenvalues()[key]
@@ -509,9 +492,7 @@ class TestELSIOutput:
 
     @pytest.fixture(autouse=True)
     def elsi_npz(self, cwd) -> None:
-        self.eo_npz = sp.load_npz(
-            f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz"
-        )
+        self.eo_npz = sp.load_npz(f"{cwd}/fixtures/elsi_files/D_spin_01_kpt_000001.npz")
 
     def test_get_elsi_csc_header(self) -> None:
         assert (
@@ -554,9 +535,7 @@ class TestELSIOutput:
             self.eo_npz.toarray().all(),
         )
 
-    @pytest.mark.xfail(
-        False, reason="Direct comparison of floats without tolerance"
-    )
+    @pytest.mark.xfail(False, reason="Direct comparison of floats without tolerance")
     def test_read_elsi_as_csc_bin_compare(self) -> None:
         assert (
             self.eo_csc.read_elsi_as_csc(csc_format=True) != self.eo_npz

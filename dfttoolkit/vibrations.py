@@ -396,20 +396,16 @@ class Vibrations:
                 var_qi = kB * temperature / (omega**2)
             else:
                 hbar = 1.054571817e-34
-                # var_qi = (
-                #     (hbar / (2 * omega))
-                #     * np.cosh(hbar * omega / (2 * kB * temperature))
-                #     / np.sinh(hbar * omega / (2 * kB * temperature))
-                # )
-                var_qi = (hbar / (2 * omega)) / np.tanh(
-                    hbar * omega / (2 * kB * temperature)
+                var_qi = (hbar / (2 * omega)) * (
+                    0.5 + 1.0 / (np.exp(hbar * omega / (kB * temperature)) - 1)
                 )
 
             # Convert to atomic units
             # var_qi (kg m²) -> var_qi (u A²)
             var_qi *= 1e20 / units.ATOMIC_MASS_IN_KG
 
-            amp = np.random.Generator(0.0, np.sqrt(var_qi))  # pyright:ignore
+            # amp = np.random.Generator(0.0, np.sqrt(var_qi))  # pyright:ignore
+            amp = np.random.default_rng().normal(0.0, np.sqrt(var_qi))
             print(amp)
             displacement += amp * self.eigenvectors[i]
 
@@ -532,6 +528,7 @@ class Vibrations:
     def get_normal_mode_decomposition(
         self,
         velocities: npt.NDArray,
+        mass_weighted: bool = True,
         use_numba: bool = True,
     ) -> npt.NDArray:
         """
@@ -555,7 +552,10 @@ class Vibrations:
         """
         velocities = np.array(velocities, dtype=np.complex128)
 
-        velocities_mass_averaged = self.get_velocity_mass_average(velocities)
+        if mass_weighted:
+            velocities_mass_averaged = self.get_velocity_mass_average(velocities)
+        else:
+            velocities_mass_averaged = velocities
 
         return vu.get_normal_mode_decomposition(
             velocities_mass_averaged,
@@ -572,6 +572,7 @@ class Vibrations:
         bootstrapping_overlap: int = 0,
         cutoff_at_last_maximum: bool = True,
         window_function: str = "hann",
+        component_of_spectrum: str = "real",
     ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         PLACEHOLDE.
@@ -589,6 +590,9 @@ class Vibrations:
             DESCRIPTION. The default is 1.
         bootstrapping_overlap : int, optional
             DESCRIPTION. The default is 0.
+        component_of_spectrum : str, default="real"
+            ["real", "imag", "abs"]
+            Allows selecting to output the real, imaginary, or absolute cross-spectrum
 
         Returns
         -------
@@ -609,6 +613,7 @@ class Vibrations:
             bootstrapping_overlap=bootstrapping_overlap,
             cutoff_at_last_maximum=cutoff_at_last_maximum,
             window_function=window_function,
+            component_of_spectrum=component_of_spectrum,
         )
 
         return frequencies, cross_spectrum
