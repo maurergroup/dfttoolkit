@@ -3172,11 +3172,7 @@ class Geometry:
                             if not L1 and not L2:
                                 slab.add_atoms(
                                     [new_coord],
-                                    [
-                                        PeriodicTable.get_symbol(
-                                            new_species
-                                        )
-                                    ],
+                                    [PeriodicTable.get_symbol(new_species)],
                                 )
                                 add_next_shell = True
 
@@ -3209,8 +3205,7 @@ class Geometry:
         )
 
         primitive_slab_species = [
-            PeriodicTable.get_symbol(s)
-            for s in primitive_slab_atomic_numbers
+            PeriodicTable.get_symbol(s) for s in primitive_slab_atomic_numbers
         ]
         primitive_slab_coords = primitive_slab_scaled_positions.dot(
             primitive_slab_lattice
@@ -4856,111 +4851,165 @@ class VaspGeometry(Geometry):
 class XYZGeometry(Geometry):
     def parse(self, text):
         """
-        Reads a .xyz file. Designed to work with .xyz files produced by Avogadro
-
+        Robust parser for standard and extended XYZ (extxyz) files.
+        Supports arbitrary Properties= definitions.
         """
-        # to use add_atoms we need to initialize coords the same as for Geometry
-        self.n_atoms = 0
-        self.coords = np.zeros([self.n_atoms, 3])
 
-        read_natoms = None
-        count_natoms = 0
-        coords = []
-        forces = []
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        if len(lines) < 2:
+            raise RuntimeError("Invalid XYZ file.")
+
+        # ------------------------------------------------------------------
+        # 1. Number of atoms
+        # ------------------------------------------------------------------
+        try:
+            natoms = int(lines[0])
+        except ValueError:
+            raise RuntimeError("First line must contain number of atoms.")
+
+        header = lines[1]
+
+        # ------------------------------------------------------------------
+        # 2. Parse header key="value" pairs
+        # ------------------------------------------------------------------
+        header_dict = {}
+
+        for match in re.finditer(r'(\w+)=(".*?"|\S+)', header):
+            key = match.group(1)
+            value = match.group(2).strip('"')
+            header_dict[key] = value
+
+        # Lattice
+        if "Lattice" in header_dict:
+            lattice_vals = np.fromstring(header_dict["Lattice"], sep=" ")
+            if len(lattice_vals) == 9:
+                self.lattice_vectors = lattice_vals.reshape(3, 3)
+
+        # Energy
+        if "energy" in header_dict:
+            self.energy = float(header_dict["energy"])
+
+        # ------------------------------------------------------------------
+        # 3. Parse Properties definition
+        # ------------------------------------------------------------------
+        # Default fallback: assume species + xyz
+        properties = [("species", "S", 1), ("pos", "R", 3)]
+
+        if "Properties" in header_dict:
+            prop_tokens = header_dict["Properties"].split(":")
+            properties = []
+
+            i = 0
+            while i < len(prop_tokens):
+                name = prop_tokens[i]
+                dtype = prop_tokens[i + 1]
+                count = int(prop_tokens[i + 2])
+                properties.append((name, dtype, count))
+                i += 3
+
+        # Determine column indices
+        column_slices = {}
+        col_index = 0
+
+        for name, dtype, count in properties:
+            column_slices[name] = slice(col_index, col_index + count)
+            col_index += count
+
+        # ------------------------------------------------------------------
+        # 4. Parse atom lines
+        # ------------------------------------------------------------------
+        atom_lines = lines[2 : 2 + natoms]
+        if len(atom_lines) != natoms:
+            raise RuntimeError("Atom count mismatch.")
+
+        data = []
+        for line in atom_lines:
+            tokens = line.split()
+            if len(tokens) != col_index:
+                raise RuntimeError(f"Column mismatch in line: {line}")
+            data.append(tokens)
+
+        data = np.array(data, dtype=object)
+
+        # ------------------------------------------------------------------
+        # 5. Extract known quantities
+        # ------------------------------------------------------------------
         species = []
-        fi = text.split("\n")
+        coords = None
+        forces = None
 
-        # parse will assume first few lines are comments
-        started_parsing_atoms = False
+        # Species
+        if "species" in column_slices:
+            s = column_slices["species"]
+            species = data[:, s].flatten().tolist()
 
-        for ind, line in enumerate(fi):
-            if ind == 0 and len(line.split()) == 1:
-                read_natoms = int(line.split()[0])
-                continue
+        # Positions
+        if "pos" in column_slices:
+            s = column_slices["pos"]
+            coords = data[:, s].astype(float)
 
-            # look for lattice vectors
-            if "Lattice" in line:
-                split_line = line.split('"')[1]
+        # Forces (any common naming)
+        for key in ["forces", "force", "f"]:
+            if key in column_slices:
+                s = column_slices[key]
+                forces = data[:, s].astype(float)
+                break
 
-                lattice_parameters = re.findall(r"\d+\.\d+", split_line)
+        # Charges
+        if "charge" in column_slices:
+            s = column_slices["charge"]
+            self.charges = data[:, s].astype(float)
 
-                if len(lattice_parameters) == 9:
-                    lattice_parameters = np.array(
-                        lattice_parameters, dtype=np.float64
-                    )
-                    self.lattice_vectors = np.reshape(
-                        lattice_parameters, (3, 3)
-                    )
+        # Velocities
+        if "vel" in column_slices:
+            s = column_slices["vel"]
+            self.velocities = data[:, s].astype(float)
 
-            if "energy" in line:
-                split_line = line.split("energy")[1]
+        # ------------------------------------------------------------------
+        # 6. Store
+        # ------------------------------------------------------------------
+        if coords is None:
+            raise RuntimeError("No positions found in XYZ.")
 
-                energy = re.findall(r"-?[\d.]+(?:e-?\d+)?", split_line)
-
-                if len(energy) > 0:
-                    self.energy = np.float64(energy[0])
-
-            split_line = line.split()
-
-            n_words = 0
-            n_floats = 0
-
-            for j in split_line:
-                n_words_new = len(re.findall("[a-zA-Z]+", j))
-                n_floats_new = len(re.findall(r"-?[\d.]+(?:e-?\d+)?", j))
-
-                if n_words_new == 1 and n_floats_new == 1:
-                    n_floats += 1
-                else:
-                    n_words += n_words_new
-                    n_floats += n_floats_new
-
-            # first few lines may be comments or properties
-            if not started_parsing_atoms:
-                if n_words == 1 and (n_floats in {3, 6}):
-                    continue
-                started_parsing_atoms = True
-
-            else:
-                if split_line == []:
-                    break
-                assert n_words == 1 and (n_floats in {3, 6}), (
-                    "Bad atoms specification: "
-                    + str(split_line)
-                    + f"{n_words} {n_floats}"
-                )
-
-                # write atoms
-                species.append(str(split_line[0]))
-                coords.append(np.array(split_line[1:4], dtype=np.float64))
-
-                if n_floats == 6:
-                    forces.append(np.array(split_line[4:], dtype=np.float64))
-
-                count_natoms += 1
-
-        if not started_parsing_atoms:
-            raise RuntimeError("Not atoms found in xyz file!")
-
-        if read_natoms is not None:
-            assert read_natoms == count_natoms, "Not all atoms found!"
-
-        coords = np.asarray(coords)
         self.add_atoms(coords, species)
 
-        if forces:
-            forces = np.asarray(forces)
+        if forces is not None:
             self.forces = forces
 
+        self.n_atoms = natoms
+
     def get_text(self, comment="XYZ file written by Geometry.py"):
-        text = str(self.n_atoms) + "\n"
+        lines = []
+
+        # Line 1: Number of atoms
+        lines.append(str(self.n_atoms))
+
+        # Sanitize the comment line
         comment = comment.replace("\n", " ")
-        text += comment + "\n"
+
+        # Line 2: Append lattice vectors in the standard extxyz format if periodic
+        if (
+            self.lattice_vectors is not None
+            and (self.lattice_vectors != 0).any()
+        ):
+            lattice_str = " ".join(
+                f"{val:.8f}" for val in self.lattice_vectors.flatten()
+            )
+
+            # extxyz format specifies the Lattice and atomic properties layout
+            comment += (
+                f' Lattice="{lattice_str}" Properties=species:S:1:pos:R:3'
+            )
+
+        lines.append(comment)
+
+        # Line 3+: Atomic species and coordinates
         for index in range(self.n_atoms):
             element = self.species[index]
             x, y, z = self.coords[index]
-            text += f"{element}    {x:-4.8f}    {y:-4.8f}    {z:-4.8f}" + "\n"
-        return text
+            lines.append(f"{element:<4} {x:14.8f} {y:14.8f} {z:14.8f}")
+
+        return "\n".join(lines) + "\n"
 
 
 class XSFGeometry(Geometry):
