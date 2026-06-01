@@ -542,4 +542,3 @@ class TestELSIOutput:
         )._getnnz() == 0
 
 
-# ruff: noqa: ANN001, S101, ERA001

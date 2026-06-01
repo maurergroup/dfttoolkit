@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 from matplotlib import axes, figure
+from matplotlib.image import AxesImage
 from matplotlib.ticker import MaxNLocator
 from weas_widget import WeasWidget
 
@@ -476,14 +477,18 @@ class VisualiseCube(Cube):
 
     def visualise_plane(
         self,
-        plane_centre: npt.NDArray,
-        plane_normal: npt.NDArray,
-        extent: list[float] | npt.NDArray,
+        plane_centre: npt.NDArray[np.float64],
+        plane_normal: npt.NDArray[np.float64],
+        extent: (
+            list[float]
+            | tuple[float, float, float, float]
+            | npt.NDArray[np.float64]
+        ),
         plane_points: int = 100,
         cmap: str = "RdBu_r",
         vmin: float | None = None,
         vmax: float | None = None,
-    ) -> None:
+    ) -> AxesImage:
         """
         Extract and plot a 2D heatmap slice of the cube file grid values.
 
@@ -518,7 +523,6 @@ class VisualiseCube(Cube):
         )
 
         # 3. Create a coordinate mapping of the calculated square rows/columns
-        # Note: get_values_on_plane uses: np.linspace(-plane_extent, plane_extent, plane_points)
         square_coords = np.linspace(-plane_extent, plane_extent, plane_points)
 
         # 4. Find the array index slices corresponding to your custom bounding box
@@ -526,6 +530,7 @@ class VisualiseCube(Cube):
         x_indices = np.where(
             (square_coords >= xmin) & (square_coords <= xmax)
         )[0]
+
         y_indices = np.where(
             (square_coords >= ymin) & (square_coords <= ymax)
         )[0]
@@ -553,3 +558,5 @@ class VisualiseCube(Cube):
             vmin=vmin,
             vmax=vmax,
         )
+
+        return img

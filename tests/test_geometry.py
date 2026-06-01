@@ -108,4 +108,3 @@ class TestAimsGeometry:
         assert np.allclose(slab.lattice_vectors, test_lattice_vectors)
 
 
-# ruff: noqa: ANN001, S101, ERA001

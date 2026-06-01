@@ -50,7 +50,7 @@ class Cube:
         if self.filename is not None:
             self._read()
 
-    def _read(self, filename: str = None):
+    def _read(self, filename: str | None = None) -> None:
         if filename is None:
             filename = self.filename
         if filename is None:
@@ -70,7 +70,7 @@ class Cube:
             # Read cube dimensions
             n_points = []
             dx = []
-            for i in range(3):
+            for _ in range(3):
                 line = f.readline().strip().split()
                 n_points.append(int(line[0]))
                 dx.append([float(x) for x in line[1:]])
@@ -82,7 +82,7 @@ class Cube:
             # read atom coordinates
             atom_Z = []
             atom_pos = []
-            for i in range(self.n_atoms):
+            for _ in range(self.n_atoms):
                 line = f.readline().strip().split()
                 atom_Z.append(int(line[0]))
                 atom_pos.append([float(x) for x in line[2:]])
@@ -1038,8 +1038,8 @@ class Cube:
             for ind_2, y in enumerate(extent_vec):
                 plane_pos = plane_centre - x * plane_vec_xy + y * plane_vec_z
 
-                value, mapped_coords = self.get_value_at_positions(
-                    plane_pos, return_mapped_coords=True
+                value = self.get_value_at_positions(
+                    plane_pos, return_mapped_coords=False
                 )
 
                 # vec = mapped_coords - plane_pos + self.origin
