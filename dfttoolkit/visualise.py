@@ -62,7 +62,9 @@ class VisualiseAims(AimsOutput):
         # Only plot delta_charge_sd if the calculation is spin polarised
         if delta_charge_sd is not None and np.all(delta_charge_sd) != 0.0:
             ax.plot(
-                tot_scf_iters, delta_charge_sd, label=r"$\Delta$ charge/spin density"
+                tot_scf_iters,
+                delta_charge_sd,
+                label=r"$\Delta$ charge/spin density",
             )
 
         # Add the convergence parameters
@@ -229,11 +231,13 @@ class VisualiseAims(AimsOutput):
     @staticmethod
     def _plot_ks_states_convergence(
         ax: axes.Axes,
-        ks_eigenvals: dict[str, npt.NDArray[np.int64 | np.float64]]
-        | tuple[
-            dict[str, npt.NDArray[np.int64 | np.float64]],
-            dict[str, npt.NDArray[np.int64 | np.float64]],
-        ],
+        ks_eigenvals: (
+            dict[str, npt.NDArray[np.int64 | np.float64]]
+            | tuple[
+                dict[str, npt.NDArray[np.int64 | np.float64]],
+                dict[str, npt.NDArray[np.int64 | np.float64]],
+            ]
+        ),
         title: str | None = None,
     ) -> None:
         """
@@ -331,7 +335,9 @@ class VisualiseAims(AimsOutput):
         self.get_convergence_parameters()
 
         # Get the total number of SCF iterations
-        tot_scf_iters = np.arange(1, len(self.scf_convergence["SCF iterations"]) + 1)
+        tot_scf_iters = np.arange(
+            1, len(self.scf_convergence["SCF iterations"]) + 1
+        )
 
         # Change the number of subplots if forces and ks_eigenvalues are to be plotted
         subplots = [True, True, forces, ks_eigenvalues]
@@ -364,7 +370,9 @@ class VisualiseAims(AimsOutput):
         # Plot the forces
         if forces:
             delta_forces = self.scf_convergence["change of max force"]
-            delta_forces = np.delete(delta_forces, np.argwhere(delta_forces == 0.0))
+            delta_forces = np.delete(
+                delta_forces, np.argwhere(delta_forces == 0.0)
+            )
             forces_on_atoms = self.scf_convergence["forces on atoms"]
             forces_on_atoms = np.delete(
                 forces_on_atoms, np.argwhere(forces_on_atoms == 0.0)
@@ -384,7 +392,9 @@ class VisualiseAims(AimsOutput):
             i_subplot += 1
             ks_eigenvals = self.get_all_ks_eigenvalues()
 
-            self._plot_ks_states_convergence(ax[i_subplot], ks_eigenvals, title)
+            self._plot_ks_states_convergence(
+                ax[i_subplot], ks_eigenvals, title
+            )
 
         return fig
 
@@ -412,8 +422,8 @@ class VisualiseCube(Cube):
         path to the .cube file
     """
 
-    def __init__(self, cube: str):
-        super().__init__(cube=cube)
+    def __init__(self, filename: str):
+        super().__init__(filename=filename)
 
     def weas_core_hole(
         self, viewer: WeasWidget | None = None, **kwargs: str
@@ -463,3 +473,83 @@ class VisualiseCube(Cube):
         }
 
         return ch_viewer
+
+    def visualise_plane(
+        self,
+        plane_centre: npt.NDArray,
+        plane_normal: npt.NDArray,
+        extent: list[float] | npt.NDArray,
+        plane_points: int = 100,
+        cmap: str = "RdBu_r",
+        vmin: float | None = None,
+        vmax: float | None = None,
+    ) -> None:
+        """
+        Extract and plot a 2D heatmap slice of the cube file grid values.
+
+        Parameters
+        ----------
+        plane_centre : npt.NDArray
+            Cartesian coordinates [x, y, z] of the plane's center point.
+        plane_normal : npt.NDArray
+            Vector perpendicular to the viewing plane.
+        plane_extent : float
+            Half-width of the square viewport window in Angstroms.
+        plane_points : int, default=100
+            Resolution grid size for the extraction slice.
+        cmap : str, default="RdBu_r"
+            The matplotlib colormap palette string.
+        show_atoms : bool, default=True
+            If True, projects and overlays nearby atoms within the tolerance gap.
+        atom_tolerance : float, default=1.0
+            Maximum perpendicular distance (Angstroms) for an atom to be rendered.
+        save_path : str | Path | None, default=None
+            If provided, saves the output plot to the given filepath destination.
+        """
+        xmin, xmax, ymin, ymax = extent
+        plane_extent = np.max(np.abs(extent))
+
+        # 1. Extract 2D grid slice from the volumetric array data
+        values = self.get_values_on_plane(
+            plane_centre=plane_centre,
+            plane_normal=plane_normal,
+            plane_extent=plane_extent,
+            plane_points=plane_points,
+        )
+
+        # 3. Create a coordinate mapping of the calculated square rows/columns
+        # Note: get_values_on_plane uses: np.linspace(-plane_extent, plane_extent, plane_points)
+        square_coords = np.linspace(-plane_extent, plane_extent, plane_points)
+
+        # 4. Find the array index slices corresponding to your custom bounding box
+        # We find where the coordinates fall inside the [xmin, xmax] and [ymin, ymax] windows
+        x_indices = np.where(
+            (square_coords >= xmin) & (square_coords <= xmax)
+        )[0]
+        y_indices = np.where(
+            (square_coords >= ymin) & (square_coords <= ymax)
+        )[0]
+
+        if len(x_indices) == 0 or len(y_indices) == 0:
+            raise ValueError(
+                "The requested extent lies completely outside the sampled plane_extent."
+            )
+
+        idx_x_min, idx_x_max = x_indices[0], x_indices[-1] + 1
+        idx_y_min, idx_y_max = y_indices[0], y_indices[-1] + 1
+
+        # 5. Slice the matrix down to the requested rectangular size
+        # Because values is generated as values[ind_1, ind_2] where ind_1 is x and ind_2 is y:
+        cropped_values = values[idx_x_min:idx_x_max, idx_y_min:idx_y_max]
+
+        # 6. Render the cropped matrix
+        ax = plt.gca()
+        img = ax.imshow(
+            cropped_values.T,  # Transpose to map rows to Y and columns to X
+            extent=extent,
+            origin="lower",
+            cmap=cmap,
+            aspect="equal",
+            vmin=vmin,
+            vmax=vmax,
+        )

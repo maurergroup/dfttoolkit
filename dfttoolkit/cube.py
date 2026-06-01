@@ -7,14 +7,13 @@ import numpy.typing as npt
 from ase import Atoms
 from scipy.ndimage.interpolation import shift
 
-from .base import Parser
 from .geometry import Geometry
 from .utils.math_utils import get_triple_product
 from .utils.periodic_table import PeriodicTable
 from .utils.units import BOHR_IN_ANGSTROM, EPSILON0_AIMS
 
 
-class Cube(Parser):
+class Cube:
     """
     Read, interpolate, and perform operations on cube files.
 
@@ -24,7 +23,6 @@ class Cube(Parser):
 
     Attributes
     ----------
-    atoms
     comment
     cube_vectors
     dV
@@ -45,9 +43,6 @@ class Cube(Parser):
     """
 
     def __init__(self, filename: str):
-        # Parse file information and perform checks
-        super().__init__(self._supported_files, cube=filename)
-
         self.verbose = False
         self.filename = filename
         self._grid = None
@@ -805,10 +800,7 @@ class Cube(Parser):
         for i in range(n_coords):
             x, y, z = pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
             if (
-                isinstance(x, int)
-                and isinstance(y, int)
-                and isinstance(z, int)
-                and 0 <= x < self.grid.shape[0]
+                0 <= x < self.grid.shape[0]
                 and 0 <= y < self.grid.shape[1]
                 and 0 <= z < self.grid.shape[2]
             ):
@@ -1029,6 +1021,10 @@ class Cube(Parser):
 
         plane_vec_xy = np.cross(vec_z, plane_normal)
         plane_vec_xy /= np.linalg.norm(plane_vec_xy)
+
+        if np.any(np.isnan(plane_vec_xy)):
+            plane_vec_xy = np.array([1.0, 0.0, 0.0])
+
         plane_vec_z = np.cross(plane_normal, plane_vec_xy)
         plane_vec_z /= np.linalg.norm(plane_vec_z)
 
@@ -1036,7 +1032,7 @@ class Cube(Parser):
 
         values_on_plane = np.zeros((len(extent_vec), len(extent_vec)))
 
-        max_dist = (self.dv1 + self.dv2 + self.dv3) / 3
+        # max_dist = (self.dv1 + self.dv2 + self.dv3) / 3
 
         for ind_1, x in enumerate(extent_vec):
             for ind_2, y in enumerate(extent_vec):
@@ -1046,11 +1042,11 @@ class Cube(Parser):
                     plane_pos, return_mapped_coords=True
                 )
 
-                vec = mapped_coords - plane_pos + self.origin
-                mag = np.linalg.norm(vec)
+                # vec = mapped_coords - plane_pos + self.origin
+                # mag = np.linalg.norm(vec)
 
-                if mag < max_dist:
-                    values_on_plane[ind_1, ind_2] = value
+                # if mag < max_dist:
+                values_on_plane[ind_1, ind_2] = value
 
         return values_on_plane
 
