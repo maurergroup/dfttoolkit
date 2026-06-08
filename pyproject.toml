@@ -183,5 +183,5 @@ replace = 'version = "{new_version}"'
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
-search = 'requires-python = ">=3.11, <3.1{minor}"'
-replace = 'requires-python = ">=3.11, <3.1{new_minor:increment}"'
+search = 'requires-python = ">=3.11, <3.1{current_minor}"'
+replace = 'requires-python = ">=3.11, <3.1{new_minor}"'
