@@ -1046,7 +1046,7 @@ class Cube:
                 # mag = np.linalg.norm(vec)
 
                 # if mag < max_dist:
-                values_on_plane[ind_1, ind_2] = value
+                values_on_plane[ind_1, ind_2] = value[0]
 
         return values_on_plane
 
