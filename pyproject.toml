@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dfttoolkit"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
   "ase>=3.22.1",
   "click>=8.2.1",
@@ -20,7 +20,7 @@ dependencies = [
   "spglib>=2.6.0",
   "weas-widget>=0.1.26",
 ]
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.11, <3.15"
 authors = [
   { name = "Dylan Morgan", email = "dylan.morgan@warwick.ac.uk" },
   { name = "Lukas Hoermann", email = "lukas.hoermann@warwick.ac.uk" },
@@ -168,3 +168,20 @@ exclude_patterns = ["build", ".DS_Store"]
 [tool.uv]
 upgrade = true
 default-groups = []
+
+[tool.bumpversion]
+current_version = "0.5.0"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+search = "{current_version}"
+replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'requires-python = ">=3.11, <3.1{current_minor}"'
+replace = 'requires-python = ">=3.11, <3.1{new_minor}"'

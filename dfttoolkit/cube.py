@@ -2,20 +2,18 @@ import copy
 from pathlib import Path
 from typing import Any, Literal, Self
 
-import ase.io.cube
 import numpy as np
 import numpy.typing as npt
 from ase import Atoms
 from scipy.ndimage.interpolation import shift
 
-from .base import Parser
 from .geometry import Geometry
 from .utils.math_utils import get_triple_product
 from .utils.periodic_table import PeriodicTable
 from .utils.units import BOHR_IN_ANGSTROM, EPSILON0_AIMS
 
 
-class Cube(Parser):
+class Cube:
     """
     Read, interpolate, and perform operations on cube files.
 
@@ -25,7 +23,6 @@ class Cube(Parser):
 
     Attributes
     ----------
-    atoms
     comment
     cube_vectors
     dV
@@ -45,60 +42,65 @@ class Cube(Parser):
         contents of the cube file
     """
 
-    def __init__(self, cube: str):
-        # Parse file information and perform checks
-        super().__init__(self._supported_files, cube=cube)
+    def __init__(self, filename: str):
+        self.verbose = False
+        self.filename = filename
+        self._grid = None
+        self.comment = ""
+        if self.filename is not None:
+            self._read()
 
-        # Check that the file is a cube file and in the correct format
-        self._check_binary(False)
+    def _read(self, filename: str | None = None) -> None:
+        if filename is None:
+            filename = self.filename
+        if filename is None:
+            raise ValueError("No filename specified.")
 
-        # Parse the cube data here rather than in base.File.__post_init__ so we can call
-        # ASE's read_cube()
-        with self._path.open() as f:
-            _cf = ase.io.cube.read_cube(f)
-            self.lines = f.readlines()
-            self.data = b""
-            self._binary = False
+        with open(filename) as f:
+            self.comment = f.readline() + f.readline()
+            line = f.readline().strip().split()
+            # Read header
+            self.n_atoms = int(line[0])
 
-        self._atoms = _cf["atoms"]
-        self._n_atoms = len(self._atoms)
-        self._origin = _cf["origin"]
-        self._volume = _cf["datas"]
+            # origin is the lower left corner in front
+            self.origin = (
+                np.array([float(x) for x in line[1:]]) * BOHR_IN_ANGSTROM
+            )
 
-        # Centre the atoms to cube origin
-        self._atoms.translate(-self._origin)  # pyright: ignore[reportOperatorIssue]
+            # Read cube dimensions
+            n_points = []
+            dx = []
+            for _ in range(3):
+                line = f.readline().strip().split()
+                n_points.append(int(line[0]))
+                dx.append([float(x) for x in line[1:]])
 
-        # Get other cube file parameters
-        self._grid_vectors = np.array(
-            [float(j) for i in self.lines[2:5] for j in i.split()[1:]]
-        )
+            self._grid_vectors = np.array(dx) * BOHR_IN_ANGSTROM
+            self._shape = np.array(n_points, np.int64)
 
-        self._shape = np.array(
-            [int(i.split()[0]) for i in self.lines[3:5]], dtype=np.int64
-        )
+            self._calculate_cube_vectors()
+            # read atom coordinates
+            atom_Z = []
+            atom_pos = []
+            for _ in range(self.n_atoms):
+                line = f.readline().strip().split()
+                atom_Z.append(int(line[0]))
+                atom_pos.append([float(x) for x in line[2:]])
 
-        self._calculate_cube_vectors()
+            self._geom = Geometry()
+            atom_pos = np.array(atom_pos)
+            atom_pos *= BOHR_IN_ANGSTROM
+            species = [PeriodicTable.get_symbol(i) for i in atom_Z]
+            self._geom.add_atoms(atom_pos, species)
 
-        # Get atoms
-        atom_Z = np.zeros(self._n_atoms, dtype=int)
-        atom_pos = np.zeros((self._n_atoms, 3))
-        for i in range(self._n_atoms):
-            spl_atom_line = self.lines[6 + i].split()
-            atom_Z[i] = int(spl_atom_line[0])
-            atom_pos[i, :] = np.array(spl_atom_line[2:5])
+            # read grid data
+            data = []
+            for line in f:
+                data += [float(x) for x in line.split()]
+            data = np.array(data)
 
-        self._geom = Geometry()
-        atom_pos *= BOHR_IN_ANGSTROM
-        species = [PeriodicTable.get_symbol(i) for i in atom_Z]
-        self._geom.add_atoms(atom_pos, species)
-
-        # Parse the grid data
-        self._grid = np.fromiter(
-            (float(x) for line in self.lines[7:] for x in line.split()),
-            dtype=np.float64,
-        )
-        self._n_points = len(self._grid)
-        self._grid = np.reshape(self._grid, self._shape)
+            self._n_points = len(data)
+            self._grid = data.reshape(self._shape)
 
     @property
     def _supported_files(self) -> dict[str, str]:
@@ -113,35 +115,68 @@ class Cube(Parser):
         """Atoms present in the cube file."""
         return self._atoms
 
+    @atoms.setter
+    def atoms(self, atoms: Atoms) -> None:
+        """Atoms present in the cube file."""
+        self._atoms = atoms
+
     @property
     def comment(self) -> str:
-        """Comment line of the cube file."""
-        return " ".join(self.lines[0:1])
+        return self._comment
+
+    @comment.setter
+    def comment(self, comment: str) -> None:
+        self._comment = comment
 
     @property
     def cube_vectors(self) -> npt.NDArray[np.int64]:
         """Cube vectors of the cube file."""
         return self._cube_vectors
 
+    @cube_vectors.setter
+    def cube_vectors(self, cube_vectors: npt.NDArray[np.int64]) -> None:
+        """Cube vectors of the cube file."""
+        self._cube_vectors = cube_vectors
+
     @property
     def dV(self) -> npt.NDArray:  # noqa: N802
         """Volume of the cube file."""
         return self._dV
+
+    @dV.setter
+    def dV(self, dV: npt.NDArray) -> None:  # noqa: N802
+        """Volume of the cube file."""
+        self._dV = dV
 
     @property
     def dv1(self) -> np.floating[Any]:
         """First voxel dimension of the cube file."""
         return self._dv1
 
+    @dv1.setter
+    def dv1(self, dv1: np.floating[Any]) -> None:
+        """First voxel dimension of the cube file."""
+        self._dv1 = dv1
+
     @property
     def dv2(self) -> np.floating[Any]:
         """Second voxel dimension of the cube file."""
         return self._dv2
 
+    @dv2.setter
+    def dv2(self, dv2: np.floating[Any]) -> None:
+        """Second voxel dimension of the cube file."""
+        self._dv2 = dv2
+
     @property
     def dv3(self) -> np.floating[Any]:
         """Third voxel dimension of the cube file."""
         return self._dv3
+
+    @dv3.setter
+    def dv3(self, dv3: np.floating[Any]) -> None:
+        """Third voxel dimension of the cube file."""
+        self._dv3 = dv3
 
     @property
     def geometry(self) -> Geometry:
@@ -151,8 +186,6 @@ class Cube(Parser):
     @geometry.setter
     def geometry(self, geometry: Geometry) -> None:
         self._geom = geometry
-        self._atoms = geometry.get_as_ase()
-        self._n_atoms = len(geometry)
 
     @property
     def grid(self) -> npt.NDArray:
@@ -168,30 +201,40 @@ class Cube(Parser):
         """Grid vectors of the cube file."""
         return self._grid_vectors
 
+    @grid_vectors.setter
+    def grid_vectors(self, grid_vectors: npt.NDArray) -> None:
+        """Grid vectors of the cube file."""
+        self._grid_vectors = grid_vectors
+
     @property
     def n_atoms(self) -> int:
         """Number of atoms in the cube file."""
         return self._n_atoms
 
-    @property
-    def n_points(self) -> int:
-        """Number of points in the grid data."""
-        return self._n_points
+    @n_atoms.setter
+    def n_atoms(self, n_atoms: int) -> None:
+        """Number of atoms in the cube file."""
+        self._n_atoms = n_atoms
 
     @property
     def origin(self) -> npt.NDArray[np.float64]:
         """Origin of the cube file."""
         return self._origin  # pyright: ignore
 
-    @property
-    def shape(self) -> npt.NDArray[np.int64]:
-        """Number of dimensions of the grid vectors."""
-        return self._shape
+    @origin.setter
+    def origin(self, origin: npt.NDArray[np.float64]) -> None:
+        """Origin of the cube file."""
+        self._origin = origin
 
     @property
     def volume(self) -> npt.NDArray[np.float64]:
         """Volume of the cube file."""
         return self._volume  # pyright: ignore
+
+    @volume.setter
+    def volume(self, volume: npt.NDArray[np.float64]) -> None:
+        """Volume of the cube file."""
+        self._volume = volume
 
     def __add__(self, other: Self):
         new_cube = copy.deepcopy(self)
@@ -229,7 +272,7 @@ class Cube(Parser):
         return self
 
     def _calculate_cube_vectors(self) -> None:
-        self._cube_vectors = ((self.grid_vectors.T) * self.shape).T
+        self._cube_vectors = ((self.grid_vectors.T) * self._shape).T
 
         self._dV = np.abs(
             get_triple_product(
@@ -302,7 +345,9 @@ class Cube(Parser):
         header += (
             f"{self.n_atoms:5d}"
             + "   "
-            + "   ".join([f"{x / BOHR_IN_ANGSTROM: 10.6f}" for x in self.origin])
+            + "   ".join(
+                [f"{x / BOHR_IN_ANGSTROM: 10.6f}" for x in self.origin]
+            )
             + "\n"
         )
 
@@ -322,7 +367,9 @@ class Cube(Parser):
 
         # atoms
         atom_pos = self.geometry.coords
-        atom_Z = [PeriodicTable.get_atomic_number(x) for x in self.geometry.species]
+        atom_Z = [
+            PeriodicTable.get_atomic_number(x) for x in self.geometry.species
+        ]
         for i in range(self.n_atoms):
             header += (
                 f"{atom_Z[i]:5d}"
@@ -330,7 +377,10 @@ class Cube(Parser):
                 + "0.000000"
                 + "   "
                 + "   ".join(
-                    [f"{atom_pos[i, j] / BOHR_IN_ANGSTROM: 10.6f}" for j in range(3)]
+                    [
+                        f"{atom_pos[i, j] / BOHR_IN_ANGSTROM: 10.6f}"
+                        for j in range(3)
+                    ]
                 )
                 + "\n"
             )
@@ -346,7 +396,9 @@ class Cube(Parser):
             for iy in range(y_len):
                 for iz in range(z_len):
                     # for each ix we are consecutively writing all iy elements
-                    string_array[ix * y_len + iy, iz] = f" {self.grid[ix, iy, iz]: .8e}"
+                    string_array[ix * y_len + iy, iz] = (
+                        f" {self.grid[ix, iy, iz]: .8e}"
+                    )
 
         # write to file
         with filename.open(mode="w", newline="\n") as f:
@@ -439,14 +491,19 @@ class Cube(Parser):
         axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
+            np.cross(
+                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
+            )
         )
 
         # trapeziodal rule: int(f) = sum_i (f_i + f_i+1) * dA / 2
         # but here not div by 2 because no double counting in sum
         proj = np.sum(self.data, axis=tuple(axsum)) * dA
         xstart = self.origin[axis]
-        xend = self.origin[axis] + self.grid_vectors[axis, axis] * self.shape[axis]
+        xend = (
+            self.origin[axis]
+            + self.grid_vectors[axis, axis] * self.shape[axis]
+        )
         xaxis = np.linspace(xstart, xend, self.shape[axis])
 
         return proj, xaxis
@@ -469,7 +526,9 @@ class Cube(Parser):
         axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
+            np.cross(
+                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
+            )
         )
         n_datapoints = self.shape[axsum[0]] * self.shape[axsum[1]]
         A = dA * n_datapoints
@@ -503,7 +562,9 @@ class Cube(Parser):
         axsum.pop(axis)
 
         dA = np.linalg.norm(
-            np.cross(self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :])
+            np.cross(
+                self.grid_vectors[axsum[0], :], self.grid_vectors[axsum[1], :]
+            )
         )
         n_datapoints = self.shape[axsum[0]] * self.shape[axsum[1]]
         A = dA * n_datapoints
@@ -525,15 +586,21 @@ class Cube(Parser):
         npt.NDArray[np.floating[Any]],
     ]:
         v1_vec = (
-            np.array([self.origin[0] + i * self.dv1 for i in range(self.shape[0])])
+            np.array(
+                [self.origin[0] + i * self.dv1 for i in range(self.shape[0])]
+            )
             - self.dv1 / 2
         )  # shift by half a grid vector to align voxel to center
         v2_vec = (
-            np.array([self.origin[1] + i * self.dv2 for i in range(self.shape[1])])
+            np.array(
+                [self.origin[1] + i * self.dv2 for i in range(self.shape[1])]
+            )
             - self.dv2 / 2
         )
         v3_vec = (
-            np.array([self.origin[2] + i * self.dv3 for i in range(self.shape[2])])
+            np.array(
+                [self.origin[2] + i * self.dv3 for i in range(self.shape[2])]
+            )
             - self.dv3 / 2
         )
 
@@ -571,11 +638,21 @@ class Cube(Parser):
 
         # get points in cube grid
         v1_vec = (
-            np.array([i * self.dv1 for i in range(self.shape[0] * periodic_replica[0])])
+            np.array(
+                [
+                    i * self.dv1
+                    for i in range(self.shape[0] * periodic_replica[0])
+                ]
+            )
             - self.dv1 / 2
         )
         v2_vec = (
-            np.array([i * self.dv2 for i in range(self.shape[1] * periodic_replica[1])])
+            np.array(
+                [
+                    i * self.dv2
+                    for i in range(self.shape[1] * periodic_replica[1])
+                ]
+            )
             - self.dv2 / 2
         )
         v1, v2 = np.meshgrid(v1_vec, v2_vec)
@@ -587,7 +664,9 @@ class Cube(Parser):
 
         return v1_plot, v2_plot
 
-    def heights_for_constant_current(self, constant_current: float) -> npt.NDArray:
+    def heights_for_constant_current(
+        self, constant_current: float
+    ) -> npt.NDArray:
         """
         Find heights where the STM cube file current is closest to I = constant_current.
 
@@ -705,7 +784,9 @@ class Cube(Parser):
         """
         trans_mat = copy.deepcopy(self.grid_vectors).T
         coords = np.atleast_2d(coords)
-        pos_inds = np.round(np.dot(np.linalg.inv(trans_mat), (coords - self.origin).T))
+        pos_inds = np.round(
+            np.dot(np.linalg.inv(trans_mat), (coords - self.origin).T)
+        )
         pos_inds = pos_inds.astype(int)
 
         n_coords = np.shape(pos_inds)[1]
@@ -719,10 +800,7 @@ class Cube(Parser):
         for i in range(n_coords):
             x, y, z = pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
             if (
-                isinstance(x, int)
-                and isinstance(y, int)
-                and isinstance(z, int)
-                and 0 <= x < self.grid.shape[0]
+                0 <= x < self.grid.shape[0]
                 and 0 <= y < self.grid.shape[1]
                 and 0 <= z < self.grid.shape[2]
             ):
@@ -793,13 +871,23 @@ class Cube(Parser):
         difference = pos_inds_0 - pos_inds
 
         if xy_periodic:
-            difference[0, difference[0, :] > 1.0] = difference[0, :] - self.shape[0]
-            difference[1, difference[1, :] > 1.0] = difference[1, :] - self.shape[1]
+            difference[0, difference[0, :] > 1.0] = (
+                difference[0, :] - self.shape[0]
+            )
+            difference[1, difference[1, :] > 1.0] = (
+                difference[1, :] - self.shape[1]
+            )
 
         for i in range(n_coords):
-            pos_inds_x = pos_inds[:, i] + np.array([np.sign(difference[0])[i], 0, 0])
-            pos_inds_y = pos_inds[:, i] + np.array([0, np.sign(difference[1])[i], 0])
-            pos_inds_z = pos_inds[:, i] + np.array([0, 0, np.sign(difference[2])[i]])
+            pos_inds_x = pos_inds[:, i] + np.array(
+                [np.sign(difference[0])[i], 0, 0]
+            )
+            pos_inds_y = pos_inds[:, i] + np.array(
+                [0, np.sign(difference[1])[i], 0]
+            )
+            pos_inds_z = pos_inds[:, i] + np.array(
+                [0, 0, np.sign(difference[2])[i]]
+            )
 
             # periodic boundary conditions
             if not xy_periodic:
@@ -829,7 +917,9 @@ class Cube(Parser):
             pos_inds_y = pos_inds_y.astype(int)
             pos_inds_z = pos_inds_z.astype(int)
 
-            values_0 = self.grid[pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]]
+            values_0 = self.grid[
+                pos_inds[0, i], pos_inds[1, i], pos_inds[2, i]
+            ]
             values_x = self.grid[pos_inds_x[0], pos_inds_x[1], pos_inds_x[2]]
             values_y = self.grid[pos_inds_y[0], pos_inds_y[1], pos_inds_y[2]]
             values_z = self.grid[pos_inds_z[0], pos_inds_z[1], pos_inds_z[2]]
@@ -877,7 +967,9 @@ class Cube(Parser):
         )
 
         cube_mol = self.geometry.get_molecules()
-        cube_geom_center = cube_mol.get_geometric_center(ignore_center_attribute=True)
+        cube_geom_center = cube_mol.get_geometric_center(
+            ignore_center_attribute=True
+        )
         ads_geom_center = adsorption_geometry.get_geometric_center(
             ignore_center_attribute=True
         )
@@ -896,7 +988,9 @@ class Cube(Parser):
             raise ValueError(msg)
 
         self.corresponding_adsorption_geometry = adsorption_geometry
-        self.distance_to_adsorption_geometry = ads_geom_center - cube_geom_center
+        self.distance_to_adsorption_geometry = (
+            ads_geom_center - cube_geom_center
+        )
 
     def get_values_on_plane(
         self,
@@ -927,6 +1021,10 @@ class Cube(Parser):
 
         plane_vec_xy = np.cross(vec_z, plane_normal)
         plane_vec_xy /= np.linalg.norm(plane_vec_xy)
+
+        if np.any(np.isnan(plane_vec_xy)):
+            plane_vec_xy = np.array([1.0, 0.0, 0.0])
+
         plane_vec_z = np.cross(plane_normal, plane_vec_xy)
         plane_vec_z /= np.linalg.norm(plane_vec_z)
 
@@ -934,21 +1032,21 @@ class Cube(Parser):
 
         values_on_plane = np.zeros((len(extent_vec), len(extent_vec)))
 
-        max_dist = (self.dv1 + self.dv2 + self.dv3) / 3
+        # max_dist = (self.dv1 + self.dv2 + self.dv3) / 3
 
         for ind_1, x in enumerate(extent_vec):
             for ind_2, y in enumerate(extent_vec):
                 plane_pos = plane_centre - x * plane_vec_xy + y * plane_vec_z
 
-                value, mapped_coords = self.get_value_at_positions(
-                    plane_pos, return_mapped_coords=True
+                value = self.get_value_at_positions(
+                    plane_pos, return_mapped_coords=False
                 )
 
-                vec = mapped_coords - plane_pos + self.origin
-                mag = np.linalg.norm(vec)
+                # vec = mapped_coords - plane_pos + self.origin
+                # mag = np.linalg.norm(vec)
 
-                if mag < max_dist:
-                    values_on_plane[ind_1, ind_2] = value
+                # if mag < max_dist:
+                values_on_plane[ind_1, ind_2] = value[0]
 
         return values_on_plane
 

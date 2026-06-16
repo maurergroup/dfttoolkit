@@ -220,4 +220,3 @@ class TestMathUtils:
 class TestPeriodicTable: ...  # noqa: D101
 
 
-# ruff: noqa: ANN001, S101

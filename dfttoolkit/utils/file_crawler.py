@@ -40,14 +40,14 @@ def find_all_aims_output_files(
             root_path = Path(root)
             for fname in fname_list:
                 if include_restart:
-                    aims_fnames.append(root / fname)
+                    aims_fnames.append(root_path / fname)
                 else:
                     root_name = root_path.name
                     is_restart_folder = len(root_name) == len(
                         "restartXX"
                     ) and root_name.startswith("restart")
                     if not is_restart_folder:
-                        aims_fnames.append(root / fname)
+                        aims_fnames.append(root_path / fname)
 
     return aims_fnames
 
