@@ -4879,6 +4879,8 @@ class XYZGeometry(Geometry):
             value = match.group(2).strip('"')
             header_dict[key] = value
 
+        self.header_dict = header_dict
+
         # Lattice
         if "Lattice" in header_dict:
             lattice_vals = np.fromstring(header_dict["Lattice"], sep=" ")
