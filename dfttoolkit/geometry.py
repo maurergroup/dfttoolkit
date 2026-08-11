@@ -51,7 +51,7 @@ class Geometry:
     """
 
     def __init__(self, filename: str | None = None):
-        self.species = []
+        self.species = np.empty(0, dtype="<U2")
         self.lattice_vectors = np.zeros([3, 3])
         self.comment_lines = []
         self.constrain_relax = np.zeros([0, 3], bool)
@@ -97,7 +97,7 @@ class Geometry:
             equal = equal and np.allclose(
                 self.lattice_vectors, other.lattice_vectors
             )
-            equal = equal and self.species == other.species
+            equal = equal and np.array_equal(self.species, other.species)
         return equal
 
     def __len__(self):
@@ -301,7 +301,7 @@ class Geometry:
         ----------
         cartesion_coords : List of numpy arrays of shape [nx3]
             coordinates of new atoms
-        species : list of strings
+        species : array of strings
             element symbol for each atom
         constrain_relax : list of lists of bools (optional)
             [bool,bool,bool] (for [x,y,z] axis) for all atoms that should be
@@ -332,7 +332,7 @@ class Geometry:
             self.coords = np.concatenate(
                 (self.coords, cartesian_coords), axis=0
             )
-        self.species += species
+        self.species = np.concatenate((self.species, species), axis=0)
         self.n_atoms = self.coords.shape[0]
 
         self.constrain_relax = np.concatenate(
@@ -465,12 +465,11 @@ class Geometry:
         mask = np.ones(len(self.species), dtype=bool)
         mask[atom_inds] = False
 
-        self.species = list(np.array(self.species)[mask])
+        self.species = self.species[mask]
         self.constrain_relax = self.constrain_relax[mask, :]
         self.external_force = self.external_force[mask, :]
         self.calculate_friction = self.calculate_friction[mask]
         self.coords = self.coords[mask, :]
-        self.n_atoms = len(self.constrain_relax)
 
         if hasattr(self, "hessian") and self.hessian is not None:
             flat_mask = np.kron(mask, np.ones(3, dtype=bool))
@@ -494,7 +493,7 @@ class Geometry:
         None
 
         """
-        L = np.array(self.species) == species
+        L = self.species == species
         atom_inds = np.where(L)[0]
         self.remove_atoms(atom_inds)
 
@@ -3051,7 +3050,7 @@ class Geometry:
         new_geom = self.__class__()
         new_geom.add_atoms(
             self.coords[atom_indices, :],
-            [self.species[i] for i in atom_indices],
+            np.array([self.species[i] for i in atom_indices]),
             constrain_relax=self.constrain_relax[atom_indices],
             initial_moment=[self.initial_moment[i] for i in atom_indices],
             initial_charge=[self.initial_charge[i] for i in atom_indices],
@@ -3088,102 +3087,70 @@ class Geometry:
             self.get_spglib_cell()
         )
 
-        surface_vector = (
-            surface[0] * lattice[0, :]
-            + surface[1] * lattice[1, :]
-            + surface[2] * lattice[2, :]
+        h, k, l = surface
+
+        # Two integer vectors perpendicular to Miller index
+        v1 = np.array([k, -h, 0])
+        v2 = np.cross(np.array([h, k, l]), v1)
+
+        # Reduce integer factors
+        from math import gcd
+
+        def reduce_int(v):
+            g = gcd(gcd(abs(int(v[0])), abs(int(v[1]))), abs(int(v[2])))
+            return v // g
+
+        v1 = reduce_int(v1)
+        v2 = reduce_int(v2)
+
+        # Convert to Cartesian
+        surface_normal = h * lattice[0] + k * lattice[1] + l * lattice[2]
+
+        surface_lattice = np.array(
+            [
+                surface_normal,
+                v1 @ lattice,
+                v2 @ lattice,
+            ]
         )
 
-        # TODO: this way of building lattice vectors parallel to the surface
-        # is not ideal for certain surfaces
-        dot_0 = surface_vector.dot(surface_vector)
-        dot_1 = surface_vector.dot(lattice[0, :])
-        dot_2 = surface_vector.dot(lattice[1, :])
-        dot_3 = surface_vector.dot(lattice[2, :])
-
-        if abs(dot_1) > threshold:
-            frac = Fraction(dot_0 / dot_1).limit_denominator(1000)
-            n, m = frac.numerator, frac.denominator
-            v1 = m * surface_vector - n * lattice[0, :]
-        else:
-            v1 = lattice[0, :]
-
-        if abs(dot_2) > threshold:
-            frac = Fraction(dot_0 / dot_2).limit_denominator(1000)
-            n, m = frac.numerator, frac.denominator
-            v2 = m * surface_vector - n * lattice[1, :]
-        else:
-            v2 = lattice[1, :]
-
-        if abs(dot_3) > threshold:
-            frac = Fraction(dot_0 / dot_3).limit_denominator(1000)
-            n, m = frac.numerator, frac.denominator
-            v3 = m * surface_vector - n * lattice[2, :]
-        else:
-            v3 = lattice[2, :]
-
-        surface_lattice = np.zeros((3, 3))
-        surface_lattice[0, :] = surface_vector
-
-        ind = 1
-        for v in [v1, v2, v3]:
-            if not np.linalg.norm(v) == 0:
-                surface_lattice[ind, :] = v
-                rank = np.linalg.matrix_rank(surface_lattice)
-
-                if rank == ind + 1:
-                    ind += 1
-                    if ind == 3:
-                        break
+        print(f"surface lattice: {surface_lattice}")
 
         # flip surface lattice such that surface normal becomes the z-axis
         surface_lattice = np.flip(surface_lattice, 0)
 
-        slab = self.__class__()
+        # surface = T @ primitive
+        primitive = np.asarray(self.lattice_vectors)
+        T = surface_lattice @ np.linalg.inv(primitive)
+
+        T_int = np.rint(T).astype(int)
+
+        print(T, T_int)
+
+        if not np.allclose(T, T_int, atol=1e-6):
+            raise ValueError(
+                "Surface lattice is not an integer transformation "
+                "of the slab lattice."
+            )
+
+        slab = self.get_periodic_replica(
+            (1, 1, 1),
+            transformation=T_int,
+        )
+
+        coords = slab.coords
+
+        frac = utils.get_fractional_coords(coords, surface_lattice)
+
+        inside = np.all(
+            (frac >= -threshold) & (frac < 1 - threshold),
+            axis=1,
+        )
+        outside = np.where(~inside)[0]
+
+        slab.remove_atoms(outside)
         slab.lattice_vectors = surface_lattice
-
-        # shellsize 100 such that the code does not run infinitely
-        shellsize = 100
-        for shell in range(shellsize):
-            add_next_shell = False
-            for h in range(-shell, shell + 1):
-                for j in range(-shell, shell + 1):
-                    for k in range(-shell, shell + 1):
-                        if (
-                            (abs(h) < shell)
-                            and (abs(j) < shell)
-                            and (abs(k) < shell)
-                        ):
-                            continue
-
-                        for new_species, coord in zip(
-                            atomic_numbers, scaled_positions, strict=False
-                        ):
-                            new_coord = coord.dot(lattice) + np.array(
-                                [h, j, k]
-                            ).dot(lattice)
-                            frac_new_coord = utils.get_fractional_coords(
-                                new_coord, surface_lattice
-                            )
-
-                            L1 = np.sum(frac_new_coord >= 1 - threshold)
-                            L2 = np.sum(frac_new_coord < -threshold)
-
-                            if not L1 and not L2:
-                                slab.add_atoms(
-                                    [new_coord],
-                                    [PeriodicTable.get_symbol(new_species)],
-                                )
-                                add_next_shell = True
-
-            if shell != 0 and not add_next_shell:
-                break
-
-            if shell == 100:
-                warnings.warn(
-                    "<Geometry.get_primitive_slab> could not build a correct slab.",
-                    stacklevel=2,
-                )
+        print("unreduced slab", len(slab))
 
         slab.align_lattice_vector_to_vector(np.array([0, 0, 1]), 2)
         slab.align_lattice_vector_to_vector(np.array([1, 0, 0]), 0)
@@ -3194,14 +3161,16 @@ class Geometry:
         frac_coords = utils.get_fractional_coords(
             slab.coords, scaled_slab_lattice
         )
-        species = [PeriodicTable.get_atomic_number(s) for s in slab.species]
+        atomic_numbers = [
+            PeriodicTable.get_atomic_number(s) for s in slab.species
+        ]
 
         (
             primitive_slab_lattice,
             primitive_slab_scaled_positions,
             primitive_slab_atomic_numbers,
         ) = spglib.find_primitive(
-            (scaled_slab_lattice, frac_coords, species), symprec=1e-5
+            (scaled_slab_lattice, frac_coords, atomic_numbers), symprec=1e-5
         )
 
         primitive_slab_species = [
@@ -3218,6 +3187,8 @@ class Geometry:
         primitive_slab.add_atoms(primitive_slab_coords, primitive_slab_species)
         primitive_slab.map_to_first_unit_cell()
 
+        print("reduced slab", len(primitive_slab))
+
         # Sanity check: primitive_slab must be reducable to the standard unit cell
         check_lattice, _, _ = spglib.standardize_cell(
             primitive_slab.get_spglib_cell()
@@ -3225,9 +3196,12 @@ class Geometry:
 
         assert np.allclose(
             check_lattice, lattice
-        ), "<Geometry.get_primitive_slab> the slab that was constructed \
-        could not be reduced to the original bulk unit cell. Something \
-        must have gone wrong."
+        ), f"<Geometry.get_primitive_slab> the slab that was \
+            constructed but the lattice santiy check yielded: \
+            new lattice = {check_lattice} \
+            old lattice = {lattice} \
+            could not be reduced to the original bulk unit cell. \
+            Something must have gone wrong."
 
         return primitive_slab
 
@@ -3384,71 +3358,204 @@ class Geometry:
 
     def get_periodic_replica(
         self,
-        replications: tuple,
+        replications: tuple | None = None,
         lattice: npt.NDArray[np.float64] | None = None,
         explicit_replications: list | None = None,
+        transformation: npt.NDArray[np.int_] | None = None,
     ):
         """
-        Get a new geometry file that is a periodic replica of the original file.
-
-        Repeats the geometry N-1 times in all given directions:
-        (1,1,1) returns the original file
+        Get a periodic replica of the geometry.
 
         Parameters
         ----------
-        TODO Fix types
-        replications : tuple or list
-            number of replications for each dimension
-        lattice : numpy array of shape [3x3]
-            super-lattice vectors to use for periodic replication
-            if lattice is None (default) the lattice vectors from the current
-            geometry file are used.
-        explicit_replications : iterable of iterables
-             a way to explicitly define which replicas should be made.
-             example: [[-1, 0, 1], [0, 1, 2, 3], [0]] will repeat 3 times in x
-             (centered) and 4 times in y (not centered)
+        replications : tuple, optional
+            Number of repetitions along the original lattice vectors.
+
+        lattice : (3, 3) ndarray, optional
+            Lattice used for generating the replicas.
+
+        explicit_replications : iterable of iterables, optional
+            Explicit replication indices for each lattice direction.
+
+        transformation : (3, 3) ndarray, optional
+            Integer transformation matrix defining the new lattice:
+
+                new_lattice = transformation @ old_lattice
+
+            This allows general supercells where the new lattice vectors
+            are linear combinations of the original lattice vectors.
+
+            Example:
+
+                [[3, 1, 0],
+                 [0, 5, 0],
+                 [0, 0, 1]]
+
+            gives
+
+                L0 = 3*a0 + a1
+                L1 = 5*a1
+                L2 = a2
 
         Returns
         -------
-        New geometry
+        new_geom : Geometry
+            Geometry containing the periodic replicas.
         """
-        # TODO implement geometry_parts the right way (whatever this is)
+
         if lattice is None:
-            lattice = np.array(self.lattice_vectors)
+            lattice = np.asarray(self.lattice_vectors)
 
-        if explicit_replications:
+        # ------------------------------------------------------------
+        # General transformation matrix
+        # ------------------------------------------------------------
+
+        if transformation is not None:
+
+            T = np.asarray(transformation, dtype=int)
+
+            if T.shape != (3, 3):
+                raise ValueError("transformation must have shape (3, 3)")
+
+            # Number of primitive cells in the supercell
+            n_replicas = abs(round(np.linalg.det(T)))
+
+            if n_replicas == 0:
+                raise ValueError("transformation matrix is singular")
+
+            # New lattice
+            new_lattice = T @ lattice
+
+            T_inv = np.linalg.inv(T)
+
+            # Vertices of the new unit cell in its fractional coordinates
+            vertices = np.array(list(itertools.product([0.0, 1.0], repeat=3)))
+
+            # Corresponding coordinates in the old primitive lattice
+            primitive_coords = vertices @ T
+
+            # Determine a conservative integer bounding box
+            lower = np.floor(primitive_coords.min(axis=0)).astype(int)
+            upper = np.ceil(primitive_coords.max(axis=0)).astype(int)
+
+            candidates = itertools.product(
+                *[range(lower[i], upper[i] + 1) for i in range(3)]
+            )
+
+            translations = []
+
+            for n in candidates:
+                n = np.asarray(n, dtype=float)
+
+                # Express the primitive-lattice point n in the
+                # supercell coordinate system.
+                f = n @ T_inv
+
+                if np.all(f >= -1e-10) and np.all(f < 1 - 1e-10):
+                    translations.append(n)
+
+            translations = np.asarray(translations)
+
+            # Sanity check
+            if len(translations) != n_replicas:
+                raise RuntimeError(
+                    "Could not generate the correct number of "
+                    f"translations. Found {len(translations)}, "
+                    f"expected {n_replicas}."
+                )
+
+            # Cartesian translations
+            offsets = translations @ lattice
+
+            # Repeat atoms
+            new_coords = (
+                self.coords[None, :, :] + offsets[:, None, :]
+            ).reshape(-1, 3)
+
+            new_species = list(
+                itertools.chain.from_iterable([self.species] * n_replicas)
+            )
+
+            new_constrain = list(
+                itertools.chain.from_iterable(
+                    [self.constrain_relax] * n_replicas
+                )
+            )
+
+            new_geom = self.__class__()
+
+            new_geom.add_atoms(
+                new_coords,
+                new_species,
+                new_constrain,
+            )
+
+            new_geom.lattice_vectors = new_lattice
+
+            # Save original lattice
+            if hasattr(self, "original_lattice_vectors"):
+                new_geom.original_lattice_vectors = copy.deepcopy(
+                    self.original_lattice_vectors
+                )
+            else:
+                new_geom.original_lattice_vectors = copy.deepcopy(
+                    self.lattice_vectors
+                )
+
+            return new_geom
+
+        # ------------------------------------------------------------
+        # Original behaviour
+        # ------------------------------------------------------------
+
+        if explicit_replications is not None:
+
             rep = explicit_replications
-            lattice_multipliers = [
-                np.max(t) - np.min(t) for t in explicit_replications
-            ]
-        else:
-            rep = [list(range(r)) for r in replications]
-            lattice_multipliers = replications
 
-        # old: n_replicas = np.abs(np.prod(replications))
-        n_replicas = np.prod([len(i) for i in rep])
-        n_atoms_new = n_replicas * self.n_atoms
-        new_coords = np.zeros([n_atoms_new, 3])
+        else:
+
+            if replications is None:
+                raise ValueError(
+                    "Either replications or transformation must be supplied."
+                )
+
+            rep = [list(range(r)) for r in replications]
+
+        n_replicas = np.prod([len(r) for r in rep])
+
+        new_coords = np.zeros((n_replicas * self.n_atoms, 3))
+
         new_species = list(self.species) * n_replicas
         new_constrain = list(self.constrain_relax) * n_replicas
 
         insert_pos = 0
-        # itertools.product = nested for loop
+
         for frac_offset in itertools.product(*rep):
-            frac_shift = np.zeros([1, 3])
+
+            frac_shift = np.zeros((1, 3))
             frac_shift[0, : len(frac_offset)] = frac_offset
-            offset = utils.get_cartesian_coords(frac_shift, lattice)
-            new_coords[insert_pos : insert_pos + self.n_atoms, :] = (
+
+            offset = utils.get_cartesian_coords(
+                frac_shift,
+                lattice,
+            )
+
+            new_coords[insert_pos : insert_pos + self.n_atoms] = (
                 self.coords + offset
             )
+
             insert_pos += self.n_atoms
 
         new_geom = self.__class__()
 
-        new_geom.add_atoms(new_coords, new_species, new_constrain)
+        new_geom.add_atoms(
+            new_coords,
+            new_species,
+            new_constrain,
+        )
+
         new_geom.lattice_vectors = lattice
 
-        # save original lattice vector for visualization
         if hasattr(self, "original_lattice_vectors"):
             new_geom.original_lattice_vectors = copy.deepcopy(
                 self.original_lattice_vectors
@@ -3458,8 +3565,6 @@ class Geometry:
                 self.lattice_vectors
             )
 
-        for i, r in enumerate(lattice_multipliers):
-            new_geom.lattice_vectors[i, :] *= r
         return new_geom
 
     def get_split_into_molecules(self, threshold) -> list:
@@ -4369,7 +4474,9 @@ class AimsGeometry(Geometry):
         self.coords = np.zeros([self.n_atoms, 3])
         for i, line in enumerate(atom_lines):
             tokens = line.split()
-            self.species.append(tokens[4])
+            self.species = np.concatenate(
+                (self.species, np.array([tokens[4]], dtype="<U2"))
+            )
             self.coords[i, :] = [float(x) for x in tokens[1:4]]
 
         # store symmetry_lv and symmetry_frac
@@ -4764,8 +4871,14 @@ class VaspGeometry(Geometry):
             Q = P
         if len(typenames) > 0:
             for k in range(Q.shape[0]):
-                self.species.append(
-                    typenames[np.min(np.where(elementid > k)[0])]
+                self.species = np.concatenate(
+                    (
+                        self.species,
+                        np.asarray(
+                            [typenames[np.min(np.where(elementid > k)[0])]],
+                            dtype="<U2",
+                        ),
+                    )
                 )
 
         self.lattice_vectors = vecs
